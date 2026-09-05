@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.9 - Part 1 (內置 4 拍 Count-in)
+   🔒 Arcatdia Battle Engine v4.0 - Part 1 (1.0x 預設鎖死 & 精準圖表)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,6 +22,7 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
+// 🎯 預設鎖死 1.0x 原速，徹底消滅幽靈速度
 let playbackSpeed = 1.0;
 
 const judgeLineOffsets = [165, 185, 205, 225];
@@ -47,8 +48,10 @@ function togglePerspectiveMode() {
 }
 
 function togglePlaybackSpeed() {
-    const speeds = [1.0, 0.9, 0.8, 0.7];
+    // 循環速度：1.0x -> 0.8x -> 0.6x -> 0.5x
+    const speeds = [1.0, 0.8, 0.6, 0.5];
     let idx = speeds.indexOf(playbackSpeed);
+    if (idx === -1) idx = 0;
     playbackSpeed = speeds[(idx + 1) % speeds.length];
     
     Object.keys(audioElements).forEach(key => {
@@ -59,6 +62,7 @@ function togglePlaybackSpeed() {
     if (speedBtn) {
         speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
     }
+    showJudgement(`速度: ${playbackSpeed.toFixed(1)}x`, "#00ccff");
 }
 
 function toggleJudgeLineLevel() {
@@ -120,7 +124,7 @@ function playHiHatHitSound() {
     } catch (e) {}
 }
 
-// 🎯 預備拍專用：清脆木質鼓棍聲 (Stick Click)
+// 🎯 預備拍專用：木質鼓棍敲擊聲 (Stick Click)
 function playStickClick(freq = 1200) {
     if (!dspCtx) return;
     try {
@@ -172,25 +176,26 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 譜面生成：第一粒音精確定在 1.37秒 (即預備拍剛好數完那一微秒)
+// 🎯 譜面生成：第一粒音目標時間精確咬死在第 4 拍完結點 (1371.4ms)
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const barMs = beatMs * 4; // 1371.4ms (剛好 1 個 Bar)
+    const barMs = beatMs * 4; // 1371.4ms (1 個小節)
 
     const firstHitTime = barMs; 
 
     for (let i = 0; i < 150; i++) {
         notes.push({
             type: 'tap',
-            lane: 1, 
+            lane: 1, // L2 黃色軌
             targetTime: firstHitTime + (i * barMs),
             hit: false
         });
     }
 }
 
+// 🎯 綁定軌道觸控與點擊
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -218,8 +223,14 @@ for (let i = 0; i < 4; i++) {
         });
     }
 }
+
+// 🎯 開波強制同步速度按鈕文字為 1.0x
+const speedBtnInit = document.getElementById('speedToggleBtn');
+if (speedBtnInit) {
+    speedBtnInit.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
+}
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.9 - Part 2
+   🔒 Arcatdia Battle Engine v4.0 - Part 2
    ============================================================= */
 
 let countInTimers = [];
@@ -313,14 +324,14 @@ function clearAllTimers() {
     }
 }
 
-// 🎯 核心：自帶 4 拍預備拍 (1.37秒) 排程
+// 🎯 核心調度：Count-in 與提前 90ms 預熱 MP3 食晒空氣仔
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000; // ~342.8ms
+    const totalLeadMs = beatMs * 4;   // 1371.4ms (整整 1 個 Bar)
 
-    // 敲 4 聲預備拍：前 3 下低音，第 4 下高音提示即刻入歌！
-    const beats = [0, 1, 2, 3];
-    beats.forEach(b => {
+    // 敲 4 下預備拍 (1, 2, 3, 4)
+    [0, 1, 2, 3].forEach(b => {
         const t = setTimeout(() => {
             if (!isPlaying) return;
             playStickClick(b === 3 ? 1800 : 1200);
@@ -329,12 +340,14 @@ function scheduleCountInAndPlay() {
         countInTimers.push(t);
     });
 
-    // 4 拍一數完 (剛好 1.37秒)，MP3 正式起跑，拍子機自動停止！
-    const totalLeadMs = beatMs * 4;
+    // 🎯 提前 90ms 預熱啟動音訊，剛好抵消 Android 音訊硬體解碼延遲
+    const airGapOffset = 90; 
+    const playDelay = Math.max(0, totalLeadMs - airGapOffset);
+
     audioStartTimer = setTimeout(() => {
         if (!isPlaying) return;
         playAllAudio();
-    }, totalLeadMs / playbackSpeed);
+    }, playDelay / playbackSpeed);
 }
 
 function togglePlay() {
@@ -442,7 +455,7 @@ function gameLoop() {
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        // 捕捉第一粒音出現在畫面的時間
+        // 🎯 捕捉第一粒音在頂部出世時間
         if (note === notes[0] && rawProgress >= 0 && firstNoteBornTime === null) {
             firstNoteBornTime = currentTimeMs;
         }
@@ -466,7 +479,7 @@ function gameLoop() {
             ctx.fill();
         }
 
-        // 過線 MISS
+        // 過線判定 MISS
         if (rawProgress > 1.08 && !note.hit) {
             if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
                 firstNoteHitTime = currentTimeMs;
@@ -501,7 +514,7 @@ function gameLoop() {
         }
     }
 
-    // 🎯 實時遙測 HUD
+    // 🎯 實時遙測 HUD：定格數據白紙黑字
     ctx.save();
     ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
     ctx.fillRect(8, 55, 230, 95);
@@ -523,7 +536,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化畫出靜態軌道
+// 🎯 初始化畫布靜態軌道
 (function initialDraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
