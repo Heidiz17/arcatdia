@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.1 - Part 1 (星際航行 + 精確收尾)
+   🔒 Arcatdia Battle Engine v5.3 - Part 1 (太陽系全星際航行)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -20,7 +20,7 @@ let hp = 100;
 let notes = [];
 let particles = [];
 let stars = [];
-let celestialEvents = []; // 🎯 行星事件 (地球 -> 木星 -> 冥王星 -> 貓星)
+let celestialEvents = [];
 let startTime = 0;
 
 let playbackSpeed = 1.0;
@@ -56,13 +56,40 @@ function chooseDifficultyAndStart(mode) {
 
     const info = document.getElementById('hudTrackInfo');
     if (info) {
-        if (currentMode === 'easy') info.innerText = "01_EASY (慢悠舒適)";
-        else if (currentMode === 'normal') info.innerText = "01_NORMAL (連貫正音)";
+        if (currentMode === 'easy') info.innerText = "01_EASY (星際巡航)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (正音連動)";
         else info.innerText = "01_TEST (校準場)";
     }
 
-    updateSpeedButtonDisplay();
+    updateHeaderButtons();
     togglePlay();
+}
+
+function restartSong() {
+    clearAllTimers();
+    pauseAllAudio();
+    isPlaying = false;
+
+    score = 0;
+    combo = 0;
+    hp = 100;
+    firstNoteBornTime = null;
+    firstNoteHitTime = null;
+    recordedTravelTime = "--";
+    updateUI();
+
+    showJudgement("🔄 RESTART!");
+
+    isPlaying = true;
+    initCelestialJourney();
+    generateChart();
+    startTime = performance.now();
+    scheduleCountInAndPlay();
+
+    const playBtn = document.getElementById('mainPlayBtn');
+    if (playBtn) playBtn.innerText = "⏸ PAUSE";
+
+    requestAnimationFrame(gameLoop);
 }
 
 function toggleSpeedButton() {
@@ -75,18 +102,18 @@ function toggleSpeedButton() {
         Object.keys(audioElements).forEach(key => {
             audioElements[key].playbackRate = playbackSpeed;
         });
-        showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`, "#00ccff");
+        showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`);
     } else {
         const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
         let idx = scrollMultipliers.indexOf(scrollSpeedMultiplier);
         if (idx === -1) idx = 0;
         scrollSpeedMultiplier = scrollMultipliers[(idx + 1) % scrollMultipliers.length];
-        showJudgement(`流速: ${scrollSpeedMultiplier.toFixed(1)}x`, "#ffaa00");
+        showJudgement(`流速: ${scrollSpeedMultiplier.toFixed(1)}x`);
     }
-    updateSpeedButtonDisplay();
+    updateHeaderButtons();
 }
 
-function updateSpeedButtonDisplay() {
+function updateHeaderButtons() {
     const speedBtn = document.getElementById('speedToggleBtn');
     if (speedBtn) {
         if (currentMode === 'test') {
@@ -99,11 +126,26 @@ function updateSpeedButtonDisplay() {
             speedBtn.style.borderColor = "#ffaa00";
         }
     }
+
+    let restartBtn = document.getElementById('restartToggleBtn');
+    if (!restartBtn) {
+        const container = document.querySelector('.hud-buttons');
+        if (container) {
+            restartBtn = document.createElement('button');
+            restartBtn.id = 'restartToggleBtn';
+            restartBtn.className = 'btn-panel';
+            restartBtn.style.borderColor = '#ffaa00';
+            restartBtn.style.color = '#ffaa00';
+            restartBtn.innerText = '🔄 重玩';
+            restartBtn.onclick = restartSong;
+            container.insertBefore(restartBtn, container.firstChild);
+        }
+    }
 }
 
 function toggleJudgeLineLevel() {
     judgeLineLevel = (judgeLineLevel + 1) % judgeLineOffsets.length;
-    showJudgement(`線位: LV ${judgeLineLevel + 1}`, "#ccff00");
+    showJudgement(`線位: LV ${judgeLineLevel + 1}`);
 }
 
 function initStars() {
@@ -120,13 +162,60 @@ function initStars() {
 }
 initStars();
 
-// 🎯 行星路標航行：地球 -> 木星 -> 冥王星 -> 阿卡迪亞貓星
+// 🎯 太陽系全序列時間軸：地球 -> 金星 -> 木土雙星 -> 天海雙星 -> 冥王星 -> 星雲 -> 貓星
 function initCelestialJourney() {
     celestialEvents = [
-        { name: "🌍 地球起航", timeSec: 2, duration: 4, color: "rgba(0, 150, 255, 0.25)", radius: 60 },
-        { name: "🪐 木星風暴", timeSec: 35, duration: 5, color: "rgba(230, 140, 60, 0.25)", radius: 85 },
-        { name: "❄️ 冥王冰界", timeSec: 75, duration: 5, color: "rgba(180, 220, 255, 0.25)", radius: 50 },
-        { name: "🐾 阿卡迪亞貓星", timeSec: 110, duration: 6, color: "rgba(255, 105, 180, 0.35)", radius: 100 }
+        // 1. 地球起航
+        {
+            timeSec: 2, duration: 8,
+            planets: [
+                { name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }
+            ]
+        },
+        // 2. 金星
+        {
+            timeSec: 25, duration: 8,
+            planets: [
+                { name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }
+            ]
+        },
+        // 3. 木星 ＆ 土星 (雙星同現，土星帶環)
+        {
+            timeSec: 52, duration: 11,
+            planets: [
+                { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 },
+                { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true }
+            ]
+        },
+        // 4. 天王星 ＆ 海王星 (冰巨星雙子)
+        {
+            timeSec: 88, duration: 11,
+            planets: [
+                { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.32)", radius: 52, xRatio: 0.62, yRatio: 0.20 },
+                { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.35)", radius: 50, xRatio: 0.80, yRatio: 0.25 }
+            ]
+        },
+        // 5. 冥王星邊緣
+        {
+            timeSec: 122, duration: 9,
+            planets: [
+                { name: "❄️ 冥王星冰界", color: "rgba(195, 220, 240, 0.28)", radius: 42, xRatio: 0.72, yRatio: 0.22 }
+            ]
+        },
+        // 6. 阿卡迪亞星雲門
+        {
+            timeSec: 148, duration: 12,
+            planets: [
+                { name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }
+            ]
+        },
+        // 7. 抵達：阿卡迪亞貓星
+        {
+            timeSec: 175, duration: 25,
+            planets: [
+                { name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }
+            ]
+        }
     ];
 }
 
@@ -228,17 +317,14 @@ function getNextLane(lastLane) {
     return next;
 }
 
-// 🎯 譜面生成：嚴格鎖定歌曲長度（精準收尾，曲終音止）
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000; // ~342.8ms
     const barMs = beatMs * 4;         // 1371.4ms
     const firstHitTime = barMs; 
-
-    // 🎯 精確鎖定：歌曲大約 2 分幾鐘，鎖定 96 小節，保證曲終完全冇多餘幽靈音！
-    const totalBars = 96; 
-    const holdDuration = beatMs * 0.5; // 🎯 短 Hold：改為半拍 (~171ms)，轉手極順！
+    const totalBars = 145;            
+    const holdDuration = beatMs * 0.5;
 
     let lastLane = 1;
 
@@ -257,11 +343,9 @@ function generateChart() {
             const roll = Math.random();
 
             if (roll < 0.55) {
-                // 4 拍全音符單擊 (成個小節得一粒，極好呼吸)
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
             } else if (roll < 0.8) {
-                // 第 1 拍短 Hold (半拍)
                 lastLane = getNextLane(lastLane);
                 notes.push({ 
                     type: 'hold', lane: lastLane, 
@@ -269,7 +353,6 @@ function generateChart() {
                     holding: false, hit: false, lastTick: 0 
                 });
             } else {
-                // 2 拍單擊
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
 
@@ -283,13 +366,11 @@ function generateChart() {
             const roll = Math.random();
 
             if (roll < 0.6) {
-                // 連續 4 個 1 拍單擊 (爬行連打)
                 for (let b = 0; b < 4; b++) {
                     lastLane = getNextLane(lastLane);
                     notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * b), hit: false });
                 }
             } else if (roll < 0.85) {
-                // 第 1 拍短 Hold -> 第 3、4 拍單擊
                 lastLane = getNextLane(lastLane);
                 notes.push({ 
                     type: 'hold', lane: lastLane, 
@@ -303,7 +384,6 @@ function generateChart() {
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 3), hit: false });
             } else {
-                // 2 拍單擊過渡
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
 
@@ -316,7 +396,6 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// 🎯 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -357,7 +436,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.1 - Part 2 (白金雷射 + 星球渲染)
+   🔒 Arcatdia Battle Engine v5.3 - Part 2 (雙星同現繪製循環)
    ============================================================= */
 
 let countInTimers = [];
@@ -392,7 +471,6 @@ function handleTap(laneIndex) {
                 targetNote.lastTick = currentTimeMs;
                 score += 500;
                 combo++;
-                // 🎯 統一字體：金色外發光
                 showJudgement("HOLD!");
                 createHitParticles(targetX, currentHitY, laneColor);
                 updateUI();
@@ -403,7 +481,6 @@ function handleTap(laneIndex) {
                 score += 1000;
                 combo++;
                 hp = Math.min(100, hp + 2);
-                // 🎯 統一白金雷射判定！
                 showJudgement("PERFECT!");
                 createHitParticles(targetX, currentHitY, "#ffffff");
             } else if (timeDiff < 320) {
@@ -450,7 +527,6 @@ function updateUI() {
     }
 }
 
-// 🎯 判定展示：統一正中，不跟隨軌道花色
 function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
     if (disp) {
@@ -461,6 +537,9 @@ function showJudgement(text) {
         } else if (text === "GREAT" || text === "HOLD!") {
             disp.style.color = "#ffd700";
             disp.style.textShadow = "0 0 15px rgba(255, 215, 0, 0.8)";
+        } else if (text.includes("RESTART")) {
+            disp.style.color = "#00ffcc";
+            disp.style.textShadow = "0 0 20px #00ffcc";
         } else {
             disp.style.color = "#ff0055";
             disp.style.textShadow = "0 0 15px rgba(255, 0, 85, 0.8)";
@@ -553,7 +632,7 @@ function gameLoop() {
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 🎯 1. 繪製深空星星
+    // 🎯 1. 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.beginPath();
@@ -567,28 +646,45 @@ function gameLoop() {
         }
     });
 
-    // 🎯 2. 行星剪影在黑色銀河中「閃一閃 / 靜靜掠過」
-    celestialEvents.forEach(p => {
-        if (currentSec >= p.timeSec && currentSec <= p.timeSec + p.duration) {
-            const progress = (currentSec - p.timeSec) / p.duration;
-            const alpha = Math.sin(progress * Math.PI) * 0.35; // 柔和淡入淡出，不搶視野
+    // 🎯 2. 行星事件渲染：支援單星、雙星同現及土星環
+    celestialEvents.forEach(evt => {
+        if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
+            const progress = (currentSec - evt.timeSec) / evt.duration;
+            const alpha = Math.sin(progress * Math.PI) * 0.40;
 
-            ctx.save();
-            ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 40;
-            ctx.beginPath();
-            // 從畫面右上角慢慢劃過
-            const px = canvas.width * 0.75 - (progress * 50);
-            const py = canvas.height * 0.22 + (progress * 40);
-            ctx.arc(px, py, p.radius, 0, Math.PI * 2);
-            ctx.fill();
+            evt.planets.forEach(p => {
+                ctx.save();
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 45;
 
-            // 星球小地標文字 (日系精緻感)
-            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.5})`;
-            ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
-            ctx.fillText(p.name, px - 35, py + p.radius + 18);
-            ctx.restore();
+                const px = canvas.width * p.xRatio - (progress * 40);
+                const py = canvas.height * p.yRatio + (progress * 30);
+
+                // 畫星體本體
+                ctx.beginPath();
+                ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 🪐 如果有土星環，額外畫出光環斜橢圓
+                if (p.hasRing) {
+                    ctx.save();
+                    ctx.translate(px, py);
+                    ctx.rotate(-0.35);
+                    ctx.strokeStyle = "rgba(240, 220, 160, 0.55)";
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // 行星地標文字
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.8})`;
+                ctx.font = "bold 13px 'M PLUS Rounded 1c', sans-serif";
+                ctx.fillText(p.name, px - 40, py + p.radius + 20);
+                ctx.restore();
+            });
         }
     });
 

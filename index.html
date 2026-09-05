@@ -19,10 +19,13 @@
         <div class="hp-bar-container"><div id="hpFill" class="hp-fill"></div></div>
         <div class="score-board"><span id="scoreVal">000000</span></div>
 
-        <div class="hud-buttons">
+                <div class="hud-buttons">
+            <!-- 🎯 永遠鎖死：RESTART 重玩掣 -->
+            <button id="restartToggleBtn" class="btn-panel" style="border-color:#ffaa00; color:#ffaa00;" onclick="restartSong()">🔄 重玩</button>
+
             <button id="lineToggleBtn" class="btn-panel" style="border-color:#ccff00; color:#ccff00;" onclick="toggleJudgeLineLevel()">🎯 調線位</button>
             <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
-            <button id="speedToggleBtn" class="btn-panel" onclick="togglePlaybackSpeed()">🎵 1.0x</button>
+            <button id="speedToggleBtn" class="btn-panel" onclick="toggleSpeedButton()">🚀 1.0x</button>
             <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">▶ PLAY</button>
         </div>
     </div>
