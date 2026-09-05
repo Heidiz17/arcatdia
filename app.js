@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v2.7 - Speed Options & Comfortable Notes
+   🔒 Arcatdia Battle Engine v3.2 - Whole Note (全音符 4拍一粒) (Part 1)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -14,7 +14,6 @@ resizeCanvas();
 
 let bpm = 175;
 let isPlaying = false;
-let isCalibrationMode = false;
 let score = 0;
 let combo = 0;
 let hp = 100;
@@ -25,18 +24,22 @@ let startTime = 0;
 
 const audioOffsetMs = 250; 
 let noteSpeed = 6.0; 
-let playbackSpeed = 1.0; // 預設 1.0x，可切換 0.8x, 0.9x
+let playbackSpeed = 0.8; // 預設 0.8x 慢速
+
+// 🎯 4 檔判定線高低微調
+const judgeLineOffsets = [85, 105, 125, 145];
+let judgeLineLevel = 1; 
 
 const lanePressed = [false, false, false, false];
 
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
-    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
+    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" }, // L2 黃色
     { main: "#00ccff", glow: "rgba(0, 204, 255, 0.8)" },
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 2; // 預設 3D 尖角
+let currentPerspectiveMode = 1; // 預設 2D 直軌
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
@@ -46,9 +49,8 @@ function togglePerspectiveMode() {
     }
 }
 
-// 🎯 練歌速度循環切換：0.8x ➔ 0.9x ➔ 1.0x
 function togglePlaybackSpeed() {
-    const speeds = [0.8, 0.9, 1.0];
+    const speeds = [0.7, 0.8, 0.9, 1.0];
     let idx = speeds.indexOf(playbackSpeed);
     playbackSpeed = speeds[(idx + 1) % speeds.length];
     
@@ -60,6 +62,11 @@ function togglePlaybackSpeed() {
     if (speedBtn) {
         speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
     }
+}
+
+function toggleJudgeLineLevel() {
+    judgeLineLevel = (judgeLineLevel + 1) % judgeLineOffsets.length;
+    showJudgement(`線位: LV ${judgeLineLevel + 1}`, "#ccff00");
 }
 
 function initStars() {
@@ -147,53 +154,23 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-function generateChart(isCalibration = false) {
+// 🎯 全音符（Whole Note）模式：每 4 拍先出一粒！
+function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
+    const wholeNoteMs = beatMs * 4; // 🎯 整整一小節（4 拍）先一粒！
     let currentMs = audioOffsetMs;
 
-    if (isCalibration) {
-        for (let i = 0; i < 4; i++) {
-            notes.push({
-                type: 'tap',
-                lane: 1,
-                targetTime: currentMs,
-                hit: false
-            });
-            currentMs += beatMs;
-        }
-    } else {
-        for (let i = 0; i < 600; i++) {
-            if (i % 16 === 7) {
-                notes.push({
-                    type: 'hold',
-                    lane: (i % 4),
-                    startTime: currentMs,
-                    endTime: currentMs + (beatMs * 3.0),
-                    holding: false,
-                    completed: false,
-                    hit: false
-                });
-                currentMs += beatMs * 4.0;
-            } else {
-                const pattern = [
-                    [0], [2], [1], [3], 
-                    [0, 2], [1], [3], [0], 
-                    [1, 3], [2], [0], [3]
-                ][i % 12];
-
-                pattern.forEach(laneIndex => {
-                    notes.push({
-                        type: 'tap',
-                        lane: laneIndex,
-                        targetTime: currentMs,
-                        hit: false
-                    });
-                });
-                currentMs += beatMs;
-            }
-        }
+    // 全曲 150 個小節，每小節第 1 拍落一粒特大黃色全音符
+    for (let i = 0; i < 150; i++) {
+        notes.push({
+            type: 'tap',
+            lane: 1, // L2 黃色軌道
+            targetTime: currentMs,
+            hit: false
+        });
+        currentMs += wholeNoteMs; // 隔足 4 拍先落下一粒
     }
 }
 
@@ -211,7 +188,6 @@ for (let i = 0; i < 4; i++) {
             e.preventDefault();
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
-            handleRelease(i);
         });
         laneBtn.addEventListener('mousedown', () => {
             laneBtn.classList.add('pressed');
@@ -222,65 +198,42 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mouseup', () => {
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
-            handleRelease(i);
         });
     }
 }
+/* =============================================================
+   🔒 Arcatdia Battle Engine v3.2 - Whole Note (Part 2)
+   ============================================================= */
 
 function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const W = canvas.width;
     const laneW = W / 4;
-    const hitZoneY = canvas.height - 105;
+    const currentHitY = canvas.height - judgeLineOffsets[judgeLineLevel];
     const targetX = laneW * laneIndex + (laneW / 2);
     const laneColor = laneColors[laneIndex].main;
 
-    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
+    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
 
     if (targetNote) {
-        if (targetNote.type === 'tap') {
-            const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
 
-            if (timeDiff < 180) {
-                targetNote.hit = true;
-                score += 1000;
-                combo++;
-                hp = Math.min(100, hp + 2);
-                showJudgement("PERFECT!", laneColor);
-                createHitParticles(targetX, hitZoneY, laneColor);
-            } else if (timeDiff < 300) {
-                targetNote.hit = true;
-                score += 500;
-                combo++;
-                showJudgement("GREAT", "#ffaa00");
-                createHitParticles(targetX, hitZoneY, "#ffaa00");
-            }
-        } else if (targetNote.type === 'hold') {
-            const timeDiff = Math.abs(currentTimeMs - targetNote.startTime);
-            if (timeDiff < 300) {
-                targetNote.holding = true;
-                showJudgement("HOLD!", laneColor);
-            }
+        if (timeDiff < 200) {
+            targetNote.hit = true;
+            score += 1000;
+            combo++;
+            hp = Math.min(100, hp + 2);
+            showJudgement("PERFECT!", laneColor);
+            createHitParticles(targetX, currentHitY, laneColor);
+        } else if (timeDiff < 350) {
+            targetNote.hit = true;
+            score += 500;
+            combo++;
+            showJudgement("GREAT", "#ffaa00");
+            createHitParticles(targetX, currentHitY, "#ffaa00");
         }
         updateUI();
-    }
-}
-
-function handleRelease(laneIndex) {
-    if (!isPlaying) return;
-    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
-
-    const holdNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.completed);
-    if (holdNote) {
-        if (currentTimeMs < holdNote.endTime - 150) {
-            holdNote.holding = false;
-            holdNote.completed = true;
-            combo = 0;
-            hp = Math.max(0, hp - 8);
-            showJudgement("MISS (RELEASE)", "#ff0055");
-            updateUI();
-        }
     }
 }
 
@@ -304,7 +257,7 @@ function showJudgement(text, color) {
         disp.innerText = text;
         disp.style.color = color;
         disp.style.opacity = '1';
-        setTimeout(() => { disp.style.opacity = '0'; }, 250);
+        setTimeout(() => { disp.style.opacity = '0'; }, 350);
     }
 }
 
@@ -327,12 +280,11 @@ function togglePlay() {
     const playBtn = document.getElementById('mainPlayBtn');
     if (!isPlaying) {
         isPlaying = true;
-        isCalibrationMode = false;
         score = 0;
         combo = 0;
         hp = 100;
         updateUI();
-        generateChart(false);
+        generateChart();
         playAllAudio();
         startTime = performance.now();
         if (playBtn) playBtn.innerText = "⏸ PAUSE";
@@ -345,35 +297,13 @@ function togglePlay() {
 }
 
 function startCalibration() {
-    initDSP();
-    const mask = document.getElementById('startMask');
-    if (mask) mask.style.display = 'none';
-
-    isPlaying = true;
-    isCalibrationMode = true;
-    score = 0;
-    combo = 0;
-    hp = 100;
-    updateUI();
-    generateChart(true);
-    
-    if (audioElements['drums']) {
-        audioElements['drums'].playbackRate = playbackSpeed;
-        audioElements['drums'].currentTime = 0;
-        audioElements['drums'].play().catch(() => {});
-    }
-
-    startTime = performance.now();
-    const playBtn = document.getElementById('mainPlayBtn');
-    if (playBtn) playBtn.innerText = "⏸ PAUSE";
-    requestAnimationFrame(gameLoop);
-}
-
-function startBattle() {
-    initDSP();
     const mask = document.getElementById('startMask');
     if (mask) mask.style.display = 'none';
     togglePlay();
+}
+
+function startBattle() {
+    startCalibration();
 }
 
 function gameLoop() {
@@ -397,7 +327,8 @@ function gameLoop() {
     const travelDuration = (7200 / noteSpeed); 
     const W = canvas.width;
     const H = canvas.height;
-    const hitZoneY = H - 105;
+    
+    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
     const startY = 20;
 
     const laneW = W / 4;
@@ -416,103 +347,64 @@ function gameLoop() {
         ctx.shadowColor = laneColors[i].main;
         ctx.shadowBlur = 14;
         ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
+        ctx.arc(botX[i], hitZoneY, 20, 0, Math.PI * 2);
         ctx.fill();
     }
 
+    // 🎯 橫向判定線
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.moveTo(0, hitZoneY);
+    ctx.lineTo(W, hitZoneY);
+    ctx.stroke();
+
+    ctx.fillStyle = "#00ffcc";
+    ctx.font = "bold 12px Courier New";
+    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4] - 全音符4拍模式`, 15, hitZoneY - 8);
+
+    // 🎯 渲染全音符：特大亮眼光環，代表整小節第 1 拍重音
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
         const bx = botX[laneIndex];
         const colorObj = laneColors[laneIndex];
 
-        if (note.type === 'tap') {
-            if (note.hit) return;
-            const timeTillHit = note.targetTime - currentTimeMs;
-            
-            const rawProgress = 1.0 - (timeTillHit / travelDuration);
-            const progress = Math.max(0, Math.min(1.1, Math.pow(rawProgress, 1.2)));
+        if (note.hit) return;
+        const timeTillHit = note.targetTime - currentTimeMs;
+        
+        const rawProgress = 1.0 - (timeTillHit / travelDuration);
+        const progress = Math.max(0, Math.min(1.1, Math.pow(rawProgress, 1.2)));
 
-            if (progress > 0 && progress < 1.1) {
-                const currentX = tx + (bx - tx) * progress;
-                const currentY = startY + (hitZoneY - startY) * progress;
+        if (progress > 0 && progress < 1.1) {
+            const currentX = tx + (bx - tx) * progress;
+            const currentY = startY + (hitZoneY - startY) * progress;
 
-                ctx.fillStyle = colorObj.main;
-                ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = 14 * progress;
-                ctx.beginPath();
+            ctx.fillStyle = colorObj.main;
+            ctx.shadowColor = colorObj.main;
+            ctx.shadowBlur = 20 * progress;
+            ctx.beginPath();
 
-                if (currentPerspectiveMode === 1) {
-                    // 🏊 Mode 1 舒適大直軌：放大尺寸，清晰舒服！
-                    ctx.ellipse(currentX, currentY, 18, 24, 0, 0, Math.PI * 2);
-                } else {
-                    // 🚀 Mode 2 3D 尖角：遠處舒適直立 ➔ 到眼前展寬剛好匹配按鈕闊度！
-                    const rx = (6 * (1.0 - progress)) + (42 * progress);
-                    const ry = (24 * (1.0 - progress)) + (10 * progress);
-                    ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
-                }
-                ctx.fill();
+            if (currentPerspectiveMode === 1) {
+                // 🏊 特大全音符 (直軌)
+                ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
+            } else {
+                // 🚀 3D 尖角
+                const rx = (10 * (1.0 - progress)) + (52 * progress);
+                const ry = (32 * (1.0 - progress)) + (14 * progress);
+                ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
             }
+            ctx.fill();
+        }
 
-            if (timeTillHit < -350 && !note.hit) {
-                note.hit = true;
-                combo = 0;
-                hp = Math.max(0, hp - 5);
-                showJudgement("MISS", "#ff0055");
-                updateUI();
-            }
-        } 
-        else if (note.type === 'hold') {
-            if (note.completed) return;
-
-            const rawHead = 1.0 - ((note.startTime - currentTimeMs) / travelDuration);
-            const rawTail = 1.0 - ((note.endTime - currentTimeMs) / travelDuration);
-
-            const headProgress = Math.pow(Math.max(0, Math.min(1, rawHead)), 1.2);
-            const tailProgress = Math.pow(Math.max(0, Math.min(1, rawTail)), 1.2);
-
-            if (headProgress > 0 && tailProgress < 1.1) {
-                const headY = Math.min(hitZoneY, startY + (hitZoneY - startY) * headProgress);
-                const tailY = Math.max(startY, startY + (hitZoneY - startY) * tailProgress);
-
-                const headX = tx + (bx - tx) * headProgress;
-                const tailX = tx + (bx - tx) * tailProgress;
-
-                ctx.strokeStyle = colorObj.glow;
-                ctx.lineWidth = note.holding ? 24 : 16;
-                ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = 16;
-                ctx.beginPath();
-                ctx.moveTo(tailX, tailY);
-                ctx.lineTo(headX, headY);
-                ctx.stroke();
-            }
-
-            if (note.holding && lanePressed[laneIndex]) {
-                if (Math.random() < 0.3) {
-                    createHitParticles(bx, hitZoneY, colorObj.main);
-                    score += 50;
-                    combo++;
-                    updateUI();
-                }
-
-                if (currentTimeMs >= note.endTime) {
-                    note.completed = true;
-                    note.holding = false;
-                    score += 2000;
-                    showJudgement("PERFECT!", colorObj.main);
-                    createHitParticles(bx, hitZoneY, colorObj.main);
-                    updateUI();
-                }
-            }
-
-            if (currentTimeMs > note.startTime + 300 && !note.holding && !note.completed) {
-                note.completed = true;
-                combo = 0;
-                hp = Math.max(0, hp - 8);
-                showJudgement("MISS (HOLD)", "#ff0055");
-                updateUI();
-            }
+        if (timeTillHit < -350 && !note.hit) {
+            note.hit = true;
+            combo = 0;
+            hp = Math.max(0, hp - 5);
+            showJudgement("MISS", "#ff0055");
+            updateUI();
         }
     });
 
