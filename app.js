@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.0 - Part 1 (1.0x 預設鎖死 & 精準圖表)
+   🔒 Arcatdia Battle Engine v4.1 - Part 1 (波峰咬死驗證版)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -176,7 +176,7 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 譜面生成：第一粒音目標時間精確咬死在第 4 拍完結點 (1371.4ms)
+// 🎯 譜面生成：第一粒音目標時間咬死在第 4 拍完結點 (1371.4ms)
 function generateChart() {
     notes = [];
     particles = [];
@@ -230,7 +230,7 @@ if (speedBtnInit) {
     speedBtnInit.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.0 - Part 2
+   🔒 Arcatdia Battle Engine v4.1 - Part 2
    ============================================================= */
 
 let countInTimers = [];
@@ -324,7 +324,7 @@ function clearAllTimers() {
     }
 }
 
-// 🎯 核心調度：Count-in 與提前 90ms 預熱 MP3 食晒空氣仔
+// 🎯 核心調度：根據剪映波形實測，提前 550ms 預熱啟動 MP3
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000; // ~342.8ms
@@ -340,8 +340,8 @@ function scheduleCountInAndPlay() {
         countInTimers.push(t);
     });
 
-    // 🎯 提前 90ms 預熱啟動音訊，剛好抵消 Android 音訊硬體解碼延遲
-    const airGapOffset = 90; 
+    // 🎯 實測 20 幀空氣差：提前 550ms 發車預熱音訊，第一拍波峰精確撞正判定線！
+    const airGapOffset = 550; 
     const playDelay = Math.max(0, totalLeadMs - airGapOffset);
 
     audioStartTimer = setTimeout(() => {
