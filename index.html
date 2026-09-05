@@ -4,36 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arcatdia Rhythm Engine - Production Version</title>
-    <!-- 引入獨立 CSS 樣式表 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="stage-container">
-    <!-- 頂部 HUD 資訊與血條 -->
+    <!-- 頂部 HUD 資訊與統一規格按鈕列 -->
     <div class="hud-overlay">
-        <div class="track-info">TRACK: 01_最大的愛 (<span class="bpm-text">175</span> BPM)</div>
+        <div class="track-info">01_最大的愛</div>
         
-        <!-- 血條 (HP Bar) 介面 -->
         <div class="hp-bar-container">
             <div id="hpFill" class="hp-fill"></div>
         </div>
 
-        <div class="score-board">SCORE: <span id="scoreVal">000000</span></div>
-       <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">MODE: 1 (舒適)</button>
-<button id="speedToggleBtn" class="btn-panel" onclick="toggleNoteSpeed()">SPEED: 6.0x</button>
-      
-      <button id="mainPlayBtn" class="btn-panel" onclick="togglePlay()">▶ PLAY</button>
+        <div class="score-board"><span id="scoreVal">000000</span></div>
+
+        <!-- 🎯 統一規格 3 個功能按鈕 -->
+        <div class="hud-buttons">
+            <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
+            <button id="speedToggleBtn" class="btn-panel" onclick="toggleNoteSpeed()">⚡ 6.0x</button>
+            <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">▶ PLAY</button>
+        </div>
     </div>
 
-    <!-- 打擊判定與 Combo 提示 -->
     <div id="judgementDisplay">PERFECT!</div>
     <div id="comboDisplay">0 COMBO</div>
 
-    <!-- 遊戲 Canvas 畫面 -->
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 下方 4 軌觸控區 -->
     <div class="touch-controller">
         <div class="touch-lane" id="lane0">L1</div>
         <div class="touch-lane" id="lane1">L2</div>
@@ -41,15 +39,13 @@
         <div class="touch-lane" id="lane3">R2</div>
     </div>
 
-    <!-- 啟動遮罩 -->
     <div id="startMask" class="start-mask">
         <h2 class="title-text">ARCATDIA BATTLE ENGINE</h2>
-        <p class="sub-text">175 BPM J-Rock | 商業級防爆防盜 Release v1.0</p>
+        <p class="sub-text">175 BPM J-Rock | 詩篇原創音樂全曲完全體</p>
         <button class="btn-start" onclick="startBattle()">▶ 啟動同步戰鬥</button>
     </div>
 </div>
 
-<!-- 引入獨立 JS 遊戲引擎主程式 -->
 <script src="app.js"></script>
 </body>
 </html>

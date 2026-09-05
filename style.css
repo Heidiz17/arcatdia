@@ -1,3 +1,6 @@
+/* =============================================================
+   Arcatdia Cyberpunk Theme - Fullscreen & Unified UI
+   ============================================================= */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -6,63 +9,62 @@
     -webkit-user-select: none;
 }
 
-body {
-    background-color: #07080d;
+body, html {
+    width: 100%;
+    height: 100%;
+    background-color: #050508;
     color: #00ffcc;
-    font-family: 'Courier New', monospace;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+    font-family: 'Courier New', Courier, monospace;
     overflow: hidden;
-    touch-action: manipulation;
 }
 
 #stage-container {
     position: relative;
-    width: 95vw;
-    height: 90vh;
-    max-width: 900px;
-    max-height: 600px;
-    border: 2px solid #00ffcc;
-    border-radius: 12px;
-    box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
-    background: #0d0f18;
-    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    background: #090a10;
+    border: 2px solid #00ffcc;
+    box-shadow: inset 0 0 15px rgba(0, 255, 204, 0.3);
 }
 
-/* 頂部 HUD 資訊與血條 */
+/* 頂部 HUD 資訊與統一規格按鈕 */
 .hud-overlay {
     position: absolute;
-    top: 10px;
-    left: 15px;
-    right: 15px;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 96%;
+    z-index: 10;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 10;
-    font-size: 13px;
-    font-weight: bold;
-    text-shadow: 0 0 6px #00ffcc;
+    background: rgba(10, 15, 25, 0.85);
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 204, 0.4);
+    backdrop-filter: blur(4px);
 }
 
 .track-info {
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #00ffcc;
+    max-width: 35%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.bpm-text {
-    color: #ff0077;
-}
-
-/* 血條 (HP Bar) 防爆介面 */
 .hp-bar-container {
-    width: 140px;
-    height: 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid #00ffcc;
-    border-radius: 6px;
+    width: 60px;
+    height: 10px;
+    background: #222;
+    border: 1px solid #ff0077;
+    border-radius: 5px;
     overflow: hidden;
 }
 
@@ -70,121 +72,150 @@ body {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, #ff0077, #00ffcc);
-    box-shadow: 0 0 8px #00ffcc;
     transition: width 0.2s ease;
 }
 
-.score-board {
-    color: #ff0077;
-    font-size: 15px;
+.hud-buttons {
+    display: flex;
+    gap: 6px;
 }
 
+/* 🎯 統一規格 Panel 按鈕 */
 .btn-panel {
-    background: rgba(0, 255, 204, 0.2);
-    color: #00ffcc;
+    width: 82px;
+    height: 32px;
+    background: rgba(0, 255, 204, 0.1);
     border: 1px solid #00ffcc;
-    padding: 5px 10px;
+    color: #00ffcc;
+    font-size: 11px;
+    font-weight: bold;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
-}
-
-canvas {
-    width: 100%;
-    height: 75%;
-    display: block;
-}
-
-/* 下方 4 軌觸控區 */
-.touch-controller {
-    height: 25%;
-    width: 100%;
-    display: flex;
-    border-top: 2px solid #00ffcc;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 15;
-}
-
-.touch-lane {
-    flex: 1;
-    border-right: 1px solid rgba(0, 255, 204, 0.3);
     display: flex;
     justify-content: center;
     align-items: center;
+    text-shadow: 0 0 5px #00ffcc;
+    box-shadow: 0 0 6px rgba(0, 255, 204, 0.2);
+    transition: all 0.1s ease;
+}
+
+.btn-panel:active {
+    background: #00ffcc;
+    color: #000;
+    transform: scale(0.95);
+}
+
+.score-board {
+    font-size: 12px;
+    color: #ff00aa;
     font-weight: bold;
-    font-size: 18px;
-    color: #00ffcc;
-    background: rgba(0, 0, 0, 0.05);
+    text-shadow: 0 0 5px #ff00aa;
 }
 
-.touch-lane:last-child {
-    border-right: none;
-}
-
-.touch-lane:active, .touch-lane.pressed {
-    background: rgba(255, 0, 119, 0.5);
-    color: #fff;
-    box-shadow: inset 0 0 15px #ff0077;
-}
-
+/* 打擊判定與 Combo */
 #judgementDisplay {
     position: absolute;
-    top: 42%;
+    top: 52%;
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 28px;
-    font-weight: bold;
-    pointer-events: none;
-    z-index: 20;
+    font-weight: 900;
+    font-style: italic;
     opacity: 0;
     transition: opacity 0.1s ease;
+    z-index: 5;
+    pointer-events: none;
+    text-shadow: 0 0 10px currentColor;
 }
 
 #comboDisplay {
     position: absolute;
-    top: 50%;
+    top: 59%;
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 20px;
-    color: #ffaa00;
     font-weight: bold;
-    pointer-events: none;
-    z-index: 20;
+    color: #ffaa00;
     opacity: 0;
-    transition: opacity 0.1s ease;
+    z-index: 5;
+    pointer-events: none;
+    text-shadow: 0 0 8px #ffaa00;
+}
+
+/* Canvas 遊戲畫面（頂天立地） */
+#battleCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 下方 4 軌觸控按鈕 */
+.touch-controller {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 90px;
+    display: flex;
+    z-index: 8;
+}
+
+.touch-lane {
+    flex: 1;
+    border-right: 1px solid rgba(0, 255, 204, 0.2);
+    border-top: 2px solid #00ffcc;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    color: rgba(0, 255, 204, 0.5);
+    background: linear-gradient(180deg, rgba(0,255,204,0.02) 0%, rgba(0,255,204,0.15) 100%);
+}
+
+.touch-lane.pressed {
+    background: linear-gradient(180deg, rgba(0,255,204,0.2) 0%, rgba(0,255,204,0.5) 100%);
+    color: #fff;
+    box-shadow: inset 0 0 15px #00ffcc;
 }
 
 /* 啟動遮罩 */
 .start-mask {
     position: absolute;
-    inset: 0;
-    background: rgba(7, 8, 13, 0.95);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 5, 10, 0.92);
+    z-index: 20;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    z-index: 30;
+    align-items: center;
 }
 
 .title-text {
+    font-size: 24px;
     color: #00ffcc;
-    margin-bottom: 10px;
+    text-shadow: 0 0 10px #00ffcc;
+    margin-bottom: 8px;
 }
 
 .sub-text {
-    color: #aaa;
     font-size: 12px;
-    margin-bottom: 20px;
+    color: #aaa;
+    margin-bottom: 25px;
 }
 
 .btn-start {
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: bold;
     background: #ff0077;
     color: #fff;
     border: none;
-    padding: 14px 28px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 8px;
+    border-radius: 25px;
+    box-shadow: 0 0 15px #ff0077;
     cursor: pointer;
-    box-shadow: 0 0 20px #ff0077;
 }

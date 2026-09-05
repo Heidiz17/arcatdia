@@ -1,11 +1,16 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v1.5 - SEKAI Hi-Speed Edition
+   🔒 Arcatdia Battle Engine v1.7 - Perfect Perspective Logic
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = 850; 
-canvas.height = 420;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 let bpm = 175;
 let isPlaying = false;
@@ -17,44 +22,32 @@ let particles = [];
 let startTime = 0;
 
 const audioOffsetMs = 250; 
-
-// 🎯 下落速度設定 (1.0x ~ 10.0x)
 let noteSpeed = 6.0; 
 
 const lanePressed = [false, false, false, false];
 
 /* -------------------------------------------------------------
-   📐 視角與速度切換 (Mode & Speed Selector)
+   📐 視角 Mode 定義：
+   Mode 1: 🏊 2D 純垂直直軌 (遊水賽道模式 - 方便打 20 萬高分！)
+   Mode 2: 🚀 3D 尖角消失點 (遠處企直 ➔ 衝到眼前旋轉打橫瞓喺度)
    ------------------------------------------------------------- */
 let currentPerspectiveMode = 1;
-
-const mode1TopX = [280, 376, 473, 570];
-const mode2TopX = [390, 413, 436, 460];
-
-const vanishingPoint = { x: 425, y: 30 };
-const bottomLanesX = [106, 318, 530, 742]; 
-const hitZoneY = 380;                      
-
-function getActiveTopX() {
-    return currentPerspectiveMode === 1 ? mode1TopX : mode2TopX;
-}
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
     const btn = document.getElementById('modeToggleBtn');
     if (btn) {
-        btn.innerText = currentPerspectiveMode === 1 ? "MODE: 1 (舒適)" : "MODE: 2 (尖角)";
+        btn.innerText = currentPerspectiveMode === 1 ? "🏊 2D 直軌" : "🚀 3D 尖角";
     }
 }
 
-// 🎯 一鍵切換下落速度 (Hi-Speed Toggle)
 function toggleNoteSpeed() {
     const speeds = [2.0, 4.0, 6.0, 8.0, 10.0];
     let idx = speeds.indexOf(noteSpeed);
     noteSpeed = speeds[(idx + 1) % speeds.length];
     const btn = document.getElementById('speedToggleBtn');
     if (btn) {
-        btn.innerText = `SPEED: ${noteSpeed.toFixed(1)}x`;
+        btn.innerText = `⚡ ${noteSpeed.toFixed(1)}x`;
     }
 }
 
@@ -136,26 +129,37 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
+/* -------------------------------------------------------------
+   🎼 譜面生成：貫穿整首 3.5 分鐘全曲《最大的愛》(約 600+ 音符)
+   ------------------------------------------------------------- */
 function generate175BpmChart() {
     notes = [];
     const beatMs = (60 / bpm) * 1000;
 
     let currentMs = audioOffsetMs;
 
-    for (let i = 0; i < 120; i++) {
-        if (i % 8 === 3) {
+    // 涵蓋整首 3 分多鐘 (約 620 個 Beats)
+    for (let i = 0; i < 620; i++) {
+        // 長按條 (Hold Note)
+        if (i % 16 === 7) {
             notes.push({
                 type: 'hold',
                 lane: (i % 4),
                 startTime: currentMs,
-                endTime: currentMs + (beatMs * 2.5),
+                endTime: currentMs + (beatMs * 3.0),
                 holding: false,
                 completed: false,
                 hit: false
             });
-            currentMs += beatMs * 3.5;
+            currentMs += beatMs * 4.0;
         } else {
-            const pattern = [[0], [2], [1], [3], [0, 2], [1, 3]][i % 6];
+            // 單擊 (Tap) - Verse / Chorus / Guitar Solo 節奏變化
+            const pattern = [
+                [0], [2], [1], [3], 
+                [0, 2], [1], [3], [0], 
+                [1, 3], [2], [0], [3]
+            ][i % 12];
+
             pattern.forEach(laneIndex => {
                 notes.push({
                     type: 'tap',
@@ -202,13 +206,15 @@ for (let i = 0; i < 4; i++) {
 function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
+    const hitZoneY = canvas.height - 110;
+    const laneWidth = canvas.width / 4;
+    const targetX = laneWidth * laneIndex + (laneWidth / 2);
 
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
 
     if (targetNote) {
         if (targetNote.type === 'tap') {
             const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-            const targetX = bottomLanesX[laneIndex];
 
             if (timeDiff < 180) {
                 targetNote.hit = true;
@@ -322,34 +328,43 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const currentTimeMs = performance.now() - startTime;
-    const currentTopX = getActiveTopX();
-
-    // 🎯 速度動態計算 (Travel Duration Base = 7200 / noteSpeed)
     const travelDuration = 7200 / noteSpeed; 
+    const hitZoneY = canvas.height - 110;
+    const startY = 40;
 
+    const W = canvas.width;
+    const laneW = W / 4;
+
+    // 定義兩套軌道頂部與底部的 X 座標
+    // Mode 1: 2D 遊水賽道直軌 | Mode 2: 3D 尖角
+    const topX = (currentPerspectiveMode === 1) 
+        ? [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5]
+        : [W*0.42, W*0.47, W*0.53, W*0.58];
+
+    const botX = [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5];
+
+    // 1. 畫 4 條軌道
     for (let i = 0; i < 4; i++) {
-        const topX = currentTopX[i];
-        const botX = bottomLanesX[i];
-
         ctx.strokeStyle = "rgba(0, 255, 204, 0.25)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(topX, vanishingPoint.y);
-        ctx.lineTo(botX, canvas.height);
+        ctx.moveTo(topX[i], startY);
+        ctx.lineTo(botX[i], canvas.height);
         ctx.stroke();
 
         ctx.fillStyle = "#ff0077";
         ctx.shadowColor = "#ff0077";
         ctx.shadowBlur = 12;
         ctx.beginPath();
-        ctx.arc(botX, hitZoneY, 18, 0, Math.PI * 2);
+        ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
         ctx.fill();
     }
 
+    // 2. 畫 Notes 樂譜
     notes.forEach(note => {
         const laneIndex = note.lane;
-        const topX = currentTopX[laneIndex];
-        const botX = bottomLanesX[laneIndex];
+        const tx = topX[laneIndex];
+        const bx = botX[laneIndex];
 
         if (note.type === 'tap') {
             if (note.hit) return;
@@ -359,15 +374,23 @@ function gameLoop() {
             const progress = Math.max(0, Math.min(1.1, Math.pow(rawProgress, 1.2)));
 
             if (progress > 0 && progress < 1.1) {
-                const currentX = topX + (botX - topX) * progress;
-                const currentY = vanishingPoint.y + (hitZoneY - vanishingPoint.y) * progress;
-                const currentRadius = 5 + (13 * progress); 
+                const currentX = tx + (bx - tx) * progress;
+                const currentY = startY + (hitZoneY - startY) * progress;
 
                 ctx.fillStyle = "#00ffcc";
                 ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 10 * progress;
+                ctx.shadowBlur = 12 * progress;
                 ctx.beginPath();
-                ctx.arc(currentX, currentY, currentRadius, 0, Math.PI * 2);
+
+                if (currentPerspectiveMode === 1) {
+                    // 🏊 Mode 1 (2D 直軌): 完全企直，安安份份直落！
+                    ctx.ellipse(currentX, currentY, 12, 18, 0, 0, Math.PI * 2);
+                } else {
+                    // 🚀 Mode 2 (3D 尖角): 正宗幾何透視——遠處企直 (Rx < Ry) ➔ 衝到眼前旋轉打橫瞓喺度 (Rx > Ry)！
+                    const rx = (6 * (1.0 - progress)) + (20 * progress);
+                    const ry = (18 * (1.0 - progress)) + (8 * progress);
+                    ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
+                }
                 ctx.fill();
             }
 
@@ -389,14 +412,14 @@ function gameLoop() {
             const tailProgress = Math.pow(Math.max(0, Math.min(1, rawTail)), 1.2);
 
             if (headProgress > 0 && tailProgress < 1.1) {
-                const headY = Math.min(hitZoneY, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * headProgress);
-                const tailY = Math.max(vanishingPoint.y, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * tailProgress);
+                const headY = Math.min(hitZoneY, startY + (hitZoneY - startY) * headProgress);
+                const tailY = Math.max(startY, startY + (hitZoneY - startY) * tailProgress);
 
-                const headX = topX + (botX - topX) * headProgress;
-                const tailX = topX + (botX - topX) * tailProgress;
+                const headX = tx + (bx - tx) * headProgress;
+                const tailX = tx + (bx - tx) * tailProgress;
 
                 ctx.strokeStyle = note.holding ? "rgba(0, 255, 204, 0.8)" : "rgba(0, 255, 204, 0.4)";
-                ctx.lineWidth = note.holding ? 16 : 10;
+                ctx.lineWidth = note.holding ? 18 : 12;
                 ctx.shadowColor = "#00ffcc";
                 ctx.shadowBlur = 15;
                 ctx.beginPath();
@@ -407,7 +430,7 @@ function gameLoop() {
 
             if (note.holding && lanePressed[laneIndex]) {
                 if (Math.random() < 0.4) {
-                    createHitParticles(botX, hitZoneY, "#00ffcc");
+                    createHitParticles(bx, hitZoneY, "#00ffcc");
                     score += 50;
                     combo++;
                     updateUI();
@@ -418,7 +441,7 @@ function gameLoop() {
                     note.holding = false;
                     score += 2000;
                     showJudgement("PERFECT!", "#00ffcc");
-                    createHitParticles(botX, hitZoneY, "#00ffcc");
+                    createHitParticles(bx, hitZoneY, "#00ffcc");
                     updateUI();
                 }
             }
@@ -433,6 +456,7 @@ function gameLoop() {
         }
     });
 
+    // 3. 粒子爆發
     particles.forEach((p, index) => {
         ctx.save();
         ctx.globalAlpha = p.alpha;
