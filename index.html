@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcatdia - 01 最大的愛 (手感調校版)</title>
+    <title>Arcatdia - 01 最大的愛 (DSP 打擊音效版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -93,7 +93,7 @@
             font-weight: bold;
             font-size: 18px;
             color: #00ffcc;
-            background: rgba(0, 255, 204, 0.05);
+            background: rgba(0, 0, 0, 0.05);
         }
 
         .touch-lane:last-child {
@@ -165,7 +165,7 @@
 
     <div id="startMask" class="start-mask">
         <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
-        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | 順暢節奏對齊版</p>
+        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | DSP 極速打擊音效解鎖版</p>
         <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
     </div>
 </div>
@@ -184,10 +184,44 @@ let score = 0;
 let notes = [];
 let startTime = 0;
 
-// 音樂對齊偏移量 (ms) - 如果覺得 Notes 落早咗，可以把 200 改大，例如 350
 const audioOffsetMs = 250; 
-// 音符下落速度 (調慢至 0.35，視覺更清晰)
 const noteSpeed = 0.35; 
+
+/* -------------------------------------------------------------
+   🎛️ DSP Web Audio 實時音效合成器引擎 (零延遲按鍵聲)
+   ------------------------------------------------------------- */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let dspCtx = null;
+
+function initDSP() {
+    if (!dspCtx) {
+        dspCtx = new AudioContext();
+    }
+    if (dspCtx.state === 'suspended') {
+        dspCtx.resume();
+    }
+}
+
+// 動態發出清脆 Cyber 嘟/嗒聲 (Hit Sound)
+function playDspHitSound() {
+    if (!dspCtx) return;
+
+    const osc = dspCtx.createOscillator();
+    const gain = dspCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, dspCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, dspCtx.currentTime + 0.05);
+
+    gain.gain.setValueAtTime(0.4, dspCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.05);
+
+    osc.connect(gain);
+    gain.connect(dspCtx.destination);
+
+    osc.start();
+    osc.stop(dspCtx.currentTime + 0.05);
+}
 
 const stemFiles = {
     drums: "最大の愛(original jp)_drums_mixed.mp3",
@@ -208,18 +242,32 @@ Object.keys(stemFiles).forEach(key => {
 
 function generate175BpmChart() {
     notes = [];
-    const beatMs = (60 / bpm) * 1000; // 每拍 ~342.8ms
+    const beatMs = (60 / bpm) * 1000;
 
-    // 放慢密度：跟主拍 (4分音符) 與 正拍 (8分音符)，手感更好跟拍！
-    const pattern = [0, 2, 1, 3, 0, 3, 1, 2, 0, 1, 2, 3];
+    const rhythmBlocks = [
+        [ [0, 2] ],          // L1 + R1 雙按
+        [ [0], [0] ],        // L1, L1 連擊
+        [ [1, 3] ],          // L2 + R2 雙按
+        [ [3], [3] ],        // R2, R2 連擊
+        [ [0, 3] ],          // L1 + R2 雙按
+        [ [1], [1], [1] ],   // L2 三連擊
+        [ [2], [2], [2] ]    // R1 三連擊
+    ];
 
-    for (let i = 0; i < 150; i++) {
-        const lane = pattern[i % pattern.length];
-        const targetTimeMs = audioOffsetMs + (i * beatMs); // 每拍落下一次
-        notes.push({
-            lane: lane,
-            targetTime: targetTimeMs,
-            hit: false
+    let currentMs = audioOffsetMs;
+
+    for (let i = 0; i < 120; i++) {
+        const block = rhythmBlocks[i % rhythmBlocks.length];
+        
+        block.forEach(subStep => {
+            subStep.forEach(laneIndex => {
+                notes.push({
+                    lane: laneIndex,
+                    targetTime: currentMs,
+                    hit: false
+                });
+            });
+            currentMs += beatMs;
         });
     }
 }
@@ -229,6 +277,7 @@ for (let i = 0; i < 4; i++) {
     laneBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         laneBtn.classList.add('pressed');
+        playDspHitSound();
         handleTap(i);
     });
     laneBtn.addEventListener('touchend', (e) => {
@@ -237,6 +286,7 @@ for (let i = 0; i < 4; i++) {
     });
     laneBtn.addEventListener('mousedown', () => {
         laneBtn.classList.add('pressed');
+        playDspHitSound();
         handleTap(i);
     });
     laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
@@ -249,11 +299,11 @@ function handleTap(laneIndex) {
 
     if (targetNote) {
         const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-        if (timeDiff < 140) { // 放寬 PERFECT 範圍
+        if (timeDiff < 180) {
             targetNote.hit = true;
             score += 1000;
             showJudgement("PERFECT!", "#00ffcc");
-        } else if (timeDiff < 260) {
+        } else if (timeDiff < 300) {
             targetNote.hit = true;
             score += 500;
             showJudgement("GREAT", "#ffaa00");
@@ -284,6 +334,7 @@ function pauseAllAudio() {
 }
 
 function togglePlay() {
+    initDSP();
     const playBtn = document.getElementById('mainPlayBtn');
     if (!isPlaying) {
         isPlaying = true;
@@ -302,6 +353,7 @@ function togglePlay() {
 }
 
 function startBattle() {
+    initDSP();
     document.getElementById('startMask').style.display = 'none';
     togglePlay();
 }
