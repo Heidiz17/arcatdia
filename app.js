@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.2 - Part 1 (雙模式切換版)
+   🔒 Arcatdia Battle Engine v4.3 - Full Production (雙模式完美對齊版)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -50,33 +50,29 @@ function togglePerspectiveMode() {
     }
 }
 
-// 🎯 一鍵切換「打歌模式」與「測試模式」
+// 🎯 一鍵切換模式
 function toggleGameMode() {
     if (gameMode === 'battle') {
         gameMode = 'test';
-        showJudgement("🛠️ 進入測試校準模式", "#00ffcc");
+        showJudgement("🛠️ 進入測試模式", "#00ffcc");
     } else {
         gameMode = 'battle';
-        showJudgement("🔥 進入四軌打歌模式", "#ff0055");
+        showJudgement("🔥 進入打歌模式", "#ff0055");
     }
     updateModeButtonUI();
     if (isPlaying) {
-        generateChart(); // 如果正在遊玩，即時重刷譜面
+        generateChart(); // 即時重刷新譜面
     }
 }
 
+// 🎯 精確更新頂部模式按鈕
 function updateModeButtonUI() {
-    let modeBtn = document.getElementById('gameModeToggleBtn');
-    if (!modeBtn) {
-        // 如果 HTML 未有掣，自動在頂部按鈕區動態補上
-        modeBtn = document.createElement('button');
-        modeBtn.id = 'gameModeToggleBtn';
-        modeBtn.className = 'control-btn';
-        modeBtn.onclick = toggleGameMode;
-        const topBar = document.querySelector('.top-controls') || document.body;
-        topBar.appendChild(modeBtn);
+    const modeBtn = document.getElementById('gameModeToggleBtn');
+    if (modeBtn) {
+        modeBtn.innerText = gameMode === 'battle' ? "🔥 打歌模式" : "🛠️ 測試模式";
+        modeBtn.style.color = gameMode === 'battle' ? "#ff0055" : "#00ffcc";
+        modeBtn.style.borderColor = gameMode === 'battle' ? "#ff0055" : "#00ffcc";
     }
-    modeBtn.innerText = gameMode === 'battle' ? "🔥 打歌模式" : "🛠️ 測試模式";
 }
 
 function togglePlaybackSpeed() {
@@ -205,7 +201,7 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 譜面生成：根據模式自動切換！
+// 🎯 動態譜面生成
 function generateChart() {
     notes = [];
     particles = [];
@@ -214,7 +210,7 @@ function generateChart() {
     const firstHitTime = barMs; 
 
     if (gameMode === 'test') {
-        // 🛠️ 測試模式：全音符，每小節 1 粒 (L2 黃色軌)，精確測量飛行
+        // 🛠️ 測試模式：單軌全音符
         for (let i = 0; i < 150; i++) {
             notes.push({
                 type: 'tap',
@@ -224,12 +220,12 @@ function generateChart() {
             });
         }
     } else {
-        // 🔥 打歌模式：四軌開火！包含大鼓重音、軍鼓、切分音！
+        // 🔥 打歌模式：四軌開火節奏
         const rhythmPattern = [
-            { lane: 1, delayBeats: 0 },    // 第 1 拍 (大鼓重音 - 黃)
+            { lane: 1, delayBeats: 0 },    // 第 1 拍：大鼓重音 (黃)
             { lane: 2, delayBeats: 1 },    // 第 2 拍 (藍)
-            { lane: 0, delayBeats: 1.5 },  // 第 2 拍半 (切分音 - 紅)
-            { lane: 3, delayBeats: 2 },    // 第 3 拍 (軍鼓 - 紫)
+            { lane: 0, delayBeats: 1.5 },  // 第 2 拍半：切分音 (紅)
+            { lane: 3, delayBeats: 2 },    // 第 3 拍：軍鼓 (紫)
             { lane: 1, delayBeats: 3 },    // 第 4 拍 (黃)
             { lane: 2, delayBeats: 3.5 }   // 第 4 拍半 (藍)
         ];
@@ -250,7 +246,7 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// 🎯 綁定軌道觸控與點擊
+// 🎯 綁定軌道觸控
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -278,11 +274,6 @@ for (let i = 0; i < 4; i++) {
         });
     }
 }
-
-updateModeButtonUI();
-/* =============================================================
-   🔒 Arcatdia Battle Engine v4.2 - Part 2
-   ============================================================= */
 
 let countInTimers = [];
 let audioStartTimer = null;
@@ -561,7 +552,7 @@ function gameLoop() {
         }
     }
 
-    // 🎯 模式判斷：只在「測試模式 (test)」先顯示 HUD 綠色遙測盒！
+    // 🎯 模式判斷：只在「測試模式」先出 HUD 綠色遙測盒
     if (gameMode === 'test') {
         ctx.save();
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
@@ -585,8 +576,9 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化靜態畫布
+// 🎯 初始化靜態畫布與按鈕 UI
 (function initialDraw() {
+    updateModeButtonUI();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
     const H = canvas.height;

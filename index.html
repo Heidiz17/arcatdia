@@ -18,7 +18,7 @@
 
 <div id="stage-container">
     <div class="hud-overlay">
-        <div class="track-info">01_最大的愛 (全音符校準)</div>
+        <div class="track-info">01_最大的愛</div>
         
         <div class="hp-bar-container">
             <div id="hpFill" class="hp-fill"></div>
@@ -27,9 +27,11 @@
         <div class="score-board"><span id="scoreVal">000000</span></div>
 
         <div class="hud-buttons">
+            <!-- 🎯 核心：雙模式切換掣 (打歌 / 測試) -->
+            <button id="gameModeToggleBtn" class="btn-panel" style="border-color:#ff0055; color:#ff0055;" onclick="toggleGameMode()">🔥 打歌模式</button>
             <button id="lineToggleBtn" class="btn-panel" style="border-color:#ccff00; color:#ccff00;" onclick="toggleJudgeLineLevel()">🎯 調線位</button>
             <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
-            <button id="speedToggleBtn" class="btn-panel" onclick="togglePlaybackSpeed()">🎵 0.8x</button>
+            <button id="speedToggleBtn" class="btn-panel" onclick="togglePlaybackSpeed()">🎵 1.0x</button>
             <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">▶ PLAY</button>
         </div>
     </div>
@@ -48,8 +50,8 @@
 
     <div id="startMask" class="start-mask">
         <h2 class="title-text">ARCATDIA WHOLE NOTE LAB</h2>
-        <p class="sub-text">175 BPM | 4拍整數下落 | 第一拍精準撞線</p>
-        <button class="btn-start" onclick="startCalibration()">🎵 進入全音符校準場</button>
+        <p class="sub-text">175 BPM | 雙模式切換 | 550ms 咬死版</p>
+        <button class="btn-start" onclick="startCalibration()">🎵 進入 Arcatdia 戰場</button>
     </div>
 </div>
 
