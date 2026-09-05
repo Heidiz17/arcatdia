@@ -1,5 +1,6 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.2 - Whole Note (全音符 4拍一粒) (Part 1)
+   🔒 Arcatdia Battle Engine v3.4 - Impact-on-Beat Calibration (Part 1)
+   核心修正：粒音掂到判定線嗰一下，先至係第一拍！
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,12 +23,13 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
+// 🎯 精確音樂偏移量 (ms)
 const audioOffsetMs = 250; 
 let noteSpeed = 6.0; 
 let playbackSpeed = 0.8; // 預設 0.8x 慢速
 
-// 🎯 4 檔判定線高低微調
-const judgeLineOffsets = [85, 105, 125, 145];
+// 🎯 對應 190px 巨型按鍵高度的 4 檔微調判定線 (距離底部高度)
+const judgeLineOffsets = [170, 190, 210, 230];
 let judgeLineLevel = 1; 
 
 const lanePressed = [false, false, false, false];
@@ -154,23 +156,22 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 全音符（Whole Note）模式：每 4 拍先出一粒！
+// 🎯 全音符小節譜面：每 4 拍正正對齊音樂每小節第 1 拍重音
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const wholeNoteMs = beatMs * 4; // 🎯 整整一小節（4 拍）先一粒！
+    const wholeNoteMs = beatMs * 4; // 一小節 4 拍
     let currentMs = audioOffsetMs;
 
-    // 全曲 150 個小節，每小節第 1 拍落一粒特大黃色全音符
     for (let i = 0; i < 150; i++) {
         notes.push({
             type: 'tap',
             lane: 1, // L2 黃色軌道
-            targetTime: currentMs,
+            targetTime: currentMs, // 🎯 呢個 targetTime 係指「音符掂到判定線嗰一下」！
             hit: false
         });
-        currentMs += wholeNoteMs; // 隔足 4 拍先落下一粒
+        currentMs += wholeNoteMs;
     }
 }
 
@@ -202,7 +203,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.2 - Whole Note (Part 2)
+   🔒 Arcatdia Battle Engine v3.4 - Impact-on-Beat Calibration (Part 2)
    ============================================================= */
 
 function handleTap(laneIndex) {
@@ -324,7 +325,7 @@ function gameLoop() {
     });
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
-    const travelDuration = (7200 / noteSpeed); 
+    const travelDuration = (7200 / noteSpeed); // 音符由頂行到判定線所需時間
     const W = canvas.width;
     const H = canvas.height;
     
@@ -347,11 +348,11 @@ function gameLoop() {
         ctx.shadowColor = laneColors[i].main;
         ctx.shadowBlur = 14;
         ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 20, 0, Math.PI * 2);
+        ctx.arc(botX[i], hitZoneY, 22, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // 🎯 橫向判定線
+    // 🎯 判定線
     ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
     ctx.lineWidth = 3;
     ctx.shadowColor = "#00ffcc";
@@ -363,9 +364,10 @@ function gameLoop() {
 
     ctx.fillStyle = "#00ffcc";
     ctx.font = "bold 12px Courier New";
-    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4] - 全音符4拍模式`, 15, hitZoneY - 8);
+    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 15, hitZoneY - 8);
 
-    // 🎯 渲染全音符：特大亮眼光環，代表整小節第 1 拍重音
+    // 🎯 核心物理修正：
+    // 當 currentTimeMs == note.targetTime（第一拍重音響起），progress 剛好精確等於 1.0（正正釘在判定線上）！
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -375,30 +377,32 @@ function gameLoop() {
         if (note.hit) return;
         const timeTillHit = note.targetTime - currentTimeMs;
         
+        // 🎯 提前下落計算：未到第一拍時 progress < 1.0 (在半空跌緊落嚟)
+        // 當 timeTillHit == 0 (第一拍到達)，progress 剛好是 1.0！
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
-        const progress = Math.max(0, Math.min(1.1, Math.pow(rawProgress, 1.2)));
 
-        if (progress > 0 && progress < 1.1) {
-            const currentX = tx + (bx - tx) * progress;
-            const currentY = startY + (hitZoneY - startY) * progress;
+        if (rawProgress > 0 && rawProgress < 1.15) {
+            const currentX = tx + (bx - tx) * rawProgress;
+            const currentY = startY + (hitZoneY - startY) * rawProgress;
 
             ctx.fillStyle = colorObj.main;
             ctx.shadowColor = colorObj.main;
-            ctx.shadowBlur = 20 * progress;
+            ctx.shadowBlur = 20 * rawProgress;
             ctx.beginPath();
 
             if (currentPerspectiveMode === 1) {
-                // 🏊 特大全音符 (直軌)
+                // 🏊 直軌大粒全音符
                 ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
             } else {
                 // 🚀 3D 尖角
-                const rx = (10 * (1.0 - progress)) + (52 * progress);
-                const ry = (32 * (1.0 - progress)) + (14 * progress);
+                const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
+                const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
                 ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
             }
             ctx.fill();
         }
 
+        // 過咗判定線超時 Miss
         if (timeTillHit < -350 && !note.hit) {
             note.hit = true;
             combo = 0;
