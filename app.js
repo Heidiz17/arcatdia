@@ -1,6 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.4 - Impact-on-Beat Calibration (Part 1)
-   核心修正：粒音掂到判定線嗰一下，先至係第一拍！
+   🔒 Arcatdia Battle Engine v3.6 - True Bar Sync (Part 1)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -23,13 +22,10 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
-// 🎯 精確音樂偏移量 (ms)
-const audioOffsetMs = 250; 
-let noteSpeed = 6.0; 
-let playbackSpeed = 0.8; // 預設 0.8x 慢速
+let playbackSpeed = 0.8;
 
-// 🎯 對應 190px 巨型按鍵高度的 4 檔微調判定線 (距離底部高度)
-const judgeLineOffsets = [170, 190, 210, 230];
+// 🎯 對應 185px 巨型按鍵高度的 4 檔微調判定線
+const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
 
 const lanePressed = [false, false, false, false];
@@ -41,7 +37,7 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 1; // 預設 2D 直軌
+let currentPerspectiveMode = 1;
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
@@ -156,22 +152,23 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 全音符小節譜面：每 4 拍正正對齊音樂每小節第 1 拍重音
+// 🎯 核心譜面：以「完整 1 個小節 (Whole Note)」為單位定錨
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const wholeNoteMs = beatMs * 4; // 一小節 4 拍
-    let currentMs = audioOffsetMs;
+    const wholeNoteMs = beatMs * 4; // 1371.428 ms (1 個 Bar)
+
+    // 第一粒音抵達判定線的時間剛好對齊第 1 個小節重音 (Downbeat)
+    const initialBarImpact = wholeNoteMs; 
 
     for (let i = 0; i < 150; i++) {
         notes.push({
             type: 'tap',
             lane: 1, // L2 黃色軌道
-            targetTime: currentMs, // 🎯 呢個 targetTime 係指「音符掂到判定線嗰一下」！
+            targetTime: initialBarImpact + (i * wholeNoteMs),
             hit: false
         });
-        currentMs += wholeNoteMs;
     }
 }
 
@@ -203,7 +200,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.4 - Impact-on-Beat Calibration (Part 2)
+   🔒 Arcatdia Battle Engine v3.6 - True Bar Sync (Part 2)
    ============================================================= */
 
 function handleTap(laneIndex) {
@@ -325,7 +322,11 @@ function gameLoop() {
     });
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
-    const travelDuration = (7200 / noteSpeed); // 音符由頂行到判定線所需時間
+    
+    // 🎯 墜落時間鎖定為「剛好整整 1 個小節 (4拍)」！
+    const beatMs = (60 / bpm) * 1000;
+    const travelDuration = beatMs * 4; 
+
     const W = canvas.width;
     const H = canvas.height;
     
@@ -352,7 +353,6 @@ function gameLoop() {
         ctx.fill();
     }
 
-    // 🎯 判定線
     ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
     ctx.lineWidth = 3;
     ctx.shadowColor = "#00ffcc";
@@ -363,11 +363,10 @@ function gameLoop() {
     ctx.stroke();
 
     ctx.fillStyle = "#00ffcc";
-    ctx.font = "bold 12px Courier New";
-    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 15, hitZoneY - 8);
+    ctx.font = "bold 11px Courier New";
+    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 10, hitZoneY - 8);
 
-    // 🎯 核心物理修正：
-    // 當 currentTimeMs == note.targetTime（第一拍重音響起），progress 剛好精確等於 1.0（正正釘在判定線上）！
+    // 🎯 物理咬合：行足 4 拍，撞線那一瞬間正好是第 1 拍！
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -376,9 +375,6 @@ function gameLoop() {
 
         if (note.hit) return;
         const timeTillHit = note.targetTime - currentTimeMs;
-        
-        // 🎯 提前下落計算：未到第一拍時 progress < 1.0 (在半空跌緊落嚟)
-        // 當 timeTillHit == 0 (第一拍到達)，progress 剛好是 1.0！
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
         if (rawProgress > 0 && rawProgress < 1.15) {
@@ -391,10 +387,8 @@ function gameLoop() {
             ctx.beginPath();
 
             if (currentPerspectiveMode === 1) {
-                // 🏊 直軌大粒全音符
                 ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
             } else {
-                // 🚀 3D 尖角
                 const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
                 const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
                 ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
@@ -402,7 +396,6 @@ function gameLoop() {
             ctx.fill();
         }
 
-        // 過咗判定線超時 Miss
         if (timeTillHit < -350 && !note.hit) {
             note.hit = true;
             combo = 0;

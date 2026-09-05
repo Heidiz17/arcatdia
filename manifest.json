@@ -1,0 +1,17 @@
+{
+  "name": "Arcatdia Whole Note Lab",
+  "short_name": "Arcatdia",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#030305",
+  "theme_color": "#030305",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23030305' width='100' height='100'/><circle cx='50' cy='50' r='35' fill='%23ccff00'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
