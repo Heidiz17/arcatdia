@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcatdia - 01 最大的愛 (175 BPM 實體打擊版)</title>
+    <title>Arcatdia - 01 最大的愛 (手感調校版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -40,7 +40,6 @@
             flex-direction: column;
         }
 
-        /* 頂部 HUD */
         .hud-overlay {
             position: absolute;
             top: 10px;
@@ -70,14 +69,12 @@
             font-size: 12px;
         }
 
-        /* 遊戲 Canvas 畫面 */
         canvas {
             width: 100%;
             height: 75%;
             display: block;
         }
 
-        /* 下方 4 軌實體觸控打擊區 */
         .touch-controller {
             height: 25%;
             width: 100%;
@@ -97,7 +94,6 @@
             font-size: 18px;
             color: #00ffcc;
             background: rgba(0, 255, 204, 0.05);
-            transition: background 0.05s ease;
         }
 
         .touch-lane:last-child {
@@ -110,7 +106,6 @@
             box-shadow: inset 0 0 15px #ff0077;
         }
 
-        /* 判定提示文字 */
         #judgementDisplay {
             position: absolute;
             top: 45%;
@@ -124,7 +119,6 @@
             transition: opacity 0.1s ease;
         }
 
-        /* 啟動遮罩 */
         .start-mask {
             position: absolute;
             inset: 0;
@@ -160,43 +154,41 @@
 
     <div id="judgementDisplay">PERFECT!</div>
 
-    <!-- 頂部 Notes 掉落區 (Canvas) -->
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 下方 4 軌實體觸控按鈕 -->
     <div class="touch-controller">
-        <div class="touch-lane" id="lane0" label="0">L1</div>
-        <div class="touch-lane" id="lane1" label="1">L2</div>
-        <div class="touch-lane" id="lane2" label="2">R1</div>
-        <div class="touch-lane" id="lane3" label="3">R2</div>
+        <div class="touch-lane" id="lane0">L1</div>
+        <div class="touch-lane" id="lane1">L2</div>
+        <div class="touch-lane" id="lane2">R1</div>
+        <div class="touch-lane" id="lane3">R2</div>
     </div>
 
-    <!-- 啟動遮罩 -->
     <div id="startMask" class="start-mask">
         <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
-        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM 精準實體譜面 | 4 軌觸控對應</p>
+        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | 順暢節奏對齊版</p>
         <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
     </div>
 </div>
 
 <script>
-/* -------------------------------------------------------------
-   🎵 Arcatdia - 175 BPM Chart & Touch Engine
-   ------------------------------------------------------------- */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 850; 
 canvas.height = 420;
 
 let bpm = 175;
-const lanesX = [106, 318, 530, 742]; // 4 軌的 X 軸平分位置
-const hitZoneY = 380; // 判定線 Y 軸位置
+const lanesX = [106, 318, 530, 742];
+const hitZoneY = 380;
 let isPlaying = false;
 let score = 0;
 let notes = [];
 let startTime = 0;
 
-// 同層 6 條幹聲
+// 音樂對齊偏移量 (ms) - 如果覺得 Notes 落早咗，可以把 200 改大，例如 350
+const audioOffsetMs = 250; 
+// 音符下落速度 (調慢至 0.35，視覺更清晰)
+const noteSpeed = 0.35; 
+
 const stemFiles = {
     drums: "最大の愛(original jp)_drums_mixed.mp3",
     guitars: "最大の愛(original jp)_guitars_mixed.mp3",
@@ -214,51 +206,35 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-/* -------------------------------------------------------------
-   🎼 175 BPM 實體譜面生成器 (以 16 分音符拍子為基準)
-   ------------------------------------------------------------- */
 function generate175BpmChart() {
     notes = [];
-    const beatDurationMs = (60 / bpm) * 1000; // 175 BPM 每拍 ~342.8ms
-    const sixteenthMs = beatDurationMs / 4;    // 16 分音符 ~85.7ms
+    const beatMs = (60 / bpm) * 1000; // 每拍 ~342.8ms
 
-    // 模擬《最大的愛》前奏節奏模式 (可自訂)
-    const pattern = [
-        0, 2, 1, 3, 0, 1, 2, 3,
-        0, 0, 3, 3, 1, 2, 1, 2,
-        0, 1, 2, 3, 3, 2, 1, 0,
-        0, 3, 1, 2, 0, 2, 1, 3
-    ];
+    // 放慢密度：跟主拍 (4分音符) 與 正拍 (8分音符)，手感更好跟拍！
+    const pattern = [0, 2, 1, 3, 0, 3, 1, 2, 0, 1, 2, 3];
 
-    // 生成前 200 個實體節奏 Notes
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 150; i++) {
         const lane = pattern[i % pattern.length];
-        const targetTimeMs = 1500 + (i * sixteenthMs * 2); // 每 8 分音符落一鍵
+        const targetTimeMs = audioOffsetMs + (i * beatMs); // 每拍落下一次
         notes.push({
             lane: lane,
-            targetTime: targetTimeMs, // Note 應該到達判定線的絕對時間
+            targetTime: targetTimeMs,
             hit: false
         });
     }
 }
 
-// 觸控打擊事件綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
-    
-    // 支援手機多點觸控 (Multi-touch)
     laneBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         laneBtn.classList.add('pressed');
         handleTap(i);
     });
-
     laneBtn.addEventListener('touchend', (e) => {
         e.preventDefault();
         laneBtn.classList.remove('pressed');
     });
-
-    // 支援電腦滑鼠點擊測試
     laneBtn.addEventListener('mousedown', () => {
         laneBtn.classList.add('pressed');
         handleTap(i);
@@ -266,30 +242,21 @@ for (let i = 0; i < 4; i++) {
     laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
 }
 
-// 判定處理邏輯 (PERFECT / GREAT / MISS)
 function handleTap(laneIndex) {
     if (!isPlaying) return;
-
     const currentTimeMs = performance.now() - startTime;
-    const noteSpeed = 0.6; // Note 下落速度
-
-    // 尋找當前軌道最近未打擊的 Note
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
 
     if (targetNote) {
         const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-
-        if (timeDiff < 100) { // 100ms 內算 PERFECT
+        if (timeDiff < 140) { // 放寬 PERFECT 範圍
             targetNote.hit = true;
             score += 1000;
             showJudgement("PERFECT!", "#00ffcc");
-        } else if (timeDiff < 200) { // 200ms 內算 GREAT
+        } else if (timeDiff < 260) {
             targetNote.hit = true;
             score += 500;
             showJudgement("GREAT", "#ffaa00");
-        } else if (timeDiff < 350) { // 太早或太遲
-            targetNote.hit = true;
-            showJudgement("MISS", "#ff0055");
         }
         document.getElementById('scoreVal').innerText = String(score).padStart(6, '0');
     }
@@ -300,7 +267,7 @@ function showJudgement(text, color) {
     disp.innerText = text;
     disp.style.color = color;
     disp.style.opacity = '1';
-    setTimeout(() => { disp.style.opacity = '0'; }, 300);
+    setTimeout(() => { disp.style.opacity = '0'; }, 250);
 }
 
 function playAllAudio() {
@@ -318,12 +285,11 @@ function pauseAllAudio() {
 
 function togglePlay() {
     const playBtn = document.getElementById('mainPlayBtn');
-    
     if (!isPlaying) {
         isPlaying = true;
         score = 0;
         document.getElementById('scoreVal').innerText = "000000";
-        generate175BpmChart(); // 生成 175 BPM 實體譜面
+        generate175BpmChart();
         playAllAudio();
         startTime = performance.now();
         if (playBtn) playBtn.innerText = "⏸ PAUSE";
@@ -340,15 +306,12 @@ function startBattle() {
     togglePlay();
 }
 
-// 175 BPM Canvas 渲染主迴圈
 function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const currentTimeMs = performance.now() - startTime;
-    const noteSpeed = 0.5; // 音符下落速度 px/ms
 
-    // 繪製 4 條軌道線與下方判定線
     lanesX.forEach((x) => {
         ctx.strokeStyle = "rgba(0, 255, 204, 0.2)"; 
         ctx.lineWidth = 2;
@@ -357,7 +320,6 @@ function gameLoop() {
         ctx.lineTo(x, canvas.height); 
         ctx.stroke();
 
-        // 下方判定點 (Hit Target)
         ctx.fillStyle = "#ff0077"; 
         ctx.shadowColor = "#ff0077"; 
         ctx.shadowBlur = 10;
@@ -366,15 +328,12 @@ function gameLoop() {
         ctx.fill();
     });
 
-    // 繪製實體譜面音符 (Notes)
     notes.forEach(note => {
         if (note.hit) return;
 
-        // 計算 Note 當前的 Y 軸位置 (時間同步)
         const timeTillHit = note.targetTime - currentTimeMs;
         const currentY = hitZoneY - (timeTillHit * noteSpeed);
 
-        // 只繪製在畫面範圍內的 Note
         if (currentY > -20 && currentY < canvas.height + 30) {
             ctx.fillStyle = "#00ffcc"; 
             ctx.shadowColor = "#00ffcc"; 
@@ -384,8 +343,7 @@ function gameLoop() {
             ctx.fill();
         }
 
-        // 超過判定線太遠自動算 MISS
-        if (timeTillHit < -300 && !note.hit) {
+        if (timeTillHit < -350 && !note.hit) {
             note.hit = true;
             showJudgement("MISS", "#ff0055");
         }
