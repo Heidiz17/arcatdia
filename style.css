@@ -26,7 +26,7 @@ body, html {
     background: #080910;
 }
 
-/* 🎯 頂部 100% 貼盡網址列，無任何空氣虛位 */
+/* 頂部貼盡半透明 HUD (橫屏極致寬廣) */
 .hud-overlay {
     position: absolute;
     top: 0;
@@ -37,27 +37,24 @@ body, html {
     justify-content: space-between;
     align-items: center;
     background: rgba(10, 15, 25, 0.75);
-    padding: 6px 10px;
+    padding: 4px 16px;
     border-bottom: 1px solid rgba(0, 255, 204, 0.3);
     backdrop-filter: blur(8px);
 }
 
 .track-info {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     color: #00ffcc;
-    max-width: 28%;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .hp-bar-container {
-    width: 55px;
-    height: 8px;
+    width: 80px;
+    height: 10px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #ff0077;
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
 }
 
@@ -69,13 +66,13 @@ body, html {
 
 .hud-buttons {
     display: flex;
-    gap: 6px;
+    gap: 8px;
 }
 
-/* 統一半透明高級按鈕 */
+/* 水晶半透明按鈕 */
 .btn-panel {
-    min-width: 82px;
-    height: 32px;
+    min-width: 90px;
+    height: 30px;
     background: rgba(0, 255, 204, 0.15);
     border: 1px solid rgba(0, 255, 204, 0.6);
     color: #00ffcc;
@@ -96,7 +93,7 @@ body, html {
 }
 
 .score-board {
-    font-size: 12px;
+    font-size: 13px;
     color: #ff00aa;
     font-weight: bold;
     text-shadow: 0 0 5px #ff00aa;
@@ -104,10 +101,10 @@ body, html {
 
 #judgementDisplay {
     position: absolute;
-    top: 48%;
+    top: 45%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 900;
     opacity: 0;
     z-index: 5;
@@ -119,7 +116,7 @@ body, html {
     top: 55%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 20px;
+    font-size: 22px;
     font-weight: bold;
     color: #ffaa00;
     opacity: 0;
@@ -127,23 +124,22 @@ body, html {
     pointer-events: none;
 }
 
-/* Canvas 全高度填滿 */
 #battleCanvas {
     width: 100%;
     height: 100%;
     display: block;
 }
 
-/* 🎯 回復原本大尺寸、好點擊的 4 軌觸控按鈕 (含高級 4 色偷透明效果) */
+/* 🎯 橫屏專屬：4 軌半透明按鈕 (完美精緻高度 65px) */
 .touch-controller {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 100px; /* 回復原本大按鈕尺寸 */
+    height: 65px;
     display: flex;
     z-index: 8;
-    background: rgba(5, 8, 15, 0.25);
+    background: rgba(5, 8, 15, 0.3);
     backdrop-filter: blur(4px);
 }
 
@@ -151,59 +147,58 @@ body, html {
     flex: 1;
     display: flex;
     justify-content: center;
-    align-items: flex-end;
-    padding-bottom: 15px;
-    font-size: 18px;
+    align-items: center;
+    font-size: 16px;
     font-weight: 900;
     border-top: 2px solid;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.1s ease;
 }
 
-/* L1: 粉紅半透明 */
+/* L1: 粉紅 */
 #lane0 {
     color: #ff0055;
     border-color: #ff0055;
-    background: linear-gradient(180deg, rgba(255, 0, 85, 0.03) 0%, rgba(255, 0, 85, 0.22) 100%);
+    background: linear-gradient(180deg, rgba(255, 0, 85, 0.03) 0%, rgba(255, 0, 85, 0.25) 100%);
 }
 #lane0.pressed {
-    background: rgba(255, 0, 85, 0.45);
+    background: rgba(255, 0, 85, 0.5);
     box-shadow: inset 0 0 25px #ff0055;
     color: #fff;
 }
 
-/* L2: 黃綠半透明 */
+/* L2: 黃綠 */
 #lane1 {
     color: #ccff00;
     border-color: #ccff00;
-    background: linear-gradient(180deg, rgba(204, 255, 0, 0.03) 0%, rgba(204, 255, 0, 0.22) 100%);
+    background: linear-gradient(180deg, rgba(204, 255, 0, 0.03) 0%, rgba(204, 255, 0, 0.25) 100%);
 }
 #lane1.pressed {
-    background: rgba(204, 255, 0, 0.45);
+    background: rgba(204, 255, 0, 0.5);
     box-shadow: inset 0 0 25px #ccff00;
     color: #fff;
 }
 
-/* R1: 冰藍半透明 */
+/* R1: 冰藍 */
 #lane2 {
     color: #00ccff;
     border-color: #00ccff;
-    background: linear-gradient(180deg, rgba(0, 204, 255, 0.03) 0%, rgba(0, 204, 255, 0.22) 100%);
+    background: linear-gradient(180deg, rgba(0, 204, 255, 0.03) 0%, rgba(0, 204, 255, 0.25) 100%);
 }
 #lane2.pressed {
-    background: rgba(0, 204, 255, 0.45);
+    background: rgba(0, 204, 255, 0.5);
     box-shadow: inset 0 0 25px #00ccff;
     color: #fff;
 }
 
-/* R2: 夢幻紫半透明 */
+/* R2: 夢幻紫 */
 #lane3 {
     color: #aa00ff;
     border-color: #aa00ff;
-    background: linear-gradient(180deg, rgba(170, 0, 255, 0.03) 0%, rgba(170, 0, 255, 0.22) 100%);
+    background: linear-gradient(180deg, rgba(170, 0, 255, 0.03) 0%, rgba(170, 0, 255, 0.25) 100%);
 }
 #lane3.pressed {
-    background: rgba(170, 0, 255, 0.45);
+    background: rgba(170, 0, 255, 0.5);
     box-shadow: inset 0 0 25px #aa00ff;
     color: #fff;
 }

@@ -1,11 +1,16 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v2.0 - Top Fit & Full Lane Color
+   🔒 Arcatdia Battle Engine v2.2 - Dynamic Landscape Edition
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = 850; 
-canvas.height = 420;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 let bpm = 175;
 let isPlaying = false;
@@ -29,7 +34,7 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 1;
+let currentPerspectiveMode = 2; // 預設 🚀 3D 尖角
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
@@ -197,9 +202,10 @@ for (let i = 0; i < 4; i++) {
 function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
-    const bottomLanesX = [106, 318, 530, 742];
-    const hitZoneY = 380;
-    const targetX = bottomLanesX[laneIndex];
+    const W = canvas.width;
+    const laneW = W / 4;
+    const hitZoneY = canvas.height - 80;
+    const targetX = laneW * laneIndex + (laneW / 2);
     const laneColor = laneColors[laneIndex].main;
 
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
@@ -321,35 +327,39 @@ function gameLoop() {
 
     const currentTimeMs = performance.now() - startTime;
     const travelDuration = 7200 / noteSpeed; 
-    const hitZoneY = 380;
-    const startY = 20; // 🎯 頂部貼盡頂線
+    const W = canvas.width;
+    const H = canvas.height;
+    const hitZoneY = H - 80;
+    const startY = 25;
 
-    const bottomLanesX = [106, 318, 530, 742];
+    const laneW = W / 4;
 
+    // 🎯 橫屏大螢幕視覺計算：
+    // Mode 1: 🏊 2D 純直軌 | Mode 2: 🚀 3D 寬視角極致尖角
     const topX = (currentPerspectiveMode === 1) 
-        ? [106, 318, 530, 742]
-        : [390, 413, 436, 460];
+        ? [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5]
+        : [W*0.43, W*0.48, W*0.52, W*0.57];
 
-    const botX = bottomLanesX;
+    const botX = [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5];
 
-    // 1. 畫 4 軌背景線
+    // 1. 畫 4 軌獨立色彩線
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = laneColors[i].glow;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(topX[i], startY);
-        ctx.lineTo(botX[i], canvas.height);
+        ctx.lineTo(botX[i], H);
         ctx.stroke();
 
         ctx.fillStyle = laneColors[i].main;
         ctx.shadowColor = laneColors[i].main;
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 14;
         ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
+        ctx.arc(botX[i], hitZoneY, 16, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // 2. 畫 Notes
+    // 2. 畫 Notes 樂譜 (橫屏極致旋轉透視)
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -369,14 +379,15 @@ function gameLoop() {
 
                 ctx.fillStyle = colorObj.main;
                 ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = 12 * progress;
+                ctx.shadowBlur = 14 * progress;
                 ctx.beginPath();
 
                 if (currentPerspectiveMode === 1) {
-                    ctx.ellipse(currentX, currentY, 12, 18, 0, 0, Math.PI * 2);
+                    ctx.ellipse(currentX, currentY, 14, 20, 0, 0, Math.PI * 2);
                 } else {
-                    const rx = (6 * (1.0 - progress)) + (20 * progress);
-                    const ry = (18 * (1.0 - progress)) + (8 * progress);
+                    // 🚀 橫屏極致透視：遠處企直 (Rx:4, Ry:24) ➔ 衝落嚟旋轉成打橫 (Rx:28, Ry:8)！
+                    const rx = (4 * (1.0 - progress)) + (28 * progress);
+                    const ry = (24 * (1.0 - progress)) + (8 * progress);
                     ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
                 }
                 ctx.fill();
@@ -407,9 +418,9 @@ function gameLoop() {
                 const tailX = tx + (bx - tx) * tailProgress;
 
                 ctx.strokeStyle = colorObj.glow;
-                ctx.lineWidth = note.holding ? 18 : 12;
+                ctx.lineWidth = note.holding ? 20 : 14;
                 ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 16;
                 ctx.beginPath();
                 ctx.moveTo(tailX, tailY);
                 ctx.lineTo(headX, headY);
