@@ -11,8 +11,9 @@ body, html {
     height: 100vh;
     height: 100dvh;
     background-color: #030305;
-    color: #00ffcc;
-    font-family: 'Courier New', Courier, monospace;
+    color: #ffffff;
+    /* 🎯 換上圓潤日系圓體 / 萌系二次元字體風格 */
+    font-family: 'Hiragino Maru Gothic ProN', 'Meiryo', 'M PLUS Rounded 1c', 'Nunito', sans-serif;
     overflow: hidden;
     position: fixed;
 }
@@ -26,7 +27,7 @@ body, html {
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    background: radial-gradient(circle at center, #0f1020 0%, #030305 100%);
+    background: radial-gradient(circle at center, #0a0b18 0%, #020204 100%);
     overflow: hidden;
 }
 
@@ -39,28 +40,29 @@ body, html {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(10, 15, 25, 0.9);
-    padding: 3px 6px;
-    border-bottom: 1px solid rgba(0, 255, 204, 0.4);
+    background: rgba(10, 15, 25, 0.85);
+    padding: 6px 10px;
+    border-bottom: 2px solid rgba(0, 255, 204, 0.4);
     backdrop-filter: blur(8px);
 }
 
 .track-info {
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 900;
     color: #00ffcc;
-    max-width: 85px;
+    text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+    max-width: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .hp-bar-container {
-    width: 45px;
-    height: 6px;
+    width: 55px;
+    height: 8px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #ff0077;
-    border-radius: 3px;
+    border-radius: 4px;
     overflow: hidden;
 }
 
@@ -68,26 +70,28 @@ body, html {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, #ff0077, #00ffcc);
+    box-shadow: 0 0 10px #00ffcc;
 }
 
 .hud-buttons {
     display: flex;
-    gap: 4px;
+    gap: 5px;
 }
 
 .btn-panel {
-    min-width: 58px;
-    height: 25px;
-    background: rgba(0, 255, 204, 0.15);
-    border: 1px solid rgba(0, 255, 204, 0.6);
+    min-width: 52px;
+    height: 26px;
+    background: rgba(0, 255, 204, 0.12);
+    border: 1.5px solid rgba(0, 255, 204, 0.6);
     color: #00ffcc;
     font-size: 10px;
-    font-weight: bold;
-    border-radius: 4px;
+    font-weight: 900;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
+    box-shadow: 0 0 6px rgba(0, 255, 204, 0.2);
 }
 
 .btn-panel:active {
@@ -96,31 +100,39 @@ body, html {
 }
 
 .score-board {
-    font-size: 11px;
-    color: #ff00aa;
-    font-weight: bold;
+    font-size: 13px;
+    color: #ffcc00;
+    font-weight: 900;
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
 }
 
+/* 🎯 判定大字：統一白金雷射光！震撼大字！ */
 #judgementDisplay {
     position: absolute;
-    top: 38%;
+    top: 36%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 32px;
+    font-size: 42px;
     font-weight: 900;
+    font-style: italic;
+    color: #ffffff;
+    text-shadow: 0 0 10px #fff, 0 0 25px #ffd700, 0 0 45px #ffaa00;
     opacity: 0;
     z-index: 5;
     pointer-events: none;
+    letter-spacing: 2px;
+    transition: transform 0.05s ease-out;
 }
 
 #comboDisplay {
     position: absolute;
-    top: 48%;
+    top: 45%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 22px;
-    font-weight: bold;
+    font-size: 26px;
+    font-weight: 900;
     color: #ffaa00;
+    text-shadow: 0 0 15px rgba(255, 170, 0, 0.8);
     opacity: 0;
     z-index: 5;
     pointer-events: none;
@@ -150,8 +162,8 @@ body, html {
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    padding-bottom: 22px;
-    font-size: 20px;
+    padding-bottom: 24px;
+    font-size: 22px;
     font-weight: 900;
     border-right: 1px solid rgba(255, 255, 255, 0.12);
     transition: all 0.08s ease;
@@ -204,25 +216,30 @@ body, html {
 }
 
 .title-text {
-    font-size: 20px;
+    font-size: 24px;
+    font-weight: 900;
     color: #00ffcc;
+    text-shadow: 0 0 15px rgba(0, 255, 204, 0.7);
     margin-bottom: 6px;
+    letter-spacing: 1px;
 }
 
 .sub-text {
-    font-size: 11px;
-    color: #aaa;
+    font-size: 12px;
+    color: #bbb;
     margin-bottom: 25px;
 }
 
 .btn-start {
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: bold;
-    background: #ff0077;
-    color: #fff;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 900;
     border: none;
-    border-radius: 25px;
+    border-radius: 12px;
     cursor: pointer;
-    box-shadow: 0 0 12px rgba(255, 0, 119, 0.5);
+    text-align: center;
+    transition: transform 0.1s ease;
+}
+.btn-start:active {
+    transform: scale(0.96);
 }

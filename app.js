@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.0 - Part 1 (視效流速 + 雙難度拉開版)
+   🔒 Arcatdia Battle Engine v5.1 - Part 1 (星際航行 + 精確收尾)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -20,15 +20,12 @@ let hp = 100;
 let notes = [];
 let particles = [];
 let stars = [];
+let celestialEvents = []; // 🎯 行星事件 (地球 -> 木星 -> 冥王星 -> 貓星)
 let startTime = 0;
 
-// 🎯 音樂播放速度（打歌模式固定 1.0x 原速，只有測試模式可降速）
 let playbackSpeed = 1.0;
-
-// 🚀 核心新功能：視效流速倍率 (Hi-Speed)，完全不影響音樂與判定！
 let scrollSpeedMultiplier = 1.0; 
-
-let currentMode = 'easy'; // 'easy' | 'normal' | 'test'
+let currentMode = 'easy';
 
 const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
@@ -52,7 +49,6 @@ function togglePerspectiveMode() {
     }
 }
 
-// 🎯 首頁難度選擇
 function chooseDifficultyAndStart(mode) {
     currentMode = mode;
     const mask = document.getElementById('startMask');
@@ -60,19 +56,17 @@ function chooseDifficultyAndStart(mode) {
 
     const info = document.getElementById('hudTrackInfo');
     if (info) {
-        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍 慢悠版)";
-        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍 正音步)";
-        else info.innerText = "01_TEST (全音符校準場)";
+        if (currentMode === 'easy') info.innerText = "01_EASY (慢悠舒適)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (連貫正音)";
+        else info.innerText = "01_TEST (校準場)";
     }
 
     updateSpeedButtonDisplay();
     togglePlay();
 }
 
-// 🎯 頂部按鈕：打歌模式切換「音符流速」，測試模式切換「音樂減速」
 function toggleSpeedButton() {
     if (currentMode === 'test') {
-        // 測試模式：改變歌曲播放速度 (診斷用)
         const speeds = [1.0, 0.8, 0.6, 0.5];
         let idx = speeds.indexOf(playbackSpeed);
         if (idx === -1) idx = 0;
@@ -83,7 +77,6 @@ function toggleSpeedButton() {
         });
         showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`, "#00ccff");
     } else {
-        // 打歌模式：改變音符下落流速 (Hi-Speed)
         const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
         let idx = scrollMultipliers.indexOf(scrollSpeedMultiplier);
         if (idx === -1) idx = 0;
@@ -115,7 +108,7 @@ function toggleJudgeLineLevel() {
 
 function initStars() {
     stars = [];
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 80; i++) {
         stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -126,6 +119,16 @@ function initStars() {
     }
 }
 initStars();
+
+// 🎯 行星路標航行：地球 -> 木星 -> 冥王星 -> 阿卡迪亞貓星
+function initCelestialJourney() {
+    celestialEvents = [
+        { name: "🌍 地球起航", timeSec: 2, duration: 4, color: "rgba(0, 150, 255, 0.25)", radius: 60 },
+        { name: "🪐 木星風暴", timeSec: 35, duration: 5, color: "rgba(230, 140, 60, 0.25)", radius: 85 },
+        { name: "❄️ 冥王冰界", timeSec: 75, duration: 5, color: "rgba(180, 220, 255, 0.25)", radius: 50 },
+        { name: "🐾 阿卡迪亞貓星", timeSec: 110, duration: 6, color: "rgba(255, 105, 180, 0.35)", radius: 100 }
+    ];
+}
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
@@ -187,14 +190,14 @@ function playStickClick(freq = 1200) {
 
 function createHitParticles(x, y, color) {
     if (particles.length > 30) particles.splice(0, 10);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 5 + 2;
+        const speed = Math.random() * 6 + 2;
         particles.push({
             x: x, y: y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
-            size: Math.random() * 3 + 2,
+            size: Math.random() * 4 + 2,
             color: color, alpha: 1.0
         });
     }
@@ -225,19 +228,21 @@ function getNextLane(lastLane) {
     return next;
 }
 
-// 🎯 譜面生成：Easy / Normal 密度徹底拉開，打足 160 個小節
+// 🎯 譜面生成：嚴格鎖定歌曲長度（精準收尾，曲終音止）
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000; // ~342.8ms
     const barMs = beatMs * 4;         // 1371.4ms
     const firstHitTime = barMs; 
-    const totalBars = 160;            // 🎯 整整 160 小節，唱足全曲
+
+    // 🎯 精確鎖定：歌曲大約 2 分幾鐘，鎖定 96 小節，保證曲終完全冇多餘幽靈音！
+    const totalBars = 96; 
+    const holdDuration = beatMs * 0.5; // 🎯 短 Hold：改為半拍 (~171ms)，轉手極順！
 
     let lastLane = 1;
 
     if (currentMode === 'test') {
-        // 🛠️ 測試模式：每小節 1 粒 (黃色軌全音符)
         for (let i = 0; i < totalBars; i++) {
             notes.push({
                 type: 'tap',
@@ -247,25 +252,24 @@ function generateChart() {
             });
         }
     } else if (currentMode === 'easy') {
-        // 🌱 EASY：極致寬鬆！以 4 拍全音符為主，穿插少量 2 拍與長按
         for (let bar = 0; bar < totalBars; bar++) {
             const barStart = firstHitTime + (bar * barMs);
             const roll = Math.random();
 
-            if (roll < 0.5) {
-                // 50% 機率：整個小節只得 1 粒 4 拍全音符 (1.37秒才落一粒，極舒服)
+            if (roll < 0.55) {
+                // 4 拍全音符單擊 (成個小節得一粒，極好呼吸)
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
             } else if (roll < 0.8) {
-                // 30% 機率：第 1 拍長按 2 拍 (Hold)，第 3 拍空拍休息
+                // 第 1 拍短 Hold (半拍)
                 lastLane = getNextLane(lastLane);
                 notes.push({ 
                     type: 'hold', lane: lastLane, 
-                    targetTime: barStart, duration: beatMs * 2, 
+                    targetTime: barStart, duration: holdDuration, 
                     holding: false, hit: false, lastTick: 0 
                 });
             } else {
-                // 20% 機率：第 1 拍、第 3 拍各一粒 2 拍單擊
+                // 2 拍單擊
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
 
@@ -274,23 +278,22 @@ function generateChart() {
             }
         }
     } else if (currentMode === 'normal') {
-        // 🔥 NORMAL：真正街機手感！以 1 拍爬行連擊為主，咬死正拍，絕無半拍
         for (let bar = 0; bar < totalBars; bar++) {
             const barStart = firstHitTime + (bar * barMs);
             const roll = Math.random();
 
             if (roll < 0.6) {
-                // 60% 機率：連續 4 個 1 拍正音單擊（咚、噠、咚、噠連貫落）
+                // 連續 4 個 1 拍單擊 (爬行連打)
                 for (let b = 0; b < 4; b++) {
                     lastLane = getNextLane(lastLane);
                     notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * b), hit: false });
                 }
             } else if (roll < 0.85) {
-                // 25% 機率：第 1 拍長按 2 拍 -> 第 3、第 4 拍各 1 拍單擊接力
+                // 第 1 拍短 Hold -> 第 3、4 拍單擊
                 lastLane = getNextLane(lastLane);
                 notes.push({ 
                     type: 'hold', lane: lastLane, 
-                    targetTime: barStart, duration: beatMs * 2, 
+                    targetTime: barStart, duration: holdDuration, 
                     holding: false, hit: false, lastTick: 0 
                 });
 
@@ -300,7 +303,7 @@ function generateChart() {
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 3), hit: false });
             } else {
-                // 15% 機率：第 1 拍、第 3 拍 2 拍單擊喘息段
+                // 2 拍單擊過渡
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
 
@@ -354,7 +357,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.0 - Part 2 (流速飛行渲染與判定)
+   🔒 Arcatdia Battle Engine v5.1 - Part 2 (白金雷射 + 星球渲染)
    ============================================================= */
 
 let countInTimers = [];
@@ -384,12 +387,13 @@ function handleTap(laneIndex) {
         }
 
         if (targetNote.type === 'hold') {
-            if (timeDiff < 280) {
+            if (timeDiff < 260) {
                 targetNote.holding = true;
                 targetNote.lastTick = currentTimeMs;
                 score += 500;
                 combo++;
-                showJudgement("HOLD!", laneColor);
+                // 🎯 統一字體：金色外發光
+                showJudgement("HOLD!");
                 createHitParticles(targetX, currentHitY, laneColor);
                 updateUI();
             }
@@ -399,13 +403,14 @@ function handleTap(laneIndex) {
                 score += 1000;
                 combo++;
                 hp = Math.min(100, hp + 2);
-                showJudgement("PERFECT!", laneColor);
-                createHitParticles(targetX, currentHitY, laneColor);
+                // 🎯 統一白金雷射判定！
+                showJudgement("PERFECT!");
+                createHitParticles(targetX, currentHitY, "#ffffff");
             } else if (timeDiff < 320) {
                 targetNote.hit = true;
                 score += 500;
                 combo++;
-                showJudgement("GREAT", "#ffaa00");
+                showJudgement("GREAT");
                 createHitParticles(targetX, currentHitY, "#ffaa00");
             }
             updateUI();
@@ -420,12 +425,12 @@ function handleRelease(laneIndex) {
     const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
     if (holdingNote) {
         const endTime = holdingNote.targetTime + holdingNote.duration;
-        if (currentTimeMs < endTime - 150) {
+        if (currentTimeMs < endTime - 80) {
             holdingNote.holding = false;
             holdingNote.hit = true;
             combo = 0;
             hp = Math.max(0, hp - 4);
-            showJudgement("BREAK!", "#ff0055");
+            showJudgement("BREAK!");
             updateUI();
         }
     }
@@ -445,13 +450,27 @@ function updateUI() {
     }
 }
 
-function showJudgement(text, color) {
+// 🎯 判定展示：統一正中，不跟隨軌道花色
+function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
     if (disp) {
         disp.innerText = text;
-        disp.style.color = color;
+        if (text === "PERFECT!") {
+            disp.style.color = "#ffffff";
+            disp.style.textShadow = "0 0 10px #fff, 0 0 25px #ffd700, 0 0 45px #ffaa00";
+        } else if (text === "GREAT" || text === "HOLD!") {
+            disp.style.color = "#ffd700";
+            disp.style.textShadow = "0 0 15px rgba(255, 215, 0, 0.8)";
+        } else {
+            disp.style.color = "#ff0055";
+            disp.style.textShadow = "0 0 15px rgba(255, 0, 85, 0.8)";
+        }
         disp.style.opacity = '1';
-        setTimeout(() => { disp.style.opacity = '0'; }, 350);
+        disp.style.transform = 'translate(-50%, -50%) scale(1.15)';
+        setTimeout(() => { 
+            disp.style.opacity = '0'; 
+            disp.style.transform = 'translate(-50%, -50%) scale(1.0)';
+        }, 320);
     }
 }
 
@@ -487,7 +506,7 @@ function scheduleCountInAndPlay() {
         const t = setTimeout(() => {
             if (!isPlaying) return;
             playStickClick(b === 3 ? 1800 : 1200);
-            showJudgement(`${b + 1}`, "#00ffcc");
+            showJudgement(`${b + 1}`);
         }, (b * beatMs) / playbackSpeed);
         countInTimers.push(t);
     });
@@ -513,6 +532,7 @@ function togglePlay() {
         firstNoteHitTime = null;
         recordedTravelTime = "--";
         updateUI();
+        initCelestialJourney();
         generateChart();
         startTime = performance.now();
         scheduleCountInAndPlay();
@@ -530,6 +550,10 @@ function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+    const currentSec = currentTimeMs / 1000;
+
+    // 🎯 1. 繪製深空星星
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.beginPath();
@@ -543,11 +567,33 @@ function gameLoop() {
         }
     });
 
-    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+    // 🎯 2. 行星剪影在黑色銀河中「閃一閃 / 靜靜掠過」
+    celestialEvents.forEach(p => {
+        if (currentSec >= p.timeSec && currentSec <= p.timeSec + p.duration) {
+            const progress = (currentSec - p.timeSec) / p.duration;
+            const alpha = Math.sin(progress * Math.PI) * 0.35; // 柔和淡入淡出，不搶視野
+
+            ctx.save();
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 40;
+            ctx.beginPath();
+            // 從畫面右上角慢慢劃過
+            const px = canvas.width * 0.75 - (progress * 50);
+            const py = canvas.height * 0.22 + (progress * 40);
+            ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 星球小地標文字 (日系精緻感)
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.5})`;
+            ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
+            ctx.fillText(p.name, px - 35, py + p.radius + 18);
+            ctx.restore();
+        }
+    });
+
     const beatMs = (60 / bpm) * 1000;
-    
-    // 🚀 核心計算：基礎下落 2 拍，除以流速倍率。流速越快，在螢幕上的時間越短，飛得越爽快！
-    const baseTravelDuration = beatMs * 2; // ~685.7ms
+    const baseTravelDuration = beatMs * 2; 
     const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
 
     const W = canvas.width;
@@ -586,7 +632,7 @@ function gameLoop() {
     ctx.stroke();
 
     ctx.fillStyle = "#00ffcc";
-    ctx.font = "bold 11px Courier New";
+    ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
     ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 10, hitZoneY - 8);
 
     notes.forEach(note => {
@@ -610,9 +656,9 @@ function gameLoop() {
             const endProgress = 1.0 - (timeTillEnd / travelDuration);
 
             if (note.holding) {
-                if (currentTimeMs - note.lastTick >= 120) {
+                if (currentTimeMs - note.lastTick >= 80) {
                     note.lastTick = currentTimeMs;
-                    score += 150;
+                    score += 100;
                     combo++;
                     createHitParticles(bx, hitZoneY, colorObj.main);
                     updateUI();
@@ -621,11 +667,11 @@ function gameLoop() {
                 if (currentTimeMs >= endTime) {
                     note.hit = true;
                     note.holding = false;
-                    score += 800;
+                    score += 500;
                     combo++;
                     hp = Math.min(100, hp + 3);
-                    showJudgement("COMPLETE!", "#00ffcc");
-                    createHitParticles(bx, hitZoneY, "#00ffcc");
+                    showJudgement("PERFECT!");
+                    createHitParticles(bx, hitZoneY, "#ffffff");
                     updateUI();
                 }
             }
@@ -641,7 +687,7 @@ function gameLoop() {
 
                 ctx.save();
                 ctx.strokeStyle = note.holding ? "#ffffff" : colorObj.glow;
-                ctx.lineWidth = note.holding ? 32 : 24;
+                ctx.lineWidth = note.holding ? 30 : 22;
                 ctx.lineCap = "round";
                 ctx.shadowColor = colorObj.main;
                 ctx.shadowBlur = note.holding ? 25 : 12;
@@ -661,7 +707,7 @@ function gameLoop() {
                 note.hit = true;
                 combo = 0;
                 hp = Math.max(0, hp - 5);
-                showJudgement("MISS", "#ff0055");
+                showJudgement("MISS");
                 updateUI();
             }
 
@@ -693,7 +739,7 @@ function gameLoop() {
                 note.hit = true;
                 combo = 0;
                 hp = Math.max(0, hp - 5);
-                showJudgement("MISS", "#ff0055");
+                showJudgement("MISS");
                 updateUI();
             }
         }
@@ -729,13 +775,13 @@ function gameLoop() {
         ctx.strokeRect(8, 55, 230, 95);
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px Courier New";
+        ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
         ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
         ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
         ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
         
         ctx.fillStyle = "#ccff00";
-        ctx.font = "bold 12px Courier New";
+        ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
         ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
         ctx.restore();
     }
@@ -743,7 +789,6 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化按鈕點擊事件：綁定頂部變速掣
 (function bindHeaderControls() {
     const speedBtn = document.getElementById('speedToggleBtn');
     if (speedBtn) {
