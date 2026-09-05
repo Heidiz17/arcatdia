@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v1.4 - SEKAI Perspective & Hold Note Edition
+   🔒 Arcatdia Battle Engine v1.5 - SEKAI Hi-Speed Edition
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -18,13 +18,15 @@ let startTime = 0;
 
 const audioOffsetMs = 250; 
 
-// 追蹤 4 個軌道目前是否有手指按住 (Holding State)
+// 🎯 下落速度設定 (1.0x ~ 10.0x)
+let noteSpeed = 6.0; 
+
 const lanePressed = [false, false, false, false];
 
 /* -------------------------------------------------------------
-   📐 視角 Option 模式設定 (Mode 1: 舒適初音梯形 / Mode 2: 尖角 3D)
+   📐 視角與速度切換 (Mode & Speed Selector)
    ------------------------------------------------------------- */
-let currentPerspectiveMode = 1; // 預設 Mode 1 (最適老婆同學生 play 嘅舒適版)
+let currentPerspectiveMode = 1;
 
 const mode1TopX = [280, 376, 473, 570];
 const mode2TopX = [390, 413, 436, 460];
@@ -42,6 +44,17 @@ function togglePerspectiveMode() {
     const btn = document.getElementById('modeToggleBtn');
     if (btn) {
         btn.innerText = currentPerspectiveMode === 1 ? "MODE: 1 (舒適)" : "MODE: 2 (尖角)";
+    }
+}
+
+// 🎯 一鍵切換下落速度 (Hi-Speed Toggle)
+function toggleNoteSpeed() {
+    const speeds = [2.0, 4.0, 6.0, 8.0, 10.0];
+    let idx = speeds.indexOf(noteSpeed);
+    noteSpeed = speeds[(idx + 1) % speeds.length];
+    const btn = document.getElementById('speedToggleBtn');
+    if (btn) {
+        btn.innerText = `SPEED: ${noteSpeed.toFixed(1)}x`;
     }
 }
 
@@ -123,9 +136,6 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-/* -------------------------------------------------------------
-   🎼 譜面生成：單擊 (Tap) + 實體長按條 (Hold Note)
-   ------------------------------------------------------------- */
 function generate175BpmChart() {
     notes = [];
     const beatMs = (60 / bpm) * 1000;
@@ -133,7 +143,6 @@ function generate175BpmChart() {
     let currentMs = audioOffsetMs;
 
     for (let i = 0; i < 120; i++) {
-        // 每 8 個 Beat 出現一次長亮光條 (Hold Note Duration = 2.5 個拍子)
         if (i % 8 === 3) {
             notes.push({
                 type: 'hold',
@@ -146,7 +155,6 @@ function generate175BpmChart() {
             });
             currentMs += beatMs * 3.5;
         } else {
-            // 一般單擊 (Tap)
             const pattern = [[0], [2], [1], [3], [0, 2], [1, 3]][i % 6];
             pattern.forEach(laneIndex => {
                 notes.push({
@@ -161,13 +169,9 @@ function generate175BpmChart() {
     }
 }
 
-/* -------------------------------------------------------------
-   👆 觸控與事件綁定 (支援長按 Holding 狀態追蹤)
-   ------------------------------------------------------------- */
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
-        // Touch Start
         laneBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             laneBtn.classList.add('pressed');
@@ -175,22 +179,18 @@ for (let i = 0; i < 4; i++) {
             playHiHatHitSound();
             handleTap(i);
         });
-        // Touch End
         laneBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
             handleRelease(i);
         });
-
-        // Mouse MouseDown
         laneBtn.addEventListener('mousedown', () => {
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
             playHiHatHitSound();
             handleTap(i);
         });
-        // Mouse MouseUp
         laneBtn.addEventListener('mouseup', () => {
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
@@ -203,7 +203,6 @@ function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
 
-    // 尋找目標 Note
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
 
     if (targetNote) {
@@ -226,7 +225,6 @@ function handleTap(laneIndex) {
                 createHitParticles(targetX, hitZoneY, "#ffaa00");
             }
         } else if (targetNote.type === 'hold') {
-            // 長按 Hold Note 開始觸碰
             const timeDiff = Math.abs(currentTimeMs - targetNote.startTime);
             if (timeDiff < 300) {
                 targetNote.holding = true;
@@ -241,11 +239,9 @@ function handleRelease(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
 
-    // 如果中途放開 Hold Note
     const holdNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.completed);
     if (holdNote) {
         if (currentTimeMs < holdNote.endTime - 150) {
-            // 太早放手 -> MISS
             holdNote.holding = false;
             holdNote.completed = true;
             combo = 0;
@@ -328,7 +324,9 @@ function gameLoop() {
     const currentTimeMs = performance.now() - startTime;
     const currentTopX = getActiveTopX();
 
-    // 1. 畫 4 條透視軌道
+    // 🎯 速度動態計算 (Travel Duration Base = 7200 / noteSpeed)
+    const travelDuration = 7200 / noteSpeed; 
+
     for (let i = 0; i < 4; i++) {
         const topX = currentTopX[i];
         const botX = bottomLanesX[i];
@@ -348,7 +346,6 @@ function gameLoop() {
         ctx.fill();
     }
 
-    // 2. 畫音符與 Hold Note 長亮光條
     notes.forEach(note => {
         const laneIndex = note.lane;
         const topX = currentTopX[laneIndex];
@@ -357,7 +354,9 @@ function gameLoop() {
         if (note.type === 'tap') {
             if (note.hit) return;
             const timeTillHit = note.targetTime - currentTimeMs;
-            const progress = 1.0 - (timeTillHit / 1200); 
+            
+            const rawProgress = 1.0 - (timeTillHit / travelDuration);
+            const progress = Math.max(0, Math.min(1.1, Math.pow(rawProgress, 1.2)));
 
             if (progress > 0 && progress < 1.1) {
                 const currentX = topX + (botX - topX) * progress;
@@ -383,16 +382,18 @@ function gameLoop() {
         else if (note.type === 'hold') {
             if (note.completed) return;
 
-            const headProgress = 1.0 - ((note.startTime - currentTimeMs) / 1200);
-            const tailProgress = 1.0 - ((note.endTime - currentTimeMs) / 1200);
+            const rawHead = 1.0 - ((note.startTime - currentTimeMs) / travelDuration);
+            const rawTail = 1.0 - ((note.endTime - currentTimeMs) / travelDuration);
 
-            // 長亮光條渲染 (Ribbon Body)
+            const headProgress = Math.pow(Math.max(0, Math.min(1, rawHead)), 1.2);
+            const tailProgress = Math.pow(Math.max(0, Math.min(1, rawTail)), 1.2);
+
             if (headProgress > 0 && tailProgress < 1.1) {
-                const headY = Math.min(hitZoneY, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * Math.max(0, headProgress));
-                const tailY = Math.max(vanishingPoint.y, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * Math.min(1, tailProgress));
+                const headY = Math.min(hitZoneY, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * headProgress);
+                const tailY = Math.max(vanishingPoint.y, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * tailProgress);
 
-                const headX = topX + (botX - topX) * Math.min(1, Math.max(0, headProgress));
-                const tailX = topX + (botX - topX) * Math.min(1, Math.max(0, tailProgress));
+                const headX = topX + (botX - topX) * headProgress;
+                const tailX = topX + (botX - topX) * tailProgress;
 
                 ctx.strokeStyle = note.holding ? "rgba(0, 255, 204, 0.8)" : "rgba(0, 255, 204, 0.4)";
                 ctx.lineWidth = note.holding ? 16 : 10;
@@ -404,9 +405,7 @@ function gameLoop() {
                 ctx.stroke();
             }
 
-            // 按住狀態處理 (Holding state)
             if (note.holding && lanePressed[laneIndex]) {
-                // 持續爆發火花與加分
                 if (Math.random() < 0.4) {
                     createHitParticles(botX, hitZoneY, "#00ffcc");
                     score += 50;
@@ -414,7 +413,6 @@ function gameLoop() {
                     updateUI();
                 }
 
-                // 長按完成
                 if (currentTimeMs >= note.endTime) {
                     note.completed = true;
                     note.holding = false;
@@ -425,7 +423,6 @@ function gameLoop() {
                 }
             }
 
-            // 沒按而漏過
             if (currentTimeMs > note.startTime + 300 && !note.holding && !note.completed) {
                 note.completed = true;
                 combo = 0;
@@ -436,7 +433,6 @@ function gameLoop() {
         }
     });
 
-    // 3. 粒子渲染
     particles.forEach((p, index) => {
         ctx.save();
         ctx.globalAlpha = p.alpha;
