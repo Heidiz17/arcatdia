@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v2.6 - Starfield & 3D Skew Lanes
+   🔒 Arcatdia Battle Engine v2.7 - Speed Options & Comfortable Notes
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -20,12 +20,12 @@ let combo = 0;
 let hp = 100;
 let notes = [];
 let particles = [];
-let stars = []; // 🌟 動態背景星空
+let stars = [];
 let startTime = 0;
 
 const audioOffsetMs = 250; 
 let noteSpeed = 6.0; 
-let playbackSpeed = 1.0; 
+let playbackSpeed = 1.0; // 預設 1.0x，可切換 0.8x, 0.9x
 
 const lanePressed = [false, false, false, false];
 
@@ -46,18 +46,9 @@ function togglePerspectiveMode() {
     }
 }
 
-function toggleNoteSpeed() {
-    const speeds = [2.0, 4.0, 6.0, 8.0, 10.0];
-    let idx = speeds.indexOf(noteSpeed);
-    noteSpeed = speeds[(idx + 1) % speeds.length];
-    const btn = document.getElementById('speedToggleBtn');
-    if (btn) {
-        btn.innerText = `⚡ ${noteSpeed.toFixed(1)}x`;
-    }
-}
-
+// 🎯 練歌速度循環切換：0.8x ➔ 0.9x ➔ 1.0x
 function togglePlaybackSpeed() {
-    const speeds = [0.7, 1.0, 1.2];
+    const speeds = [0.8, 0.9, 1.0];
     let idx = speeds.indexOf(playbackSpeed);
     playbackSpeed = speeds[(idx + 1) % speeds.length];
     
@@ -71,7 +62,6 @@ function togglePlaybackSpeed() {
     }
 }
 
-/* 🌟 初始化背景星空粒子 */
 function initStars() {
     stars = [];
     for (let i = 0; i < 70; i++) {
@@ -242,7 +232,7 @@ function handleTap(laneIndex) {
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const W = canvas.width;
     const laneW = W / 4;
-    const hitZoneY = canvas.height - 95;
+    const hitZoneY = canvas.height - 105;
     const targetX = laneW * laneIndex + (laneW / 2);
     const laneColor = laneColors[laneIndex].main;
 
@@ -380,14 +370,16 @@ function startCalibration() {
 }
 
 function startBattle() {
-    startCalibration();
+    initDSP();
+    const mask = document.getElementById('startMask');
+    if (mask) mask.style.display = 'none';
+    togglePlay();
 }
 
 function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 🌟 1. 渲染背景動態星空
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.beginPath();
@@ -405,7 +397,7 @@ function gameLoop() {
     const travelDuration = (7200 / noteSpeed); 
     const W = canvas.width;
     const H = canvas.height;
-    const hitZoneY = H - 95;
+    const hitZoneY = H - 105;
     const startY = 20;
 
     const laneW = W / 4;
@@ -451,10 +443,12 @@ function gameLoop() {
                 ctx.beginPath();
 
                 if (currentPerspectiveMode === 1) {
-                    ctx.ellipse(currentX, currentY, 14, 20, 0, 0, Math.PI * 2);
+                    // 🏊 Mode 1 舒適大直軌：放大尺寸，清晰舒服！
+                    ctx.ellipse(currentX, currentY, 18, 24, 0, 0, Math.PI * 2);
                 } else {
-                    const rx = (5 * (1.0 - progress)) + (38 * progress);
-                    const ry = (22 * (1.0 - progress)) + (9 * progress);
+                    // 🚀 Mode 2 3D 尖角：遠處舒適直立 ➔ 到眼前展寬剛好匹配按鈕闊度！
+                    const rx = (6 * (1.0 - progress)) + (42 * progress);
+                    const ry = (24 * (1.0 - progress)) + (10 * progress);
                     ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
                 }
                 ctx.fill();
@@ -485,7 +479,7 @@ function gameLoop() {
                 const tailX = tx + (bx - tx) * tailProgress;
 
                 ctx.strokeStyle = colorObj.glow;
-                ctx.lineWidth = note.holding ? 22 : 15;
+                ctx.lineWidth = note.holding ? 24 : 16;
                 ctx.shadowColor = colorObj.main;
                 ctx.shadowBlur = 16;
                 ctx.beginPath();

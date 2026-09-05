@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 🎯 全螢幕 PWA 標籤，縮埋手機網址列 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Arcatdia Rhythm Engine - Fullscreen Edition</title>
+    <title>Arcatdia Rhythm Engine - Starfield Edition</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="stage-container">
-    <!-- 頂部 HUD 資訊 -->
     <div class="hud-overlay">
         <div class="track-info">01_最大的愛</div>
         
@@ -25,7 +23,7 @@
 
         <div class="hud-buttons">
             <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🚀 3D 尖角</button>
-            <button id="speedToggleBtn" class="btn-panel" onclick="toggleNoteSpeed()">⚡ 6.0x</button>
+            <button id="speedToggleBtn" class="btn-panel" onclick="togglePlaybackSpeed()">🎵 1.0x</button>
             <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">▶ PLAY</button>
         </div>
     </div>
@@ -35,7 +33,6 @@
 
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 下方加大好撳嘅 4 軌按鈕 -->
     <div class="touch-controller">
         <div class="touch-lane" id="lane0">L1</div>
         <div class="touch-lane" id="lane1">L2</div>
@@ -45,8 +42,11 @@
 
     <div id="startMask" class="start-mask">
         <h2 class="title-text">ARCATDIA BATTLE ENGINE</h2>
-        <p class="sub-text">175 BPM J-Rock | 橫屏極致全螢幕版</p>
-        <button class="btn-start" onclick="startBattle()">▶ 啟動同步戰鬥 (全螢幕)</button>
+        <p class="sub-text">175 BPM J-Rock | 星空熠熠旗艦版</p>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-start" onclick="startCalibration()">🎵 4拍校準測試</button>
+            <button class="btn-start" style="background:#00ffcc; color:#000;" onclick="startBattle()">▶ 直接全曲狂飆</button>
+        </div>
     </div>
 </div>
 
