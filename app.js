@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.8 - Part 1 (2拍極速下落 + 線位同步)
+   🔒 Arcatdia Battle Engine v3.9 - Part 1 (內置 4 拍 Count-in)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -90,6 +90,7 @@ function initDSP() {
     } catch (e) {}
 }
 
+// 🎯 打擊音效 (Hi-Hat)
 function playHiHatHitSound() {
     if (!dspCtx) return;
     try {
@@ -116,6 +117,26 @@ function playHiHatHitSound() {
         gain.connect(dspCtx.destination);
 
         noise.start();
+    } catch (e) {}
+}
+
+// 🎯 預備拍專用：清脆木質鼓棍聲 (Stick Click)
+function playStickClick(freq = 1200) {
+    if (!dspCtx) return;
+    try {
+        const osc = dspCtx.createOscillator();
+        const gain = dspCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, dspCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.8, dspCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04);
+
+        osc.connect(gain);
+        gain.connect(dspCtx.destination);
+
+        osc.start();
+        osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
 
@@ -151,19 +172,20 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
+// 🎯 譜面生成：第一粒音精確定在 1.37秒 (即預備拍剛好數完那一微秒)
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const wholeNoteMs = beatMs * 4;
+    const barMs = beatMs * 4; // 1371.4ms (剛好 1 個 Bar)
 
-    const firstHitTime = wholeNoteMs; 
+    const firstHitTime = barMs; 
 
     for (let i = 0; i < 150; i++) {
         notes.push({
             type: 'tap',
             lane: 1, 
-            targetTime: firstHitTime + (i * wholeNoteMs),
+            targetTime: firstHitTime + (i * barMs),
             hit: false
         });
     }
@@ -197,8 +219,15 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.8 - Part 2
+   🔒 Arcatdia Battle Engine v3.9 - Part 2
    ============================================================= */
+
+let countInTimers = [];
+let audioStartTimer = null;
+
+let firstNoteBornTime = null;
+let firstNoteHitTime = null;
+let recordedTravelTime = "--";
 
 function handleTap(laneIndex) {
     if (!isPlaying) return;
@@ -213,6 +242,11 @@ function handleTap(laneIndex) {
 
     if (targetNote) {
         const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+
+        if (targetNote === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
+            firstNoteHitTime = currentTimeMs;
+            recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+        }
 
         if (timeDiff < 180) {
             targetNote.hit = true;
@@ -270,6 +304,39 @@ function pauseAllAudio() {
     });
 }
 
+function clearAllTimers() {
+    countInTimers.forEach(t => clearTimeout(t));
+    countInTimers = [];
+    if (audioStartTimer) {
+        clearTimeout(audioStartTimer);
+        audioStartTimer = null;
+    }
+}
+
+// 🎯 核心：自帶 4 拍預備拍 (1.37秒) 排程
+function scheduleCountInAndPlay() {
+    clearAllTimers();
+    const beatMs = (60 / bpm) * 1000; // ~342.8ms
+
+    // 敲 4 聲預備拍：前 3 下低音，第 4 下高音提示即刻入歌！
+    const beats = [0, 1, 2, 3];
+    beats.forEach(b => {
+        const t = setTimeout(() => {
+            if (!isPlaying) return;
+            playStickClick(b === 3 ? 1800 : 1200);
+            showJudgement(`${b + 1}`, "#00ffcc");
+        }, (b * beatMs) / playbackSpeed);
+        countInTimers.push(t);
+    });
+
+    // 4 拍一數完 (剛好 1.37秒)，MP3 正式起跑，拍子機自動停止！
+    const totalLeadMs = beatMs * 4;
+    audioStartTimer = setTimeout(() => {
+        if (!isPlaying) return;
+        playAllAudio();
+    }, totalLeadMs / playbackSpeed);
+}
+
 function togglePlay() {
     initDSP();
     const playBtn = document.getElementById('mainPlayBtn');
@@ -278,14 +345,18 @@ function togglePlay() {
         score = 0;
         combo = 0;
         hp = 100;
+        firstNoteBornTime = null;
+        firstNoteHitTime = null;
+        recordedTravelTime = "--";
         updateUI();
         generateChart();
-        playAllAudio();
         startTime = performance.now();
+        scheduleCountInAndPlay();
         if (playBtn) playBtn.innerText = "⏸ PAUSE";
         requestAnimationFrame(gameLoop);
     } else {
         isPlaying = false;
+        clearAllTimers();
         pauseAllAudio();
         if (playBtn) playBtn.innerText = "▶ PLAY";
     }
@@ -320,9 +391,7 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const beatMs = (60 / bpm) * 1000;
-    
-    // 🎯 2拍等速下落：剛好咬死判定線
-    const travelDuration = beatMs * 2; 
+    const travelDuration = beatMs * 2; // 下落固定 2 拍 (~685.7ms)
 
     const W = canvas.width;
     const H = canvas.height;
@@ -373,6 +442,11 @@ function gameLoop() {
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
+        // 捕捉第一粒音出現在畫面的時間
+        if (note === notes[0] && rawProgress >= 0 && firstNoteBornTime === null) {
+            firstNoteBornTime = currentTimeMs;
+        }
+
         if (rawProgress > 0 && rawProgress < 1.15) {
             const currentX = tx + (bx - tx) * rawProgress;
             const currentY = startY + (hitZoneY - startY) * rawProgress;
@@ -392,8 +466,12 @@ function gameLoop() {
             ctx.fill();
         }
 
-        // 🎯 粒音穿過判定線 (1.08) 瞬間結算 MISS
+        // 過線 MISS
         if (rawProgress > 1.08 && !note.hit) {
+            if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
+                firstNoteHitTime = currentTimeMs;
+                recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+            }
             note.hit = true;
             combo = 0;
             hp = Math.max(0, hp - 5);
@@ -422,6 +500,25 @@ function gameLoop() {
             particles.splice(i, 1);
         }
     }
+
+    // 🎯 實時遙測 HUD
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+    ctx.fillRect(8, 55, 230, 95);
+    ctx.strokeStyle = "#00ffcc";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(8, 55, 230, 95);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px Courier New";
+    ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
+    ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
+    ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
+    
+    ctx.fillStyle = "#ccff00";
+    ctx.font = "bold 12px Courier New";
+    ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
+    ctx.restore();
 
     requestAnimationFrame(gameLoop);
 }
