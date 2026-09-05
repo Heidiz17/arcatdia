@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.3 - Part 1 (太陽系全星際航行)
+   🔒 Arcatdia Battle Engine v6.0 - Part 1 (世界計劃標準立體磚面版)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -32,22 +32,15 @@ let judgeLineLevel = 1;
 
 const lanePressed = [false, false, false, false];
 
+// 🎨 世界計劃風格經典 4 色（高對比度、乾淨霓虹光）
 const laneColors = [
-    { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
-    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
-    { main: "#00ccff", glow: "rgba(0, 204, 255, 0.8)" },
-    { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
+    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.7)" },  // 櫻粉紅
+    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.7)" },   // 亮青藍
+    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.7)" },   // 燦金黃
+    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.7)" }   // 幻夜紫
 ];
 
-let currentPerspectiveMode = 1;
-
-function togglePerspectiveMode() {
-    currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
-    const btn = document.getElementById('modeToggleBtn');
-    if (btn) {
-        btn.innerText = currentPerspectiveMode === 1 ? "🏊 2D 直軌" : "🚀 3D 尖角";
-    }
-}
+let currentPerspectiveMode = 2; // 預設鎖定 3D 經典世界計劃梯形視角
 
 function chooseDifficultyAndStart(mode) {
     currentMode = mode;
@@ -56,9 +49,9 @@ function chooseDifficultyAndStart(mode) {
 
     const info = document.getElementById('hudTrackInfo');
     if (info) {
-        if (currentMode === 'easy') info.innerText = "01_EASY (星際巡航)";
-        else if (currentMode === 'normal') info.innerText = "01_NORMAL (正音連動)";
-        else info.innerText = "01_TEST (校準場)";
+        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍 慢悠舒適)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍 正音連動)";
+        else info.innerText = "01_TEST (校準實驗場)";
     }
 
     updateHeaderButtons();
@@ -126,21 +119,6 @@ function updateHeaderButtons() {
             speedBtn.style.borderColor = "#ffaa00";
         }
     }
-
-    let restartBtn = document.getElementById('restartToggleBtn');
-    if (!restartBtn) {
-        const container = document.querySelector('.hud-buttons');
-        if (container) {
-            restartBtn = document.createElement('button');
-            restartBtn.id = 'restartToggleBtn';
-            restartBtn.className = 'btn-panel';
-            restartBtn.style.borderColor = '#ffaa00';
-            restartBtn.style.color = '#ffaa00';
-            restartBtn.innerText = '🔄 重玩';
-            restartBtn.onclick = restartSong;
-            container.insertBefore(restartBtn, container.firstChild);
-        }
-    }
 }
 
 function toggleJudgeLineLevel() {
@@ -150,7 +128,7 @@ function toggleJudgeLineLevel() {
 
 function initStars() {
     stars = [];
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 70; i++) {
         stars.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -162,99 +140,55 @@ function initStars() {
 }
 initStars();
 
-// 🎯 太陽系全序列時間軸：地球 -> 金星 -> 木土雙星 -> 天海雙星 -> 冥王星 -> 星雲 -> 貓星
 function initCelestialJourney() {
     celestialEvents = [
-        // 1. 地球起航
-        {
-            timeSec: 2, duration: 8,
-            planets: [
-                { name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }
-            ]
-        },
-        // 2. 金星
-        {
-            timeSec: 25, duration: 8,
-            planets: [
-                { name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }
-            ]
-        },
-        // 3. 木星 ＆ 土星 (雙星同現，土星帶環)
-        {
-            timeSec: 52, duration: 11,
-            planets: [
-                { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 },
-                { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true }
-            ]
-        },
-        // 4. 天王星 ＆ 海王星 (冰巨星雙子)
-        {
-            timeSec: 88, duration: 11,
-            planets: [
-                { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.32)", radius: 52, xRatio: 0.62, yRatio: 0.20 },
-                { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.35)", radius: 50, xRatio: 0.80, yRatio: 0.25 }
-            ]
-        },
-        // 5. 冥王星邊緣
-        {
-            timeSec: 122, duration: 9,
-            planets: [
-                { name: "❄️ 冥王星冰界", color: "rgba(195, 220, 240, 0.28)", radius: 42, xRatio: 0.72, yRatio: 0.22 }
-            ]
-        },
-        // 6. 阿卡迪亞星雲門
-        {
-            timeSec: 148, duration: 12,
-            planets: [
-                { name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }
-            ]
-        },
-        // 7. 抵達：阿卡迪亞貓星
-        {
-            timeSec: 175, duration: 25,
-            planets: [
-                { name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }
-            ]
-        }
+        { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.28)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] },
+        { timeSec: 25, duration: 8, planets: [{ name: "🌟 金星晨曦", color: "rgba(255, 205, 80, 0.28)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] },
+        { timeSec: 52, duration: 11, planets: [
+            { name: "🪐 木星", color: "rgba(235, 140, 60, 0.28)", radius: 75, xRatio: 0.60, yRatio: 0.18 },
+            { name: "🪐 土星環", color: "rgba(240, 210, 140, 0.28)", radius: 52, xRatio: 0.82, yRatio: 0.26, hasRing: true }
+        ]},
+        { timeSec: 88, duration: 11, planets: [
+            { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.28)", radius: 50, xRatio: 0.62, yRatio: 0.20 },
+            { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.30)", radius: 48, xRatio: 0.80, yRatio: 0.25 }
+        ]},
+        { timeSec: 122, duration: 9, planets: [{ name: "❄️ 冥王星界", color: "rgba(195, 220, 240, 0.25)", radius: 40, xRatio: 0.72, yRatio: 0.22 }] },
+        { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.32)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] },
+        { timeSec: 175, duration: 25, planets: [{ name: "🐾 降落：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.40)", radius: 115, xRatio: 0.68, yRatio: 0.18 }] }
     ];
 }
 
+// 🎯 音頻引擎：極簡低負載 DSP
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
+let tapBuffer = null;
 
 function initDSP() {
     try {
-        if (!dspCtx) dspCtx = new AudioContextClass();
+        if (!dspCtx) {
+            dspCtx = new AudioContextClass();
+            // 預先生成一小段極脆、零運算負荷的打擊 Buffer (音遊標準)
+            const bufferSize = dspCtx.sampleRate * 0.025;
+            tapBuffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
+            const data = tapBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+            }
+        }
         if (dspCtx.state === 'suspended') dspCtx.resume();
     } catch (e) {}
 }
 
-function playHiHatHitSound() {
-    if (!dspCtx) return;
+function playFastHitSound() {
+    if (!dspCtx || !tapBuffer) return;
     try {
-        const bufferSize = dspCtx.sampleRate * 0.03;
-        const buffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-
-        const noise = dspCtx.createBufferSource();
-        noise.buffer = buffer;
-
-        const filter = dspCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 7500;
-
+        const src = dspCtx.createBufferSource();
+        src.buffer = tapBuffer;
         const gain = dspCtx.createGain();
-        gain.gain.setValueAtTime(0.5, dspCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.03);
-
-        noise.connect(filter);
-        filter.connect(gain);
+        gain.gain.value = 0.6;
+        src.connect(gain);
         gain.connect(dspCtx.destination);
-
-        noise.start();
+        src.start();
     } catch (e) {}
 }
 
@@ -265,28 +199,25 @@ function playStickClick(freq = 1200) {
         const gain = dspCtx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, dspCtx.currentTime);
-
-        gain.gain.setValueAtTime(0.8, dspCtx.currentTime);
+        gain.gain.setValueAtTime(0.7, dspCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04);
-
         osc.connect(gain);
         gain.connect(dspCtx.destination);
-
         osc.start();
         osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
 
 function createHitParticles(x, y, color) {
-    if (particles.length > 30) particles.splice(0, 10);
-    for (let i = 0; i < 8; i++) {
+    if (particles.length > 25) particles.splice(0, 8);
+    for (let i = 0; i < 6; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
+        const speed = Math.random() * 5 + 2;
         particles.push({
             x: x, y: y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
-            size: Math.random() * 4 + 2,
+            size: Math.random() * 3 + 2,
             color: color, alpha: 1.0
         });
     }
@@ -320,22 +251,17 @@ function getNextLane(lastLane) {
 function generateChart() {
     notes = [];
     particles = [];
-    const beatMs = (60 / bpm) * 1000; // ~342.8ms
-    const barMs = beatMs * 4;         // 1371.4ms
+    const beatMs = (60 / bpm) * 1000;
+    const barMs = beatMs * 4;
     const firstHitTime = barMs; 
-    const totalBars = 145;            
-    const holdDuration = beatMs * 0.5;
+    const totalBars = 145; 
+    const holdDuration = beatMs * 0.5; // 半拍短 Hold
 
     let lastLane = 1;
 
     if (currentMode === 'test') {
         for (let i = 0; i < totalBars; i++) {
-            notes.push({
-                type: 'tap',
-                lane: 1, 
-                targetTime: firstHitTime + (i * barMs),
-                hit: false
-            });
+            notes.push({ type: 'tap', lane: 1, targetTime: firstHitTime + (i * barMs), hit: false });
         }
     } else if (currentMode === 'easy') {
         for (let bar = 0; bar < totalBars; bar++) {
@@ -347,15 +273,10 @@ function generateChart() {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
             } else if (roll < 0.8) {
                 lastLane = getNextLane(lastLane);
-                notes.push({ 
-                    type: 'hold', lane: lastLane, 
-                    targetTime: barStart, duration: holdDuration, 
-                    holding: false, hit: false, lastTick: 0 
-                });
+                notes.push({ type: 'hold', lane: lastLane, targetTime: barStart, duration: holdDuration, holding: false, hit: false, lastTick: 0 });
             } else {
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
-
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
             }
@@ -372,30 +293,23 @@ function generateChart() {
                 }
             } else if (roll < 0.85) {
                 lastLane = getNextLane(lastLane);
-                notes.push({ 
-                    type: 'hold', lane: lastLane, 
-                    targetTime: barStart, duration: holdDuration, 
-                    holding: false, hit: false, lastTick: 0 
-                });
-
+                notes.push({ type: 'hold', lane: lastLane, targetTime: barStart, duration: holdDuration, holding: false, hit: false, lastTick: 0 });
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
-
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 3), hit: false });
             } else {
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
-
                 lastLane = getNextLane(lastLane);
                 notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
             }
         }
     }
-
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
+// 🎯 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -403,7 +317,7 @@ for (let i = 0; i < 4; i++) {
             e.preventDefault();
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
-            playHiHatHitSound();
+            playFastHitSound();
             handleTap(i);
         });
         const handleTouchRelease = (e) => {
@@ -418,7 +332,7 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mousedown', () => {
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
-            playHiHatHitSound();
+            playFastHitSound();
             handleTap(i);
         });
         laneBtn.addEventListener('mouseup', () => {
@@ -436,12 +350,11 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v5.3 - Part 2 (雙星同現繪製循環)
+   🔒 Arcatdia Battle Engine v6.0 - Part 2 (立體橫磚渲染核心)
    ============================================================= */
 
 let countInTimers = [];
 let audioStartTimer = null;
-
 let firstNoteBornTime = null;
 let firstNoteHitTime = null;
 let recordedTravelTime = "--";
@@ -459,11 +372,6 @@ function handleTap(laneIndex) {
 
     if (targetNote) {
         const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-
-        if (targetNote === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
-            firstNoteHitTime = currentTimeMs;
-            recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
-        }
 
         if (targetNote.type === 'hold') {
             if (timeDiff < 260) {
@@ -498,7 +406,6 @@ function handleTap(laneIndex) {
 function handleRelease(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
-
     const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
     if (holdingNote) {
         const endTime = holdingNote.targetTime + holdingNote.duration;
@@ -516,10 +423,8 @@ function handleRelease(laneIndex) {
 function updateUI() {
     const scoreElem = document.getElementById('scoreVal');
     if (scoreElem) scoreElem.innerText = String(score).padStart(6, '0');
-    
     const hpFill = document.getElementById('hpFill');
     if (hpFill) hpFill.style.width = `${hp}%`;
-    
     const comboDisp = document.getElementById('comboDisplay');
     if (comboDisp && combo > 1) {
         comboDisp.innerText = `${combo} COMBO`;
@@ -549,7 +454,7 @@ function showJudgement(text) {
         setTimeout(() => { 
             disp.style.opacity = '0'; 
             disp.style.transform = 'translate(-50%, -50%) scale(1.0)';
-        }, 320);
+        }, 300);
     }
 }
 
@@ -631,42 +536,35 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
+    const W = canvas.width;
+    const H = canvas.height;
+    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
+    const startY = 40;
 
     // 🎯 1. 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.fillRect(s.x, s.y, s.size, s.size);
         s.y += s.speed * (playbackSpeed * 1.5);
-        if (s.y > canvas.height) {
-            s.y = 0;
-            s.x = Math.random() * canvas.width;
-        }
+        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    // 🎯 2. 行星事件渲染：支援單星、雙星同現及土星環
+    // 🎯 2. 行星事件背景
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
             const alpha = Math.sin(progress * Math.PI) * 0.40;
-
             evt.planets.forEach(p => {
                 ctx.save();
                 ctx.fillStyle = p.color;
                 ctx.shadowColor = p.color;
                 ctx.shadowBlur = 45;
-
-                const px = canvas.width * p.xRatio - (progress * 40);
-                const py = canvas.height * p.yRatio + (progress * 30);
-
-                // 畫星體本體
+                const px = W * p.xRatio - (progress * 40);
+                const py = H * p.yRatio + (progress * 30);
                 ctx.beginPath();
                 ctx.arc(px, py, p.radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // 🪐 如果有土星環，額外畫出光環斜橢圓
                 if (p.hasRing) {
                     ctx.save();
                     ctx.translate(px, py);
@@ -679,73 +577,60 @@ function gameLoop() {
                     ctx.restore();
                 }
 
-                // 行星地標文字
                 ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.8})`;
-                ctx.font = "bold 13px 'M PLUS Rounded 1c', sans-serif";
+                ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif";
                 ctx.fillText(p.name, px - 40, py + p.radius + 20);
                 ctx.restore();
             });
         }
     });
 
-    const beatMs = (60 / bpm) * 1000;
-    const baseTravelDuration = beatMs * 2; 
-    const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
+    // 🎯 3. 世界計劃經典梯形 4 軌幾何計算
+    const topTrackWidth = W * 0.42;
+    const botTrackWidth = W * 0.96;
+    const topStartX = (W - topTrackWidth) / 2;
+    const botStartX = (W - botTrackWidth) / 2;
 
-    const W = canvas.width;
-    const H = canvas.height;
-    
-    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
-    const startY = 20;
-
-    const laneW = W / 4;
-    const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
-    const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
-
-    for (let i = 0; i < 4; i++) {
-        ctx.strokeStyle = laneColors[i].glow;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(topX[i], startY);
-        ctx.lineTo(botX[i], H);
-        ctx.stroke();
-
-        ctx.fillStyle = laneColors[i].main;
-        ctx.shadowColor = laneColors[i].main;
-        ctx.shadowBlur = 14;
-        ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 22, 0, Math.PI * 2);
-        ctx.fill();
+    const laneTopLeft = [];
+    const laneBotLeft = [];
+    for (let i = 0; i <= 4; i++) {
+        laneTopLeft.push(topStartX + (topTrackWidth / 4) * i);
+        laneBotLeft.push(botStartX + (botTrackWidth / 4) * i);
     }
 
-    ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
-    ctx.lineWidth = 3;
-    ctx.shadowColor = "#00ffcc";
-    ctx.shadowBlur = 16;
-    ctx.beginPath();
-    ctx.moveTo(0, hitZoneY);
-    ctx.lineTo(W, hitZoneY);
-    ctx.stroke();
+    // 繪製軌道分割線（透視雷射線）
+    for (let i = 0; i <= 4; i++) {
+        ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.18)";
+        ctx.lineWidth = (i === 0 || i === 4) ? 3 : 1.5;
+        ctx.beginPath();
+        ctx.moveTo(laneTopLeft[i], startY);
+        ctx.lineTo(laneBotLeft[i], H);
+        ctx.stroke();
+    }
 
-    ctx.fillStyle = "#00ffcc";
-    ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
-    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 10, hitZoneY - 8);
+    // 🎯 4. 判定線（白金光芒）
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.moveTo(botStartX - 10, hitZoneY);
+    ctx.lineTo(botStartX + botTrackWidth + 10, hitZoneY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 🎯 5. 繪製音符（世界計劃經典發光橫磚）
+    const beatMs = (60 / bpm) * 1000;
+    const baseTravelDuration = beatMs * 2;
+    const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
 
     notes.forEach(note => {
-        const laneIndex = note.lane;
-        const tx = topX[laneIndex];
-        const bx = botX[laneIndex];
-        const colorObj = laneColors[laneIndex];
-
         if (note.hit) return;
-
+        const i = note.lane;
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        if (note === notes[0] && rawProgress >= 0 && firstNoteBornTime === null) {
-            firstNoteBornTime = currentTimeMs;
-        }
-
+        // 🎯 Hold 長按（半透明立體光帶）
         if (note.type === 'hold') {
             const endTime = note.targetTime + note.duration;
             const timeTillEnd = endTime - currentTimeMs;
@@ -756,10 +641,9 @@ function gameLoop() {
                     note.lastTick = currentTimeMs;
                     score += 100;
                     combo++;
-                    createHitParticles(bx, hitZoneY, colorObj.main);
+                    createHitParticles((laneBotLeft[i] + laneBotLeft[i+1]) / 2, hitZoneY, laneColors[i].main);
                     updateUI();
                 }
-
                 if (currentTimeMs >= endTime) {
                     note.hit = true;
                     note.holding = false;
@@ -767,7 +651,7 @@ function gameLoop() {
                     combo++;
                     hp = Math.min(100, hp + 3);
                     showJudgement("PERFECT!");
-                    createHitParticles(bx, hitZoneY, "#ffffff");
+                    createHitParticles((laneBotLeft[i] + laneBotLeft[i+1]) / 2, hitZoneY, "#ffffff");
                     updateUI();
                 }
             }
@@ -777,26 +661,27 @@ function gameLoop() {
                 const tailP = Math.min(1.0, Math.max(0, endProgress));
 
                 const hy = startY + (hitZoneY - startY) * headP;
-                const hx = tx + (bx - tx) * headP;
                 const ty = startY + (hitZoneY - startY) * tailP;
-                const txPos = tx + (bx - tx) * tailP;
 
+                const hxL = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * headP;
+                const hxR = laneTopLeft[i+1] + (laneBotLeft[i+1] - laneTopLeft[i+1]) * headP;
+                const txL = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * tailP;
+                const txR = laneTopLeft[i+1] + (laneBotLeft[i+1] - laneTopLeft[i+1]) * tailP;
+
+                // 畫光柱長帶
                 ctx.save();
-                ctx.strokeStyle = note.holding ? "#ffffff" : colorObj.glow;
-                ctx.lineWidth = note.holding ? 30 : 22;
-                ctx.lineCap = "round";
-                ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = note.holding ? 25 : 12;
+                ctx.fillStyle = note.holding ? "rgba(255, 255, 255, 0.45)" : laneColors[i].glow;
                 ctx.beginPath();
-                ctx.moveTo(hx, hy);
-                ctx.lineTo(txPos, ty);
-                ctx.stroke();
+                ctx.moveTo(hxL, hy);
+                ctx.lineTo(hxR, hy);
+                ctx.lineTo(txR, ty);
+                ctx.lineTo(txL, ty);
+                ctx.closePath();
+                ctx.fill();
                 ctx.restore();
 
-                ctx.fillStyle = colorObj.main;
-                ctx.beginPath();
-                ctx.arc(hx, hy, 24, 0, Math.PI * 2);
-                ctx.fill();
+                // 頭部發光橫磚
+                drawSekaiBar(hxL, hxR, hy, laneColors[i]);
             }
 
             if (rawProgress > 1.15 && !note.holding && !note.hit) {
@@ -808,30 +693,16 @@ function gameLoop() {
             }
 
         } else {
-            if (rawProgress > 0 && rawProgress < 1.15) {
-                const currentX = tx + (bx - tx) * rawProgress;
-                const currentY = startY + (hitZoneY - startY) * rawProgress;
+            // 🎯 Tap 單擊：立體發光長方形橫磚
+            if (rawProgress > 0 && rawProgress < 1.12) {
+                const curY = startY + (hitZoneY - startY) * rawProgress;
+                const curLeft = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * rawProgress;
+                const curRight = laneTopLeft[i+1] + (laneBotLeft[i+1] - laneTopLeft[i+1]) * rawProgress;
 
-                ctx.fillStyle = colorObj.main;
-                ctx.shadowColor = colorObj.main;
-                ctx.shadowBlur = 20 * rawProgress;
-                ctx.beginPath();
-
-                if (currentPerspectiveMode === 1) {
-                    ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
-                } else {
-                    const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
-                    const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
-                    ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
-                }
-                ctx.fill();
+                drawSekaiBar(curLeft, curRight, curY, laneColors[i]);
             }
 
             if (rawProgress > 1.08 && !note.hit) {
-                if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
-                    firstNoteHitTime = currentTimeMs;
-                    recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
-                }
                 note.hit = true;
                 combo = 0;
                 hp = Math.max(0, hp - 5);
@@ -841,75 +712,44 @@ function gameLoop() {
         }
     });
 
+    // 🎯 輔助：繪製世界計劃發光橫磚 (GPU 極速繪製)
+    function drawSekaiBar(x1, x2, y, colorObj) {
+        const barWidth = x2 - x1 - 4;
+        const barHeight = 14; 
+        const barX = x1 + 2;
+        const barY = y - (barHeight / 2);
+
+        // 外層主色橫磚
+        ctx.fillStyle = colorObj.main;
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // 頂部高光（白色條紋，塑造立體感）
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(barX + 2, barY + 2, barWidth - 4, 3);
+
+        // 底部陰影加強質感
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.fillRect(barX, barY + barHeight - 3, barWidth, 3);
+    }
+
+    // 🎯 6. 打擊粒子爆發
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(p.x, p.y, p.size, p.size);
         ctx.restore();
 
         p.x += p.vx;
         p.y += p.vy;
-        p.alpha -= 0.05;
-
-        if (p.alpha <= 0) {
-            particles.splice(i, 1);
-        }
-    }
-
-    if (currentMode === 'test') {
-        ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-        ctx.fillRect(8, 55, 230, 95);
-        ctx.strokeStyle = "#00ffcc";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(8, 55, 230, 95);
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
-        ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
-        ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
-        ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
-        
-        ctx.fillStyle = "#ccff00";
-        ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
-        ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
-        ctx.restore();
+        p.alpha -= 0.06;
+        if (p.alpha <= 0) particles.splice(i, 1);
     }
 
     requestAnimationFrame(gameLoop);
 }
 
-(function bindHeaderControls() {
-    const speedBtn = document.getElementById('speedToggleBtn');
-    if (speedBtn) {
-        speedBtn.onclick = toggleSpeedButton;
-    }
-})();
-
 (function initialDraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const W = canvas.width;
-    const H = canvas.height;
-    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
-    const laneW = W / 4;
-    for (let i = 0; i < 4; i++) {
-        const x = laneW * i + laneW * 0.5;
-        ctx.strokeStyle = laneColors[i].glow;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x, 20);
-        ctx.lineTo(x, H);
-        ctx.stroke();
-
-        ctx.fillStyle = laneColors[i].main;
-        ctx.beginPath();
-        ctx.arc(x, hitZoneY, 22, 0, Math.PI * 2);
-        ctx.fill();
-    }
 })();

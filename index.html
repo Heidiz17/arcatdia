@@ -5,13 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#030305">
-    <link rel="manifest" href="manifest.json">
-    
-    <title>Arcatdia Whole Note Lab</title>
+    <title>Arcatdia Battle Engine</title>
 
-    <!-- 🐾 引入阿豬媽煲同款：肥嘟嘟日系貓波圓體 Zen Maru Gothic -->
+    <!-- 🐾 引入阿豬媽煲同款：Zen Maru Gothic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -21,18 +18,18 @@
 <body>
 
 <div id="stage-container">
+    <!-- 頂部 HUD -->
     <div class="hud-overlay">
-        <div class="track-info" id="hudTrackInfo">01_最大的愛</div>
+        <div class="track-info" id="hudTrackInfo">最大の愛</div>
         <div class="hp-bar-container"><div id="hpFill" class="hp-fill"></div></div>
         <div class="score-board"><span id="scoreVal">000000</span></div>
 
         <div class="hud-buttons">
-            <!-- 🎯 永遠鎖死：RESTART 重玩掣 -->
             <button id="restartToggleBtn" class="btn-panel" style="border-color:#ffaa00; color:#ffaa00;" onclick="restartSong()">🔄 重玩</button>
             <button id="lineToggleBtn" class="btn-panel" style="border-color:#ccff00; color:#ccff00;" onclick="toggleJudgeLineLevel()">🎯 調線位</button>
-            <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
+            <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🚀 3D 梯形</button>
             <button id="speedToggleBtn" class="btn-panel" onclick="toggleSpeedButton()">🚀 1.0x</button>
-            <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">▶ PLAY</button>
+            <button id="mainPlayBtn" class="btn-panel" style="border-color:#ff0077; color:#ff0077;" onclick="togglePlay()">⏸ PAUSE</button>
         </div>
     </div>
 
@@ -41,6 +38,7 @@
 
     <canvas id="battleCanvas"></canvas>
 
+    <!-- 橫屏四軌觸控區 -->
     <div class="touch-controller">
         <div class="touch-lane" id="lane0">L1</div>
         <div class="touch-lane" id="lane1">L2</div>
@@ -48,27 +46,75 @@
         <div class="touch-lane" id="lane3">R2</div>
     </div>
 
-    <!-- 🎯 首頁難度選擇 -->
-    <div id="startMask" class="start-mask">
-        <h2 class="title-text">ARCATDIA</h2>
-        <p class="sub-text">175 BPM | 太陽系全星際航行 | 降落貓星</p>
-        
-        <div style="display: flex; flex-direction: column; gap: 12px; width: 78%; max-width: 290px;">
-            <button class="btn-start" style="background:#00ccff; color:#000; box-shadow:0 0 15px rgba(0,204,255,0.4);" onclick="chooseDifficultyAndStart('easy')">
-                🌱 EASY 模式<br><span style="font-size:11px; font-weight:normal;">(4拍與2拍・極致慢悠舒適)</span>
-            </button>
-            
-            <button class="btn-start" style="background:#ff0055; color:#fff; box-shadow:0 0 15px rgba(255,0,85,0.4);" onclick="chooseDifficultyAndStart('normal')">
-                🔥 NORMAL 模式<br><span style="font-size:11px; font-weight:normal;">(2拍與1拍・正音連動步)</span>
-            </button>
+    <!-- 🎯 畫面一：封面 Title -->
+    <div id="titleScreen" class="overlay-modal active" onclick="goToReadyRoom()">
+        <h1 class="game-logo">ARCATDIA</h1>
+        <p class="logo-sub">~ 阿卡迪亞星際航程 ~</p>
+        <div class="tap-start-hint">✨ 點擊螢幕進入準備室 ✨</div>
+    </div>
 
-            <button class="btn-start" style="background:#151820; color:#00ffcc; border:1px solid #00ffcc; box-shadow:0 0 10px rgba(0,255,204,0.2);" onclick="chooseDifficultyAndStart('test')">
-                🛠️ 測試校準場<br><span style="font-size:11px; font-weight:normal;">(單軌全音符 + 實測飛行 HUD)</span>
-            </button>
+    <!-- 🎯 畫面二：出發準備室 (Ready Room) -->
+    <div id="readyRoom" class="overlay-modal">
+        <h2 class="room-title">🚀 航行整備室</h2>
+        <div class="ready-panel">
+            <!-- 難度選擇 -->
+            <div class="setting-group">
+                <label>選擇航行難度：</label>
+                <div class="option-row">
+                    <button class="opt-btn diff-btn active" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY (慢悠)</button>
+                    <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL (連動)</button>
+                    <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ 測試場</button>
+                </div>
+            </div>
+
+            <!-- 視角與流速設定 -->
+            <div class="setting-group">
+                <label>操作偏好設定：</label>
+                <div class="option-row">
+                    <button class="opt-btn" id="btnRoomPersp" onclick="toggleRoomPerspective()">視角: 🚀 3D 梯形 (初音式)</button>
+                    <button class="opt-btn" id="btnRoomSpeed" onclick="toggleRoomSpeed()">音符流速: 1.0x</button>
+                </div>
+            </div>
+
+            <!-- 出發大掣 -->
+            <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
         </div>
     </div>
 </div>
 
 <script src="app.js"></script>
+<script>
+    // 介面流轉邏輯
+    let selectedMode = 'easy';
+
+    function goToReadyRoom() {
+        document.getElementById('titleScreen').classList.remove('active');
+        document.getElementById('readyRoom').classList.add('active');
+        initDSP(); // 提前激活音頻
+    }
+
+    function selectDifficulty(mode) {
+        selectedMode = mode;
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active');
+        if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active');
+        if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active');
+    }
+
+    function toggleRoomPerspective() {
+        togglePerspectiveMode();
+        document.getElementById('btnRoomPersp').innerText = currentPerspectiveMode === 2 ? "視角: 🚀 3D 梯形 (初音式)" : "視角: 🏊 2D 平行直軌";
+    }
+
+    function toggleRoomSpeed() {
+        toggleSpeedButton();
+        document.getElementById('btnRoomSpeed').innerText = `音符流速: ${scrollSpeedMultiplier.toFixed(1)}x`;
+    }
+
+    function startVoyage() {
+        document.getElementById('readyRoom').classList.remove('active');
+        chooseDifficultyAndStart(selectedMode);
+    }
+</script>
 </body>
 </html>
