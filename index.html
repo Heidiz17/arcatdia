@@ -8,7 +8,14 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#030305">
     <link rel="manifest" href="manifest.json">
+    
     <title>Arcatdia Whole Note Lab</title>
+
+    <!-- 🐾 引入阿豬媽煲同款：肥嘟嘟日系貓波圓體 Zen Maru Gothic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,10 +26,9 @@
         <div class="hp-bar-container"><div id="hpFill" class="hp-fill"></div></div>
         <div class="score-board"><span id="scoreVal">000000</span></div>
 
-                <div class="hud-buttons">
+        <div class="hud-buttons">
             <!-- 🎯 永遠鎖死：RESTART 重玩掣 -->
             <button id="restartToggleBtn" class="btn-panel" style="border-color:#ffaa00; color:#ffaa00;" onclick="restartSong()">🔄 重玩</button>
-
             <button id="lineToggleBtn" class="btn-panel" style="border-color:#ccff00; color:#ccff00;" onclick="toggleJudgeLineLevel()">🎯 調線位</button>
             <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
             <button id="speedToggleBtn" class="btn-panel" onclick="toggleSpeedButton()">🚀 1.0x</button>
@@ -42,22 +48,22 @@
         <div class="touch-lane" id="lane3">R2</div>
     </div>
 
-    <!-- 🎯 首頁遮罩：三難度大掣 -->
+    <!-- 🎯 首頁難度選擇 -->
     <div id="startMask" class="start-mask">
         <h2 class="title-text">ARCATDIA</h2>
-        <p class="sub-text">175 BPM | 550ms 咬死對齊 | 難度選擇</p>
+        <p class="sub-text">175 BPM | 太陽系全星際航行 | 降落貓星</p>
         
-        <div style="display: flex; flex-direction: column; gap: 12px; width: 75%; max-width: 280px;">
+        <div style="display: flex; flex-direction: column; gap: 12px; width: 78%; max-width: 290px;">
             <button class="btn-start" style="background:#00ccff; color:#000; box-shadow:0 0 15px rgba(0,204,255,0.4);" onclick="chooseDifficultyAndStart('easy')">
-                🌱 EASY 模式<br><span style="font-size:10px; font-weight:normal;">(只得 4 拍與 2 拍，超舒服適應)</span>
+                🌱 EASY 模式<br><span style="font-size:11px; font-weight:normal;">(4拍與2拍・極致慢悠舒適)</span>
             </button>
             
             <button class="btn-start" style="background:#ff0055; color:#fff; box-shadow:0 0 15px rgba(255,0,85,0.4);" onclick="chooseDifficultyAndStart('normal')">
-                🔥 NORMAL 模式<br><span style="font-size:10px; font-weight:normal;">(2 拍與 1 拍正音，絕無半拍)</span>
+                🔥 NORMAL 模式<br><span style="font-size:11px; font-weight:normal;">(2拍與1拍・正音連動步)</span>
             </button>
 
-            <button class="btn-start" style="background:#222; color:#00ffcc; border:1px solid #00ffcc; box-shadow:0 0 10px rgba(0,255,204,0.2);" onclick="chooseDifficultyAndStart('test')">
-                🛠️ 測試校準場<br><span style="font-size:10px; font-weight:normal;">(單軌全音符 + 實測飛行數據 HUD)</span>
+            <button class="btn-start" style="background:#151820; color:#00ffcc; border:1px solid #00ffcc; box-shadow:0 0 10px rgba(0,255,204,0.2);" onclick="chooseDifficultyAndStart('test')">
+                🛠️ 測試校準場<br><span style="font-size:11px; font-weight:normal;">(單軌全音符 + 實測飛行 HUD)</span>
             </button>
         </div>
     </div>

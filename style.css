@@ -4,6 +4,7 @@
     padding: 0;
     user-select: none;
     -webkit-user-select: none;
+    font-family: 'Zen Maru Gothic', sans-serif !important;
 }
 
 body, html {
@@ -12,8 +13,6 @@ body, html {
     height: 100dvh;
     background-color: #030305;
     color: #ffffff;
-    /* 🎯 換上圓潤日系圓體 / 萌系二次元字體風格 */
-    font-family: 'Hiragino Maru Gothic ProN', 'Meiryo', 'M PLUS Rounded 1c', 'Nunito', sans-serif;
     overflow: hidden;
     position: fixed;
 }
@@ -27,7 +26,7 @@ body, html {
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    background: radial-gradient(circle at center, #0a0b18 0%, #020204 100%);
+    background: radial-gradient(circle at center, #0b0d1a 0%, #020204 100%);
     overflow: hidden;
 }
 
@@ -41,28 +40,28 @@ body, html {
     justify-content: space-between;
     align-items: center;
     background: rgba(10, 15, 25, 0.85);
-    padding: 6px 10px;
+    padding: 6px 8px;
     border-bottom: 2px solid rgba(0, 255, 204, 0.4);
     backdrop-filter: blur(8px);
 }
 
 .track-info {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
     color: #00ffcc;
     text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
-    max-width: 110px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .hp-bar-container {
-    width: 55px;
+    width: 48px;
     height: 8px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #ff0077;
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
 }
 
@@ -75,38 +74,40 @@ body, html {
 
 .hud-buttons {
     display: flex;
-    gap: 5px;
+    gap: 4px;
 }
 
 .btn-panel {
-    min-width: 52px;
+    min-width: 48px;
     height: 26px;
     background: rgba(0, 255, 204, 0.12);
     border: 1.5px solid rgba(0, 255, 204, 0.6);
     color: #00ffcc;
     font-size: 10px;
     font-weight: 900;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
     box-shadow: 0 0 6px rgba(0, 255, 204, 0.2);
+    transition: transform 0.08s ease;
 }
 
 .btn-panel:active {
+    transform: scale(0.94);
     background: #00ffcc;
     color: #000;
 }
 
 .score-board {
-    font-size: 13px;
+    font-size: 12px;
     color: #ffcc00;
     font-weight: 900;
     text-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
 }
 
-/* 🎯 判定大字：統一白金雷射光！震撼大字！ */
+/* 🎯 判定大字：肥嘟嘟日系圓體 ＋ 統一白金雷射霓虹光！ */
 #judgementDisplay {
     position: absolute;
     top: 36%;
@@ -114,7 +115,7 @@ body, html {
     transform: translate(-50%, -50%);
     font-size: 42px;
     font-weight: 900;
-    font-style: italic;
+    font-style: normal;
     color: #ffffff;
     text-shadow: 0 0 10px #fff, 0 0 25px #ffd700, 0 0 45px #ffaa00;
     opacity: 0;
@@ -216,7 +217,7 @@ body, html {
 }
 
 .title-text {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     color: #00ffcc;
     text-shadow: 0 0 15px rgba(0, 255, 204, 0.7);
@@ -235,7 +236,7 @@ body, html {
     font-size: 15px;
     font-weight: 900;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     cursor: pointer;
     text-align: center;
     transition: transform 0.1s ease;
