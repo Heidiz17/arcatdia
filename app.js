@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.6 - Part 1 (架構與純淨譜面)
+   🔒 Arcatdia Battle Engine v5.0 - Part 1 (視效流速 + 雙難度拉開版)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,7 +22,12 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
+// 🎯 音樂播放速度（打歌模式固定 1.0x 原速，只有測試模式可降速）
 let playbackSpeed = 1.0;
+
+// 🚀 核心新功能：視效流速倍率 (Hi-Speed)，完全不影響音樂與判定！
+let scrollSpeedMultiplier = 1.0; 
+
 let currentMode = 'easy'; // 'easy' | 'normal' | 'test'
 
 const judgeLineOffsets = [165, 185, 205, 225];
@@ -55,29 +60,52 @@ function chooseDifficultyAndStart(mode) {
 
     const info = document.getElementById('hudTrackInfo');
     if (info) {
-        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍)";
-        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍)";
-        else info.innerText = "01_TEST (全音符校準)";
+        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍 慢悠版)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍 正音步)";
+        else info.innerText = "01_TEST (全音符校準場)";
     }
 
+    updateSpeedButtonDisplay();
     togglePlay();
 }
 
-function togglePlaybackSpeed() {
-    const speeds = [1.0, 0.8, 0.6, 0.5];
-    let idx = speeds.indexOf(playbackSpeed);
-    if (idx === -1) idx = 0;
-    playbackSpeed = speeds[(idx + 1) % speeds.length];
-    
-    Object.keys(audioElements).forEach(key => {
-        audioElements[key].playbackRate = playbackSpeed;
-    });
+// 🎯 頂部按鈕：打歌模式切換「音符流速」，測試模式切換「音樂減速」
+function toggleSpeedButton() {
+    if (currentMode === 'test') {
+        // 測試模式：改變歌曲播放速度 (診斷用)
+        const speeds = [1.0, 0.8, 0.6, 0.5];
+        let idx = speeds.indexOf(playbackSpeed);
+        if (idx === -1) idx = 0;
+        playbackSpeed = speeds[(idx + 1) % speeds.length];
+        
+        Object.keys(audioElements).forEach(key => {
+            audioElements[key].playbackRate = playbackSpeed;
+        });
+        showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`, "#00ccff");
+    } else {
+        // 打歌模式：改變音符下落流速 (Hi-Speed)
+        const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
+        let idx = scrollMultipliers.indexOf(scrollSpeedMultiplier);
+        if (idx === -1) idx = 0;
+        scrollSpeedMultiplier = scrollMultipliers[(idx + 1) % scrollMultipliers.length];
+        showJudgement(`流速: ${scrollSpeedMultiplier.toFixed(1)}x`, "#ffaa00");
+    }
+    updateSpeedButtonDisplay();
+}
 
+function updateSpeedButtonDisplay() {
     const speedBtn = document.getElementById('speedToggleBtn');
     if (speedBtn) {
-        speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
+        if (currentMode === 'test') {
+            speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
+            speedBtn.style.color = "#00ffcc";
+            speedBtn.style.borderColor = "#00ffcc";
+        } else {
+            speedBtn.innerText = `🚀 ${scrollSpeedMultiplier.toFixed(1)}x`;
+            speedBtn.style.color = "#ffaa00";
+            speedBtn.style.borderColor = "#ffaa00";
+        }
     }
-    showJudgement(`速度: ${playbackSpeed.toFixed(1)}x`, "#00ccff");
 }
 
 function toggleJudgeLineLevel() {
@@ -189,16 +217,28 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 譜面生成：嚴格杜絕半拍，Easy (4拍/2拍) 與 Normal (2拍/1拍)
+function getNextLane(lastLane) {
+    let next = Math.floor(Math.random() * 4);
+    while (next === lastLane) {
+        next = Math.floor(Math.random() * 4);
+    }
+    return next;
+}
+
+// 🎯 譜面生成：Easy / Normal 密度徹底拉開，打足 160 個小節
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000; // ~342.8ms
     const barMs = beatMs * 4;         // 1371.4ms
     const firstHitTime = barMs; 
+    const totalBars = 160;            // 🎯 整整 160 小節，唱足全曲
+
+    let lastLane = 1;
 
     if (currentMode === 'test') {
-        for (let i = 0; i < 150; i++) {
+        // 🛠️ 測試模式：每小節 1 粒 (黃色軌全音符)
+        for (let i = 0; i < totalBars; i++) {
             notes.push({
                 type: 'tap',
                 lane: 1, 
@@ -207,63 +247,65 @@ function generateChart() {
             });
         }
     } else if (currentMode === 'easy') {
-        for (let bar = 0; bar < 80; bar++) {
+        // 🌱 EASY：極致寬鬆！以 4 拍全音符為主，穿插少量 2 拍與長按
+        for (let bar = 0; bar < totalBars; bar++) {
             const barStart = firstHitTime + (bar * barMs);
-            const cycle = bar % 4;
+            const roll = Math.random();
 
-            if (cycle === 0) {
-                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
-                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 2), hit: false });
-            } else if (cycle === 1) {
+            if (roll < 0.5) {
+                // 50% 機率：整個小節只得 1 粒 4 拍全音符 (1.37秒才落一粒，極舒服)
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+            } else if (roll < 0.8) {
+                // 30% 機率：第 1 拍長按 2 拍 (Hold)，第 3 拍空拍休息
+                lastLane = getNextLane(lastLane);
                 notes.push({ 
-                    type: 'hold', lane: 0, 
+                    type: 'hold', lane: lastLane, 
                     targetTime: barStart, duration: beatMs * 2, 
                     holding: false, hit: false, lastTick: 0 
                 });
-                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 2), hit: false });
-            } else if (cycle === 2) {
-                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
             } else {
-                notes.push({ 
-                    type: 'hold', lane: 2, 
-                    targetTime: barStart, duration: beatMs * 2, 
-                    holding: false, hit: false, lastTick: 0 
-                });
-                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
-                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 2), hit: false });
+                // 20% 機率：第 1 拍、第 3 拍各一粒 2 拍單擊
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
             }
         }
     } else if (currentMode === 'normal') {
-        for (let bar = 0; bar < 80; bar++) {
+        // 🔥 NORMAL：真正街機手感！以 1 拍爬行連擊為主，咬死正拍，絕無半拍
+        for (let bar = 0; bar < totalBars; bar++) {
             const barStart = firstHitTime + (bar * barMs);
-            const cycle = bar % 4;
+            const roll = Math.random();
 
-            if (cycle === 0) {
-                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
-                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 1), hit: false });
-                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
-                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 3), hit: false });
-            } else if (cycle === 1) {
+            if (roll < 0.6) {
+                // 60% 機率：連續 4 個 1 拍正音單擊（咚、噠、咚、噠連貫落）
+                for (let b = 0; b < 4; b++) {
+                    lastLane = getNextLane(lastLane);
+                    notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * b), hit: false });
+                }
+            } else if (roll < 0.85) {
+                // 25% 機率：第 1 拍長按 2 拍 -> 第 3、第 4 拍各 1 拍單擊接力
+                lastLane = getNextLane(lastLane);
                 notes.push({ 
-                    type: 'hold', lane: 1, 
+                    type: 'hold', lane: lastLane, 
                     targetTime: barStart, duration: beatMs * 2, 
                     holding: false, hit: false, lastTick: 0 
                 });
-                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
-                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 3), hit: false });
-            } else if (cycle === 2) {
-                notes.push({ type: 'tap', lane: 0, targetTime: barStart, hit: false });
-                notes.push({ type: 'tap', lane: 3, targetTime: barStart, hit: false });
-                notes.push({ type: 'tap', lane: 1, targetTime: barStart + (beatMs * 2), hit: false });
-                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 2), hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 3), hit: false });
             } else {
-                notes.push({ type: 'tap', lane: 0, targetTime: barStart, hit: false });
-                notes.push({ type: 'tap', lane: 1, targetTime: barStart + (beatMs * 1), hit: false });
-                notes.push({ 
-                    type: 'hold', lane: 2, 
-                    targetTime: barStart + (beatMs * 2), duration: beatMs * 2, 
-                    holding: false, hit: false, lastTick: 0 
-                });
+                // 15% 機率：第 1 拍、第 3 拍 2 拍單擊喘息段
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
             }
         }
     }
@@ -271,7 +313,7 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// 🎯 綁定軌道觸控
+// 🎯 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -312,7 +354,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.6 - Part 2 (判定與遊戲循環)
+   🔒 Arcatdia Battle Engine v5.0 - Part 2 (流速飛行渲染與判定)
    ============================================================= */
 
 let countInTimers = [];
@@ -342,7 +384,7 @@ function handleTap(laneIndex) {
         }
 
         if (targetNote.type === 'hold') {
-            if (timeDiff < 250) {
+            if (timeDiff < 280) {
                 targetNote.holding = true;
                 targetNote.lastTick = currentTimeMs;
                 score += 500;
@@ -436,7 +478,6 @@ function clearAllTimers() {
     }
 }
 
-// 🎯 核心調度：550ms 空氣差咬死對齊
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000;
@@ -504,7 +545,10 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const beatMs = (60 / bpm) * 1000;
-    const travelDuration = beatMs * 2;
+    
+    // 🚀 核心計算：基礎下落 2 拍，除以流速倍率。流速越快，在螢幕上的時間越短，飛得越爽快！
+    const baseTravelDuration = beatMs * 2; // ~685.7ms
+    const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
 
     const W = canvas.width;
     const H = canvas.height;
@@ -676,7 +720,6 @@ function gameLoop() {
         }
     }
 
-    // 🎯 測試模式才顯示綠色 HUD 遙測盒
     if (currentMode === 'test') {
         ctx.save();
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
@@ -700,7 +743,14 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化畫布
+// 🎯 初始化按鈕點擊事件：綁定頂部變速掣
+(function bindHeaderControls() {
+    const speedBtn = document.getElementById('speedToggleBtn');
+    if (speedBtn) {
+        speedBtn.onclick = toggleSpeedButton;
+    }
+})();
+
 (function initialDraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
