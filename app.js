@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v1.8 - Memory Safe & Safe Area Edition
+   🔒 Arcatdia Battle Engine v2.0 - Top Fit & Full Lane Color
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -20,6 +20,14 @@ const audioOffsetMs = 250;
 let noteSpeed = 6.0; 
 
 const lanePressed = [false, false, false, false];
+
+// 🎨 4 軌高級獨立色彩 (粉紅, 黃綠, 冰藍, 夢幻紫)
+const laneColors = [
+    { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
+    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
+    { main: "#00ccff", glow: "rgba(0, 204, 255, 0.8)" },
+    { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
+];
 
 let currentPerspectiveMode = 1;
 
@@ -81,10 +89,9 @@ function playHiHatHitSound() {
     } catch (e) {}
 }
 
-/* ✨ 記憶體安全粒子系統（上限 30 粒，防爆 GPU 防 Hang 機） */
 function createHitParticles(x, y, color) {
     if (particles.length > 30) {
-        particles.splice(0, 10); // 清除舊粒子，防止 Hang 機！
+        particles.splice(0, 10);
     }
     for (let i = 0; i < 6; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -120,7 +127,7 @@ Object.keys(stemFiles).forEach(key => {
 
 function generate175BpmChart() {
     notes = [];
-    particles = []; // 重置粒子
+    particles = [];
     const beatMs = (60 / bpm) * 1000;
 
     let currentMs = audioOffsetMs;
@@ -193,6 +200,7 @@ function handleTap(laneIndex) {
     const bottomLanesX = [106, 318, 530, 742];
     const hitZoneY = 380;
     const targetX = bottomLanesX[laneIndex];
+    const laneColor = laneColors[laneIndex].main;
 
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
 
@@ -205,8 +213,8 @@ function handleTap(laneIndex) {
                 score += 1000;
                 combo++;
                 hp = Math.min(100, hp + 2);
-                showJudgement("PERFECT!", "#00ffcc");
-                createHitParticles(targetX, hitZoneY, "#00ffcc");
+                showJudgement("PERFECT!", laneColor);
+                createHitParticles(targetX, hitZoneY, laneColor);
             } else if (timeDiff < 300) {
                 targetNote.hit = true;
                 score += 500;
@@ -218,7 +226,7 @@ function handleTap(laneIndex) {
             const timeDiff = Math.abs(currentTimeMs - targetNote.startTime);
             if (timeDiff < 300) {
                 targetNote.holding = true;
-                showJudgement("HOLD!", "#00ffcc");
+                showJudgement("HOLD!", laneColor);
             }
         }
         updateUI();
@@ -314,29 +322,28 @@ function gameLoop() {
     const currentTimeMs = performance.now() - startTime;
     const travelDuration = 7200 / noteSpeed; 
     const hitZoneY = 380;
-    const startY = 30;
+    const startY = 20; // 🎯 頂部貼盡頂線
 
     const bottomLanesX = [106, 318, 530, 742];
 
-    // Mode 1: 2D 直軌 | Mode 2: 3D 尖角
     const topX = (currentPerspectiveMode === 1) 
         ? [106, 318, 530, 742]
         : [390, 413, 436, 460];
 
     const botX = bottomLanesX;
 
-    // 1. 畫軌道
+    // 1. 畫 4 軌背景線
     for (let i = 0; i < 4; i++) {
-        ctx.strokeStyle = "rgba(0, 255, 204, 0.25)";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = laneColors[i].glow;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(topX[i], startY);
         ctx.lineTo(botX[i], canvas.height);
         ctx.stroke();
 
-        ctx.fillStyle = "#ff0077";
-        ctx.shadowColor = "#ff0077";
-        ctx.shadowBlur = 10;
+        ctx.fillStyle = laneColors[i].main;
+        ctx.shadowColor = laneColors[i].main;
+        ctx.shadowBlur = 12;
         ctx.beginPath();
         ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
         ctx.fill();
@@ -347,6 +354,7 @@ function gameLoop() {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
         const bx = botX[laneIndex];
+        const colorObj = laneColors[laneIndex];
 
         if (note.type === 'tap') {
             if (note.hit) return;
@@ -359,9 +367,9 @@ function gameLoop() {
                 const currentX = tx + (bx - tx) * progress;
                 const currentY = startY + (hitZoneY - startY) * progress;
 
-                ctx.fillStyle = "#00ffcc";
-                ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 10 * progress;
+                ctx.fillStyle = colorObj.main;
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = 12 * progress;
                 ctx.beginPath();
 
                 if (currentPerspectiveMode === 1) {
@@ -398,10 +406,10 @@ function gameLoop() {
                 const headX = tx + (bx - tx) * headProgress;
                 const tailX = tx + (bx - tx) * tailProgress;
 
-                ctx.strokeStyle = note.holding ? "rgba(0, 255, 204, 0.8)" : "rgba(0, 255, 204, 0.4)";
-                ctx.lineWidth = note.holding ? 16 : 10;
-                ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 12;
+                ctx.strokeStyle = colorObj.glow;
+                ctx.lineWidth = note.holding ? 18 : 12;
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = 15;
                 ctx.beginPath();
                 ctx.moveTo(tailX, tailY);
                 ctx.lineTo(headX, headY);
@@ -410,7 +418,7 @@ function gameLoop() {
 
             if (note.holding && lanePressed[laneIndex]) {
                 if (Math.random() < 0.3) {
-                    createHitParticles(bx, hitZoneY, "#00ffcc");
+                    createHitParticles(bx, hitZoneY, colorObj.main);
                     score += 50;
                     combo++;
                     updateUI();
@@ -420,8 +428,8 @@ function gameLoop() {
                     note.completed = true;
                     note.holding = false;
                     score += 2000;
-                    showJudgement("PERFECT!", "#00ffcc");
-                    createHitParticles(bx, hitZoneY, "#00ffcc");
+                    showJudgement("PERFECT!", colorObj.main);
+                    createHitParticles(bx, hitZoneY, colorObj.main);
                     updateUI();
                 }
             }
@@ -436,12 +444,14 @@ function gameLoop() {
         }
     });
 
-    // 3. 粒子渲染與自動清理
+    // 3. 粒子渲染
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
