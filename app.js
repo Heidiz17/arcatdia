@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.1 - Part 1 (波峰咬死驗證版)
+   🔒 Arcatdia Battle Engine v4.2 - Part 1 (雙模式切換版)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,8 +22,11 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
-// 🎯 預設鎖死 1.0x 原速，徹底消滅幽靈速度
+// 🎯 預設鎖死 1.0x 原速
 let playbackSpeed = 1.0;
+
+// 🎯 核心模式切換：'battle' (打歌模式) | 'test' (測試模式)
+let gameMode = 'battle'; 
 
 const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
@@ -47,8 +50,36 @@ function togglePerspectiveMode() {
     }
 }
 
+// 🎯 一鍵切換「打歌模式」與「測試模式」
+function toggleGameMode() {
+    if (gameMode === 'battle') {
+        gameMode = 'test';
+        showJudgement("🛠️ 進入測試校準模式", "#00ffcc");
+    } else {
+        gameMode = 'battle';
+        showJudgement("🔥 進入四軌打歌模式", "#ff0055");
+    }
+    updateModeButtonUI();
+    if (isPlaying) {
+        generateChart(); // 如果正在遊玩，即時重刷譜面
+    }
+}
+
+function updateModeButtonUI() {
+    let modeBtn = document.getElementById('gameModeToggleBtn');
+    if (!modeBtn) {
+        // 如果 HTML 未有掣，自動在頂部按鈕區動態補上
+        modeBtn = document.createElement('button');
+        modeBtn.id = 'gameModeToggleBtn';
+        modeBtn.className = 'control-btn';
+        modeBtn.onclick = toggleGameMode;
+        const topBar = document.querySelector('.top-controls') || document.body;
+        topBar.appendChild(modeBtn);
+    }
+    modeBtn.innerText = gameMode === 'battle' ? "🔥 打歌模式" : "🛠️ 測試模式";
+}
+
 function togglePlaybackSpeed() {
-    // 循環速度：1.0x -> 0.8x -> 0.6x -> 0.5x
     const speeds = [1.0, 0.8, 0.6, 0.5];
     let idx = speeds.indexOf(playbackSpeed);
     if (idx === -1) idx = 0;
@@ -94,7 +125,6 @@ function initDSP() {
     } catch (e) {}
 }
 
-// 🎯 打擊音效 (Hi-Hat)
 function playHiHatHitSound() {
     if (!dspCtx) return;
     try {
@@ -124,7 +154,6 @@ function playHiHatHitSound() {
     } catch (e) {}
 }
 
-// 🎯 預備拍專用：木質鼓棍敲擊聲 (Stick Click)
 function playStickClick(freq = 1200) {
     if (!dspCtx) return;
     try {
@@ -176,23 +205,49 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 譜面生成：第一粒音目標時間咬死在第 4 拍完結點 (1371.4ms)
+// 🎯 譜面生成：根據模式自動切換！
 function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const barMs = beatMs * 4; // 1371.4ms (1 個小節)
-
+    const barMs = beatMs * 4; // 1371.4ms
     const firstHitTime = barMs; 
 
-    for (let i = 0; i < 150; i++) {
-        notes.push({
-            type: 'tap',
-            lane: 1, // L2 黃色軌
-            targetTime: firstHitTime + (i * barMs),
-            hit: false
-        });
+    if (gameMode === 'test') {
+        // 🛠️ 測試模式：全音符，每小節 1 粒 (L2 黃色軌)，精確測量飛行
+        for (let i = 0; i < 150; i++) {
+            notes.push({
+                type: 'tap',
+                lane: 1, 
+                targetTime: firstHitTime + (i * barMs),
+                hit: false
+            });
+        }
+    } else {
+        // 🔥 打歌模式：四軌開火！包含大鼓重音、軍鼓、切分音！
+        const rhythmPattern = [
+            { lane: 1, delayBeats: 0 },    // 第 1 拍 (大鼓重音 - 黃)
+            { lane: 2, delayBeats: 1 },    // 第 2 拍 (藍)
+            { lane: 0, delayBeats: 1.5 },  // 第 2 拍半 (切分音 - 紅)
+            { lane: 3, delayBeats: 2 },    // 第 3 拍 (軍鼓 - 紫)
+            { lane: 1, delayBeats: 3 },    // 第 4 拍 (黃)
+            { lane: 2, delayBeats: 3.5 }   // 第 4 拍半 (藍)
+        ];
+
+        for (let bar = 0; bar < 80; bar++) {
+            const barStartTime = firstHitTime + (bar * barMs);
+            rhythmPattern.forEach(p => {
+                notes.push({
+                    type: 'tap',
+                    lane: p.lane,
+                    targetTime: barStartTime + (p.delayBeats * beatMs),
+                    hit: false
+                });
+            });
+        }
     }
+
+    notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
 // 🎯 綁定軌道觸控與點擊
@@ -224,13 +279,9 @@ for (let i = 0; i < 4; i++) {
     }
 }
 
-// 🎯 開波強制同步速度按鈕文字為 1.0x
-const speedBtnInit = document.getElementById('speedToggleBtn');
-if (speedBtnInit) {
-    speedBtnInit.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
-}
+updateModeButtonUI();
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.1 - Part 2
+   🔒 Arcatdia Battle Engine v4.2 - Part 2
    ============================================================= */
 
 let countInTimers = [];
@@ -324,13 +375,12 @@ function clearAllTimers() {
     }
 }
 
-// 🎯 核心調度：根據剪映波形實測，提前 550ms 預熱啟動 MP3
+// 🎯 核心調度：保留驗證成功的 550ms 預熱啟動
 function scheduleCountInAndPlay() {
     clearAllTimers();
-    const beatMs = (60 / bpm) * 1000; // ~342.8ms
-    const totalLeadMs = beatMs * 4;   // 1371.4ms (整整 1 個 Bar)
+    const beatMs = (60 / bpm) * 1000;
+    const totalLeadMs = beatMs * 4; // 1371.4ms
 
-    // 敲 4 下預備拍 (1, 2, 3, 4)
     [0, 1, 2, 3].forEach(b => {
         const t = setTimeout(() => {
             if (!isPlaying) return;
@@ -340,7 +390,6 @@ function scheduleCountInAndPlay() {
         countInTimers.push(t);
     });
 
-    // 🎯 實測 20 幀空氣差：提前 550ms 發車預熱音訊，第一拍波峰精確撞正判定線！
     const airGapOffset = 550; 
     const playDelay = Math.max(0, totalLeadMs - airGapOffset);
 
@@ -404,7 +453,7 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const beatMs = (60 / bpm) * 1000;
-    const travelDuration = beatMs * 2; // 下落固定 2 拍 (~685.7ms)
+    const travelDuration = beatMs * 2; // 下落 2 拍 (~685.7ms)
 
     const W = canvas.width;
     const H = canvas.height;
@@ -455,7 +504,6 @@ function gameLoop() {
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        // 🎯 捕捉第一粒音在頂部出世時間
         if (note === notes[0] && rawProgress >= 0 && firstNoteBornTime === null) {
             firstNoteBornTime = currentTimeMs;
         }
@@ -479,7 +527,6 @@ function gameLoop() {
             ctx.fill();
         }
 
-        // 過線判定 MISS
         if (rawProgress > 1.08 && !note.hit) {
             if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
                 firstNoteHitTime = currentTimeMs;
@@ -514,29 +561,31 @@ function gameLoop() {
         }
     }
 
-    // 🎯 實時遙測 HUD：定格數據白紙黑字
-    ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-    ctx.fillRect(8, 55, 230, 95);
-    ctx.strokeStyle = "#00ffcc";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(8, 55, 230, 95);
+    // 🎯 模式判斷：只在「測試模式 (test)」先顯示 HUD 綠色遙測盒！
+    if (gameMode === 'test') {
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(8, 55, 230, 95);
+        ctx.strokeStyle = "#00ffcc";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(8, 55, 230, 95);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 11px Courier New";
-    ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
-    ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
-    ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
-    
-    ctx.fillStyle = "#ccff00";
-    ctx.font = "bold 12px Courier New";
-    ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
-    ctx.restore();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px Courier New";
+        ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
+        ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
+        ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
+        
+        ctx.fillStyle = "#ccff00";
+        ctx.font = "bold 12px Courier New";
+        ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
+        ctx.restore();
+    }
 
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化畫布靜態軌道
+// 🎯 初始化靜態畫布
 (function initialDraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
