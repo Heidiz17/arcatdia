@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcatdia - 01 最大的愛 (175 BPM 主引擎)</title>
+    <title>Arcatdia - 01 最大的愛 (175 BPM 實體打擊版)</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
@@ -20,25 +22,22 @@
             align-items: center;
             min-height: 100vh;
             overflow: hidden;
+            touch-action: manipulation;
         }
 
         #stage-container {
             position: relative;
             width: 95vw;
-            height: 85vh;
+            height: 90vh;
             max-width: 900px;
-            max-height: 550px;
+            max-height: 600px;
             border: 2px solid #00ffcc;
             border-radius: 12px;
             box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
             background: #0d0f18;
             overflow: hidden;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
+            display: flex;
+            flex-direction: column;
         }
 
         /* 頂部 HUD */
@@ -50,10 +49,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 5;
+            z-index: 10;
             font-size: 13px;
             font-weight: bold;
             text-shadow: 0 0 6px #00ffcc;
+        }
+
+        .score-board {
+            color: #ff0077;
+            font-size: 16px;
         }
 
         .btn-panel {
@@ -66,37 +70,58 @@
             font-size: 12px;
         }
 
-        /* 滑出式抽屜 (Drawer) */
-        .drawer-panel {
-            position: absolute;
-            top: 0;
-            right: -320px;
-            width: 290px;
-            height: 100%;
-            background: rgba(13, 15, 24, 0.95);
-            border-left: 2px solid #00ffcc;
-            padding: 15px;
-            transition: right 0.3s ease;
-            z-index: 20;
+        /* 遊戲 Canvas 畫面 */
+        canvas {
+            width: 100%;
+            height: 75%;
+            display: block;
+        }
+
+        /* 下方 4 軌實體觸控打擊區 */
+        .touch-controller {
+            height: 25%;
+            width: 100%;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
-            overflow-y: auto;
+            border-top: 2px solid #00ffcc;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 15;
         }
 
-        .drawer-panel.open {
-            right: 0;
-        }
-
-        .file-group {
-            font-size: 11px;
+        .touch-lane {
+            flex: 1;
+            border-right: 1px solid rgba(0, 255, 204, 0.3);
             display: flex;
-            flex-direction: column;
-        }
-
-        .file-group label {
-            color: #ff0077;
+            justify-content: center;
+            align-items: center;
             font-weight: bold;
+            font-size: 18px;
+            color: #00ffcc;
+            background: rgba(0, 255, 204, 0.05);
+            transition: background 0.05s ease;
+        }
+
+        .touch-lane:last-child {
+            border-right: none;
+        }
+
+        .touch-lane:active, .touch-lane.pressed {
+            background: rgba(255, 0, 119, 0.5);
+            color: #fff;
+            box-shadow: inset 0 0 15px #ff0077;
+        }
+
+        /* 判定提示文字 */
+        #judgementDisplay {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.1s ease;
         }
 
         /* 啟動遮罩 */
@@ -128,55 +153,50 @@
 
 <div id="stage-container">
     <div class="hud-overlay">
-        <div>TRACK: 01_最大的愛 (<span id="bpmDisplay" style="color:#ff0077;">175</span> BPM)</div>
-        <div style="display: flex; gap: 8px;">
-            <button id="mainPlayBtn" class="btn-panel" style="background:#ff0077; color:#fff;" onclick="togglePlay()">▶ PLAY</button>
-            <button class="btn-panel" onclick="toggleMenu()">📂 導入 MP3 / BPM 設定</button>
-        </div>
+        <div>TRACK: 01_最大的愛 (<span style="color:#ff0077;">175</span> BPM)</div>
+        <div class="score-board">SCORE: <span id="scoreVal">000000</span></div>
+        <button id="mainPlayBtn" class="btn-panel" style="background:#ff0077; color:#fff;" onclick="togglePlay()">▶ PLAY</button>
     </div>
 
-    <!-- 側邊抽屜 -->
-    <div id="drawerPanel" class="drawer-panel">
-        <h3 style="color:#00ffcc; border-bottom:1px solid #00ffcc; padding-bottom:4px;">🎛️ 6 軌 Stems 導入</h3>
-        <div class="file-group"><label>1. 🥁 Drums (鼓組):</label><input type="file" id="fileDrums"></div>
-        <div class="file-group"><label>2. 🎸 Guitars (電結他):</label><input type="file" id="fileGuitars"></div>
-        <div class="file-group"><label>3. 🎹 Piano (鋼琴):</label><input type="file" id="filePiano"></div>
-        <div class="file-group"><label>4. 🎸 Bass (貝斯):</label><input type="file" id="fileBass"></div>
-        <div class="file-group"><label>5. 🎤 Vocals (主唱):</label><input type="file" id="fileVocals"></div>
-        <div class="file-group"><label>6. 🎛️ Other (其他):</label><input type="file" id="fileOther"></div>
-        
-        <div style="margin-top:8px;">
-            <label style="font-size:11px;">BPM 微調:</label>
-            <input type="number" id="bpmInput" value="175" style="width:60px; background:#111; color:#00ffcc; border:1px solid #00ffcc;" onchange="updateBPM()">
-        </div>
-        <button class="btn-panel" style="margin-top:10px;" onclick="toggleMenu()">✖ 確定並返回戰鬥</button>
+    <div id="judgementDisplay">PERFECT!</div>
+
+    <!-- 頂部 Notes 掉落區 (Canvas) -->
+    <canvas id="battleCanvas"></canvas>
+
+    <!-- 下方 4 軌實體觸控按鈕 -->
+    <div class="touch-controller">
+        <div class="touch-lane" id="lane0" label="0">L1</div>
+        <div class="touch-lane" id="lane1" label="1">L2</div>
+        <div class="touch-lane" id="lane2" label="2">R1</div>
+        <div class="touch-lane" id="lane3" label="3">R2</div>
     </div>
 
     <!-- 啟動遮罩 -->
     <div id="startMask" class="start-mask">
         <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
-        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">目標速度: 175 BPM | 6 軌動態切換</p>
+        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM 精準實體譜面 | 4 軌觸控對應</p>
         <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
     </div>
-
-    <canvas id="battleCanvas"></canvas>
 </div>
 
 <script>
 /* -------------------------------------------------------------
-   🎵 Arcatdia - 175 BPM Engine Core
+   🎵 Arcatdia - 175 BPM Chart & Touch Engine
    ------------------------------------------------------------- */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 850; 
-canvas.height = 520;
+canvas.height = 420;
 
 let bpm = 175;
-const lanes = [170, 340, 510, 680];
-const hitZoneY = 440;
+const lanesX = [106, 318, 530, 742]; // 4 軌的 X 軸平分位置
+const hitZoneY = 380; // 判定線 Y 軸位置
 let isPlaying = false;
+let score = 0;
 let notes = [];
+let startTime = 0;
 
+// 同層 6 條幹聲
 const stemFiles = {
     drums: "最大の愛(original jp)_drums_mixed.mp3",
     guitars: "最大の愛(original jp)_guitars_mixed.mp3",
@@ -187,7 +207,6 @@ const stemFiles = {
 };
 
 const audioElements = {};
-
 Object.keys(stemFiles).forEach(key => {
     const audio = new Audio();
     audio.src = stemFiles[key];
@@ -195,25 +214,99 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-function updateBPM() {
-    bpm = document.getElementById('bpmInput').value;
-    const bpmDisp = document.getElementById('bpmDisplay');
-    if (bpmDisp) bpmDisp.innerText = bpm;
+/* -------------------------------------------------------------
+   🎼 175 BPM 實體譜面生成器 (以 16 分音符拍子為基準)
+   ------------------------------------------------------------- */
+function generate175BpmChart() {
+    notes = [];
+    const beatDurationMs = (60 / bpm) * 1000; // 175 BPM 每拍 ~342.8ms
+    const sixteenthMs = beatDurationMs / 4;    // 16 分音符 ~85.7ms
+
+    // 模擬《最大的愛》前奏節奏模式 (可自訂)
+    const pattern = [
+        0, 2, 1, 3, 0, 1, 2, 3,
+        0, 0, 3, 3, 1, 2, 1, 2,
+        0, 1, 2, 3, 3, 2, 1, 0,
+        0, 3, 1, 2, 0, 2, 1, 3
+    ];
+
+    // 生成前 200 個實體節奏 Notes
+    for (let i = 0; i < 200; i++) {
+        const lane = pattern[i % pattern.length];
+        const targetTimeMs = 1500 + (i * sixteenthMs * 2); // 每 8 分音符落一鍵
+        notes.push({
+            lane: lane,
+            targetTime: targetTimeMs, // Note 應該到達判定線的絕對時間
+            hit: false
+        });
+    }
 }
 
-function toggleMenu() {
-    const panel = document.getElementById('drawerPanel');
-    if (panel) panel.classList.toggle('open');
+// 觸控打擊事件綁定
+for (let i = 0; i < 4; i++) {
+    const laneBtn = document.getElementById(`lane${i}`);
+    
+    // 支援手機多點觸控 (Multi-touch)
+    laneBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        laneBtn.classList.add('pressed');
+        handleTap(i);
+    });
+
+    laneBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        laneBtn.classList.remove('pressed');
+    });
+
+    // 支援電腦滑鼠點擊測試
+    laneBtn.addEventListener('mousedown', () => {
+        laneBtn.classList.add('pressed');
+        handleTap(i);
+    });
+    laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
+}
+
+// 判定處理邏輯 (PERFECT / GREAT / MISS)
+function handleTap(laneIndex) {
+    if (!isPlaying) return;
+
+    const currentTimeMs = performance.now() - startTime;
+    const noteSpeed = 0.6; // Note 下落速度
+
+    // 尋找當前軌道最近未打擊的 Note
+    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
+
+    if (targetNote) {
+        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+
+        if (timeDiff < 100) { // 100ms 內算 PERFECT
+            targetNote.hit = true;
+            score += 1000;
+            showJudgement("PERFECT!", "#00ffcc");
+        } else if (timeDiff < 200) { // 200ms 內算 GREAT
+            targetNote.hit = true;
+            score += 500;
+            showJudgement("GREAT", "#ffaa00");
+        } else if (timeDiff < 350) { // 太早或太遲
+            targetNote.hit = true;
+            showJudgement("MISS", "#ff0055");
+        }
+        document.getElementById('scoreVal').innerText = String(score).padStart(6, '0');
+    }
+}
+
+function showJudgement(text, color) {
+    const disp = document.getElementById('judgementDisplay');
+    disp.innerText = text;
+    disp.style.color = color;
+    disp.style.opacity = '1';
+    setTimeout(() => { disp.style.opacity = '0'; }, 300);
 }
 
 function playAllAudio() {
     Object.keys(audioElements).forEach(key => {
         audioElements[key].currentTime = 0;
-        audioElements[key].play().then(() => {
-            console.log(`🔊 ${key} 成功播放！`);
-        }).catch(err => {
-            console.error(`❌ ${key} 播放失敗:`, err);
-        });
+        audioElements[key].play();
     });
 }
 
@@ -228,15 +321,12 @@ function togglePlay() {
     
     if (!isPlaying) {
         isPlaying = true;
+        score = 0;
+        document.getElementById('scoreVal').innerText = "000000";
+        generate175BpmChart(); // 生成 175 BPM 實體譜面
         playAllAudio();
+        startTime = performance.now();
         if (playBtn) playBtn.innerText = "⏸ PAUSE";
-        
-        if (notes.length === 0) {
-            const speed = (bpm / 150) * 5.0;
-            for (let i = 0; i < 50; i++) {
-                notes.push({ lane: Math.floor(Math.random() * 4), y: -i * 70, speed: speed });
-            }
-        }
         requestAnimationFrame(gameLoop);
     } else {
         isPlaying = false;
@@ -246,41 +336,59 @@ function togglePlay() {
 }
 
 function startBattle() {
-    const mask = document.getElementById('startMask');
-    if (mask) mask.style.display = 'none';
+    document.getElementById('startMask').style.display = 'none';
     togglePlay();
 }
 
+// 175 BPM Canvas 渲染主迴圈
 function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    lanes.forEach((x) => {
-        ctx.strokeStyle = "rgba(0, 255, 204, 0.25)"; 
+    const currentTimeMs = performance.now() - startTime;
+    const noteSpeed = 0.5; // 音符下落速度 px/ms
+
+    // 繪製 4 條軌道線與下方判定線
+    lanesX.forEach((x) => {
+        ctx.strokeStyle = "rgba(0, 255, 204, 0.2)"; 
         ctx.lineWidth = 2;
         ctx.beginPath(); 
         ctx.moveTo(x, 0); 
         ctx.lineTo(x, canvas.height); 
         ctx.stroke();
 
+        // 下方判定點 (Hit Target)
         ctx.fillStyle = "#ff0077"; 
         ctx.shadowColor = "#ff0077"; 
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 10;
         ctx.beginPath(); 
-        ctx.arc(x, hitZoneY, 16, 0, Math.PI * 2); 
+        ctx.arc(x, hitZoneY, 18, 0, Math.PI * 2); 
         ctx.fill();
     });
 
+    // 繪製實體譜面音符 (Notes)
     notes.forEach(note => {
-        note.y += note.speed;
-        if (note.y > canvas.height + 20) note.y = -100;
+        if (note.hit) return;
 
-        ctx.fillStyle = "#00ffcc"; 
-        ctx.shadowColor = "#00ffcc"; 
-        ctx.shadowBlur = 10;
-        ctx.beginPath(); 
-        ctx.arc(lanes[note.lane], note.y, 14, 0, Math.PI * 2); 
-        ctx.fill();
+        // 計算 Note 當前的 Y 軸位置 (時間同步)
+        const timeTillHit = note.targetTime - currentTimeMs;
+        const currentY = hitZoneY - (timeTillHit * noteSpeed);
+
+        // 只繪製在畫面範圍內的 Note
+        if (currentY > -20 && currentY < canvas.height + 30) {
+            ctx.fillStyle = "#00ffcc"; 
+            ctx.shadowColor = "#00ffcc"; 
+            ctx.shadowBlur = 12;
+            ctx.beginPath(); 
+            ctx.arc(lanesX[note.lane], currentY, 15, 0, Math.PI * 2); 
+            ctx.fill();
+        }
+
+        // 超過判定線太遠自動算 MISS
+        if (timeTillHit < -300 && !note.hit) {
+            note.hit = true;
+            showJudgement("MISS", "#ff0055");
+        }
     });
 
     requestAnimationFrame(gameLoop);
