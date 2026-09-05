@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.8 - Solid Calibration (Part 1)
+   🔒 Arcatdia Battle Engine v3.8 - Part 1 (2拍極速下落 + 線位同步)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,10 +22,8 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
-// 🎯 鎖死 1.0x 原速
 let playbackSpeed = 1.0;
 
-// 🎯 4 檔微調判定線 (距離底部的像素)
 const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
 
@@ -33,12 +31,12 @@ const lanePressed = [false, false, false, false];
 
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
-    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" }, // L2 黃色全音符
+    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
     { main: "#00ccff", glow: "rgba(0, 204, 255, 0.8)" },
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 1; // 預設 2D 直軌
+let currentPerspectiveMode = 1;
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
@@ -157,7 +155,7 @@ function generateChart() {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const wholeNoteMs = beatMs * 4; 
+    const wholeNoteMs = beatMs * 4;
 
     const firstHitTime = wholeNoteMs; 
 
@@ -199,7 +197,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v3.8 - Solid Calibration (Part 2)
+   🔒 Arcatdia Battle Engine v3.8 - Part 2
    ============================================================= */
 
 function handleTap(laneIndex) {
@@ -216,14 +214,14 @@ function handleTap(laneIndex) {
     if (targetNote) {
         const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
 
-        if (timeDiff < 200) {
+        if (timeDiff < 180) {
             targetNote.hit = true;
             score += 1000;
             combo++;
             hp = Math.min(100, hp + 2);
             showJudgement("PERFECT!", laneColor);
             createHitParticles(targetX, currentHitY, laneColor);
-        } else if (timeDiff < 350) {
+        } else if (timeDiff < 320) {
             targetNote.hit = true;
             score += 500;
             combo++;
@@ -322,7 +320,9 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const beatMs = (60 / bpm) * 1000;
-    const travelDuration = beatMs * 4; 
+    
+    // 🎯 2拍等速下落：剛好咬死判定線
+    const travelDuration = beatMs * 2; 
 
     const W = canvas.width;
     const H = canvas.height;
@@ -391,6 +391,15 @@ function gameLoop() {
             }
             ctx.fill();
         }
+
+        // 🎯 粒音穿過判定線 (1.08) 瞬間結算 MISS
+        if (rawProgress > 1.08 && !note.hit) {
+            note.hit = true;
+            combo = 0;
+            hp = Math.max(0, hp - 5);
+            showJudgement("MISS", "#ff0055");
+            updateUI();
+        }
     });
 
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -417,7 +426,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化自動畫出軌道，避免黑屏
+// 🎯 初始化畫出靜態軌道
 (function initialDraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
