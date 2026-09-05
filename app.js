@@ -1,16 +1,11 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v1.7 - Perfect Perspective Logic
+   🔒 Arcatdia Battle Engine v1.8 - Memory Safe & Safe Area Edition
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
-
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+canvas.width = 850; 
+canvas.height = 420;
 
 let bpm = 175;
 let isPlaying = false;
@@ -26,11 +21,6 @@ let noteSpeed = 6.0;
 
 const lanePressed = [false, false, false, false];
 
-/* -------------------------------------------------------------
-   📐 視角 Mode 定義：
-   Mode 1: 🏊 2D 純垂直直軌 (遊水賽道模式 - 方便打 20 萬高分！)
-   Mode 2: 🚀 3D 尖角消失點 (遠處企直 ➔ 衝到眼前旋轉打橫瞓喺度)
-   ------------------------------------------------------------- */
 let currentPerspectiveMode = 1;
 
 function togglePerspectiveMode() {
@@ -51,9 +41,7 @@ function toggleNoteSpeed() {
     }
 }
 
-/* -------------------------------------------------------------
-   🎛️ DSP 高音 Hi-Hat 切切聲
-   ------------------------------------------------------------- */
+/* 🎛️ DSP 高音 Hi-Hat */
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 
@@ -67,7 +55,7 @@ function initDSP() {
 function playHiHatHitSound() {
     if (!dspCtx) return;
     try {
-        const bufferSize = dspCtx.sampleRate * 0.04;
+        const bufferSize = dspCtx.sampleRate * 0.03;
         const buffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
@@ -79,11 +67,11 @@ function playHiHatHitSound() {
 
         const filter = dspCtx.createBiquadFilter();
         filter.type = 'highpass';
-        filter.frequency.value = 7000;
+        filter.frequency.value = 7500;
 
         const gain = dspCtx.createGain();
-        gain.gain.setValueAtTime(0.6, dspCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.5, dspCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.03);
 
         noise.connect(filter);
         filter.connect(gain);
@@ -93,19 +81,20 @@ function playHiHatHitSound() {
     } catch (e) {}
 }
 
-/* -------------------------------------------------------------
-   ✨ 打擊爆發火花粒子
-   ------------------------------------------------------------- */
+/* ✨ 記憶體安全粒子系統（上限 30 粒，防爆 GPU 防 Hang 機） */
 function createHitParticles(x, y, color) {
-    for (let i = 0; i < 12; i++) {
+    if (particles.length > 30) {
+        particles.splice(0, 10); // 清除舊粒子，防止 Hang 機！
+    }
+    for (let i = 0; i < 6; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
+        const speed = Math.random() * 5 + 2;
         particles.push({
             x: x,
             y: y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
-            size: Math.random() * 4 + 2,
+            size: Math.random() * 3 + 2,
             color: color,
             alpha: 1.0
         });
@@ -129,18 +118,14 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-/* -------------------------------------------------------------
-   🎼 譜面生成：貫穿整首 3.5 分鐘全曲《最大的愛》(約 600+ 音符)
-   ------------------------------------------------------------- */
 function generate175BpmChart() {
     notes = [];
+    particles = []; // 重置粒子
     const beatMs = (60 / bpm) * 1000;
 
     let currentMs = audioOffsetMs;
 
-    // 涵蓋整首 3 分多鐘 (約 620 個 Beats)
-    for (let i = 0; i < 620; i++) {
-        // 長按條 (Hold Note)
+    for (let i = 0; i < 600; i++) {
         if (i % 16 === 7) {
             notes.push({
                 type: 'hold',
@@ -153,7 +138,6 @@ function generate175BpmChart() {
             });
             currentMs += beatMs * 4.0;
         } else {
-            // 單擊 (Tap) - Verse / Chorus / Guitar Solo 節奏變化
             const pattern = [
                 [0], [2], [1], [3], 
                 [0, 2], [1], [3], [0], 
@@ -206,9 +190,9 @@ for (let i = 0; i < 4; i++) {
 function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
-    const hitZoneY = canvas.height - 110;
-    const laneWidth = canvas.width / 4;
-    const targetX = laneWidth * laneIndex + (laneWidth / 2);
+    const bottomLanesX = [106, 318, 530, 742];
+    const hitZoneY = 380;
+    const targetX = bottomLanesX[laneIndex];
 
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
 
@@ -329,21 +313,19 @@ function gameLoop() {
 
     const currentTimeMs = performance.now() - startTime;
     const travelDuration = 7200 / noteSpeed; 
-    const hitZoneY = canvas.height - 110;
-    const startY = 40;
+    const hitZoneY = 380;
+    const startY = 30;
 
-    const W = canvas.width;
-    const laneW = W / 4;
+    const bottomLanesX = [106, 318, 530, 742];
 
-    // 定義兩套軌道頂部與底部的 X 座標
-    // Mode 1: 2D 遊水賽道直軌 | Mode 2: 3D 尖角
+    // Mode 1: 2D 直軌 | Mode 2: 3D 尖角
     const topX = (currentPerspectiveMode === 1) 
-        ? [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5]
-        : [W*0.42, W*0.47, W*0.53, W*0.58];
+        ? [106, 318, 530, 742]
+        : [390, 413, 436, 460];
 
-    const botX = [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5];
+    const botX = bottomLanesX;
 
-    // 1. 畫 4 條軌道
+    // 1. 畫軌道
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = "rgba(0, 255, 204, 0.25)";
         ctx.lineWidth = 2;
@@ -354,13 +336,13 @@ function gameLoop() {
 
         ctx.fillStyle = "#ff0077";
         ctx.shadowColor = "#ff0077";
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // 2. 畫 Notes 樂譜
+    // 2. 畫 Notes
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -379,14 +361,12 @@ function gameLoop() {
 
                 ctx.fillStyle = "#00ffcc";
                 ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 12 * progress;
+                ctx.shadowBlur = 10 * progress;
                 ctx.beginPath();
 
                 if (currentPerspectiveMode === 1) {
-                    // 🏊 Mode 1 (2D 直軌): 完全企直，安安份份直落！
                     ctx.ellipse(currentX, currentY, 12, 18, 0, 0, Math.PI * 2);
                 } else {
-                    // 🚀 Mode 2 (3D 尖角): 正宗幾何透視——遠處企直 (Rx < Ry) ➔ 衝到眼前旋轉打橫瞓喺度 (Rx > Ry)！
                     const rx = (6 * (1.0 - progress)) + (20 * progress);
                     const ry = (18 * (1.0 - progress)) + (8 * progress);
                     ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
@@ -419,9 +399,9 @@ function gameLoop() {
                 const tailX = tx + (bx - tx) * tailProgress;
 
                 ctx.strokeStyle = note.holding ? "rgba(0, 255, 204, 0.8)" : "rgba(0, 255, 204, 0.4)";
-                ctx.lineWidth = note.holding ? 18 : 12;
+                ctx.lineWidth = note.holding ? 16 : 10;
                 ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 12;
                 ctx.beginPath();
                 ctx.moveTo(tailX, tailY);
                 ctx.lineTo(headX, headY);
@@ -429,7 +409,7 @@ function gameLoop() {
             }
 
             if (note.holding && lanePressed[laneIndex]) {
-                if (Math.random() < 0.4) {
+                if (Math.random() < 0.3) {
                     createHitParticles(bx, hitZoneY, "#00ffcc");
                     score += 50;
                     combo++;
@@ -456,13 +436,12 @@ function gameLoop() {
         }
     });
 
-    // 3. 粒子爆發
-    particles.forEach((p, index) => {
+    // 3. 粒子渲染與自動清理
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
@@ -470,10 +449,12 @@ function gameLoop() {
 
         p.x += p.vx;
         p.y += p.vy;
-        p.alpha -= 0.04;
+        p.alpha -= 0.05;
 
-        if (p.alpha <= 0) particles.splice(index, 1);
-    });
+        if (p.alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
 
     requestAnimationFrame(gameLoop);
 }
