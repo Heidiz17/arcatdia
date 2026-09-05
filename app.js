@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v1.2 - Clean & Secure Edition
+   🔒 Arcatdia Battle Engine v1.4 - SEKAI Perspective & Hold Note Edition
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -18,13 +18,32 @@ let startTime = 0;
 
 const audioOffsetMs = 250; 
 
+// 追蹤 4 個軌道目前是否有手指按住 (Holding State)
+const lanePressed = [false, false, false, false];
+
 /* -------------------------------------------------------------
-   📐 3D 消失點 (Vanishing Point) 設定
+   📐 視角 Option 模式設定 (Mode 1: 舒適初音梯形 / Mode 2: 尖角 3D)
    ------------------------------------------------------------- */
-const vanishingPoint = { x: 425, y: 50 };
-const topLanesX = [350, 400, 450, 500];   
+let currentPerspectiveMode = 1; // 預設 Mode 1 (最適老婆同學生 play 嘅舒適版)
+
+const mode1TopX = [280, 376, 473, 570];
+const mode2TopX = [390, 413, 436, 460];
+
+const vanishingPoint = { x: 425, y: 30 };
 const bottomLanesX = [106, 318, 530, 742]; 
 const hitZoneY = 380;                      
+
+function getActiveTopX() {
+    return currentPerspectiveMode === 1 ? mode1TopX : mode2TopX;
+}
+
+function togglePerspectiveMode() {
+    currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
+    const btn = document.getElementById('modeToggleBtn');
+    if (btn) {
+        btn.innerText = currentPerspectiveMode === 1 ? "MODE: 1 (舒適)" : "MODE: 2 (尖角)";
+    }
+}
 
 /* -------------------------------------------------------------
    🎛️ DSP 高音 Hi-Hat 切切聲
@@ -72,7 +91,7 @@ function playHiHatHitSound() {
    ✨ 打擊爆發火花粒子
    ------------------------------------------------------------- */
 function createHitParticles(x, y, color) {
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 12; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 6 + 2;
         particles.push({
@@ -104,78 +123,136 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
+/* -------------------------------------------------------------
+   🎼 譜面生成：單擊 (Tap) + 實體長按條 (Hold Note)
+   ------------------------------------------------------------- */
 function generate175BpmChart() {
     notes = [];
     const beatMs = (60 / bpm) * 1000;
 
-    const rhythmBlocks = [
-        [0], [2], [1], [3],       
-        [0, 2],                   
-        [1], [3], [0], [2],       
-        [1, 3]                    
-    ];
-
     let currentMs = audioOffsetMs;
 
-    for (let i = 0; i < 300; i++) {
-        const pattern = rhythmBlocks[i % rhythmBlocks.length];
-        pattern.forEach(laneIndex => {
+    for (let i = 0; i < 120; i++) {
+        // 每 8 個 Beat 出現一次長亮光條 (Hold Note Duration = 2.5 個拍子)
+        if (i % 8 === 3) {
             notes.push({
-                lane: laneIndex,
-                targetTime: currentMs,
+                type: 'hold',
+                lane: (i % 4),
+                startTime: currentMs,
+                endTime: currentMs + (beatMs * 2.5),
+                holding: false,
+                completed: false,
                 hit: false
             });
-        });
-        currentMs += beatMs;
+            currentMs += beatMs * 3.5;
+        } else {
+            // 一般單擊 (Tap)
+            const pattern = [[0], [2], [1], [3], [0, 2], [1, 3]][i % 6];
+            pattern.forEach(laneIndex => {
+                notes.push({
+                    type: 'tap',
+                    lane: laneIndex,
+                    targetTime: currentMs,
+                    hit: false
+                });
+            });
+            currentMs += beatMs;
+        }
     }
 }
 
+/* -------------------------------------------------------------
+   👆 觸控與事件綁定 (支援長按 Holding 狀態追蹤)
+   ------------------------------------------------------------- */
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
+        // Touch Start
         laneBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             laneBtn.classList.add('pressed');
+            lanePressed[i] = true;
             playHiHatHitSound();
             handleTap(i);
         });
+        // Touch End
         laneBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
             laneBtn.classList.remove('pressed');
+            lanePressed[i] = false;
+            handleRelease(i);
         });
+
+        // Mouse MouseDown
         laneBtn.addEventListener('mousedown', () => {
             laneBtn.classList.add('pressed');
+            lanePressed[i] = true;
             playHiHatHitSound();
             handleTap(i);
         });
-        laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
+        // Mouse MouseUp
+        laneBtn.addEventListener('mouseup', () => {
+            laneBtn.classList.remove('pressed');
+            lanePressed[i] = false;
+            handleRelease(i);
+        });
     }
 }
 
 function handleTap(laneIndex) {
     if (!isPlaying) return;
     const currentTimeMs = performance.now() - startTime;
-    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
+
+    // 尋找目標 Note
+    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && !n.completed);
 
     if (targetNote) {
-        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-        const targetX = bottomLanesX[laneIndex];
+        if (targetNote.type === 'tap') {
+            const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+            const targetX = bottomLanesX[laneIndex];
 
-        if (timeDiff < 180) {
-            targetNote.hit = true;
-            score += 1000;
-            combo++;
-            hp = Math.min(100, hp + 2);
-            showJudgement("PERFECT!", "#00ffcc");
-            createHitParticles(targetX, hitZoneY, "#00ffcc");
-        } else if (timeDiff < 300) {
-            targetNote.hit = true;
-            score += 500;
-            combo++;
-            showJudgement("GREAT", "#ffaa00");
-            createHitParticles(targetX, hitZoneY, "#ffaa00");
+            if (timeDiff < 180) {
+                targetNote.hit = true;
+                score += 1000;
+                combo++;
+                hp = Math.min(100, hp + 2);
+                showJudgement("PERFECT!", "#00ffcc");
+                createHitParticles(targetX, hitZoneY, "#00ffcc");
+            } else if (timeDiff < 300) {
+                targetNote.hit = true;
+                score += 500;
+                combo++;
+                showJudgement("GREAT", "#ffaa00");
+                createHitParticles(targetX, hitZoneY, "#ffaa00");
+            }
+        } else if (targetNote.type === 'hold') {
+            // 長按 Hold Note 開始觸碰
+            const timeDiff = Math.abs(currentTimeMs - targetNote.startTime);
+            if (timeDiff < 300) {
+                targetNote.holding = true;
+                showJudgement("HOLD!", "#00ffcc");
+            }
         }
         updateUI();
+    }
+}
+
+function handleRelease(laneIndex) {
+    if (!isPlaying) return;
+    const currentTimeMs = performance.now() - startTime;
+
+    // 如果中途放開 Hold Note
+    const holdNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.completed);
+    if (holdNote) {
+        if (currentTimeMs < holdNote.endTime - 150) {
+            // 太早放手 -> MISS
+            holdNote.holding = false;
+            holdNote.completed = true;
+            combo = 0;
+            hp = Math.max(0, hp - 8);
+            showJudgement("MISS (RELEASE)", "#ff0055");
+            updateUI();
+        }
     }
 }
 
@@ -249,9 +326,11 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const currentTimeMs = performance.now() - startTime;
+    const currentTopX = getActiveTopX();
 
+    // 1. 畫 4 條透視軌道
     for (let i = 0; i < 4; i++) {
-        const topX = topLanesX[i];
+        const topX = currentTopX[i];
         const botX = bottomLanesX[i];
 
         ctx.strokeStyle = "rgba(0, 255, 204, 0.25)";
@@ -269,38 +348,95 @@ function gameLoop() {
         ctx.fill();
     }
 
+    // 2. 畫音符與 Hold Note 長亮光條
     notes.forEach(note => {
-        if (note.hit) return;
+        const laneIndex = note.lane;
+        const topX = currentTopX[laneIndex];
+        const botX = bottomLanesX[laneIndex];
 
-        const timeTillHit = note.targetTime - currentTimeMs;
-        const progress = 1.0 - (timeTillHit / 1200); 
+        if (note.type === 'tap') {
+            if (note.hit) return;
+            const timeTillHit = note.targetTime - currentTimeMs;
+            const progress = 1.0 - (timeTillHit / 1200); 
 
-        if (progress > 0 && progress < 1.1) {
-            const laneIndex = note.lane;
-            const topX = topLanesX[laneIndex];
-            const botX = bottomLanesX[laneIndex];
+            if (progress > 0 && progress < 1.1) {
+                const currentX = topX + (botX - topX) * progress;
+                const currentY = vanishingPoint.y + (hitZoneY - vanishingPoint.y) * progress;
+                const currentRadius = 5 + (13 * progress); 
 
-            const currentX = topX + (botX - topX) * progress;
-            const currentY = vanishingPoint.y + (hitZoneY - vanishingPoint.y) * progress;
-            const currentRadius = 4 + (14 * progress); 
+                ctx.fillStyle = "#00ffcc";
+                ctx.shadowColor = "#00ffcc";
+                ctx.shadowBlur = 10 * progress;
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, currentRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
-            ctx.fillStyle = "#00ffcc";
-            ctx.shadowColor = "#00ffcc";
-            ctx.shadowBlur = 10 * progress;
-            ctx.beginPath();
-            ctx.arc(currentX, currentY, currentRadius, 0, Math.PI * 2);
-            ctx.fill();
-        }
+            if (timeTillHit < -350 && !note.hit) {
+                note.hit = true;
+                combo = 0;
+                hp = Math.max(0, hp - 5);
+                showJudgement("MISS", "#ff0055");
+                updateUI();
+            }
+        } 
+        else if (note.type === 'hold') {
+            if (note.completed) return;
 
-        if (timeTillHit < -350 && !note.hit) {
-            note.hit = true;
-            combo = 0;
-            hp = Math.max(0, hp - 5);
-            showJudgement("MISS", "#ff0055");
-            updateUI();
+            const headProgress = 1.0 - ((note.startTime - currentTimeMs) / 1200);
+            const tailProgress = 1.0 - ((note.endTime - currentTimeMs) / 1200);
+
+            // 長亮光條渲染 (Ribbon Body)
+            if (headProgress > 0 && tailProgress < 1.1) {
+                const headY = Math.min(hitZoneY, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * Math.max(0, headProgress));
+                const tailY = Math.max(vanishingPoint.y, vanishingPoint.y + (hitZoneY - vanishingPoint.y) * Math.min(1, tailProgress));
+
+                const headX = topX + (botX - topX) * Math.min(1, Math.max(0, headProgress));
+                const tailX = topX + (botX - topX) * Math.min(1, Math.max(0, tailProgress));
+
+                ctx.strokeStyle = note.holding ? "rgba(0, 255, 204, 0.8)" : "rgba(0, 255, 204, 0.4)";
+                ctx.lineWidth = note.holding ? 16 : 10;
+                ctx.shadowColor = "#00ffcc";
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.moveTo(tailX, tailY);
+                ctx.lineTo(headX, headY);
+                ctx.stroke();
+            }
+
+            // 按住狀態處理 (Holding state)
+            if (note.holding && lanePressed[laneIndex]) {
+                // 持續爆發火花與加分
+                if (Math.random() < 0.4) {
+                    createHitParticles(botX, hitZoneY, "#00ffcc");
+                    score += 50;
+                    combo++;
+                    updateUI();
+                }
+
+                // 長按完成
+                if (currentTimeMs >= note.endTime) {
+                    note.completed = true;
+                    note.holding = false;
+                    score += 2000;
+                    showJudgement("PERFECT!", "#00ffcc");
+                    createHitParticles(botX, hitZoneY, "#00ffcc");
+                    updateUI();
+                }
+            }
+
+            // 沒按而漏過
+            if (currentTimeMs > note.startTime + 300 && !note.holding && !note.completed) {
+                note.completed = true;
+                combo = 0;
+                hp = Math.max(0, hp - 8);
+                showJudgement("MISS (HOLD)", "#ff0055");
+                updateUI();
+            }
         }
     });
 
+    // 3. 粒子渲染
     particles.forEach((p, index) => {
         ctx.save();
         ctx.globalAlpha = p.alpha;
