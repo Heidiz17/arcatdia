@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v2.2 - Dynamic Landscape Edition
+   🔒 Arcatdia Battle Engine v2.3 - Perfect Button Alignment & Fullscreen
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -26,7 +26,7 @@ let noteSpeed = 6.0;
 
 const lanePressed = [false, false, false, false];
 
-// 🎨 4 軌高級獨立色彩 (粉紅, 黃綠, 冰藍, 夢幻紫)
+// 🎨 4 軌獨立色彩
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
     { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
@@ -204,7 +204,7 @@ function handleTap(laneIndex) {
     const currentTimeMs = performance.now() - startTime;
     const W = canvas.width;
     const laneW = W / 4;
-    const hitZoneY = canvas.height - 80;
+    const hitZoneY = canvas.height - 95;
     const targetX = laneW * laneIndex + (laneW / 2);
     const laneColor = laneColors[laneIndex].main;
 
@@ -314,8 +314,18 @@ function togglePlay() {
     }
 }
 
+// 🎯 點擊啟動自動進入手機全螢幕（縮埋網址列！）
 function startBattle() {
     initDSP();
+
+    // 嘗試隱藏網址列進入全螢幕
+    const docEl = document.documentElement;
+    if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+    } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen().catch(() => {});
+    }
+
     const mask = document.getElementById('startMask');
     if (mask) mask.style.display = 'none';
     togglePlay();
@@ -329,20 +339,22 @@ function gameLoop() {
     const travelDuration = 7200 / noteSpeed; 
     const W = canvas.width;
     const H = canvas.height;
-    const hitZoneY = H - 80;
-    const startY = 25;
+
+    // 🎯 打擊點 Y 座標對齊按鈕上方頂線
+    const hitZoneY = H - 95;
+    const startY = 20;
 
     const laneW = W / 4;
 
-    // 🎯 橫屏大螢幕視覺計算：
-    // Mode 1: 🏊 2D 純直軌 | Mode 2: 🚀 3D 寬視角極致尖角
+    // 🎯 精準對位公式：4 條線底部點 100% 落在 4 個按鈕的正中心 (12.5%, 37.5%, 62.5%, 87.5%)
+    const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
+
+    // Mode 1: 純直軌 | Mode 2: 🚀 3D 尖角
     const topX = (currentPerspectiveMode === 1) 
-        ? [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5]
-        : [W*0.43, W*0.48, W*0.52, W*0.57];
+        ? botX
+        : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    const botX = [laneW*0.5, laneW*1.5, laneW*2.5, laneW*3.5];
-
-    // 1. 畫 4 軌獨立色彩線
+    // 1. 畫 4 軌獨立色彩線 (正中心穿過按鈕)
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = laneColors[i].glow;
         ctx.lineWidth = 2;
@@ -355,11 +367,11 @@ function gameLoop() {
         ctx.shadowColor = laneColors[i].main;
         ctx.shadowBlur = 14;
         ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 16, 0, Math.PI * 2);
+        ctx.arc(botX[i], hitZoneY, 18, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // 2. 畫 Notes 樂譜 (橫屏極致旋轉透視)
+    // 2. 畫 Notes 樂譜 (橫向展開剛好等於按鈕對應闊度！)
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -385,9 +397,9 @@ function gameLoop() {
                 if (currentPerspectiveMode === 1) {
                     ctx.ellipse(currentX, currentY, 14, 20, 0, 0, Math.PI * 2);
                 } else {
-                    // 🚀 橫屏極致透視：遠處企直 (Rx:4, Ry:24) ➔ 衝落嚟旋轉成打橫 (Rx:28, Ry:8)！
-                    const rx = (4 * (1.0 - progress)) + (28 * progress);
-                    const ry = (24 * (1.0 - progress)) + (8 * progress);
+                    // 🚀 遠處企直 (Rx:5, Ry:22) ➔ 衝到打擊區橫向展寬剛好匹配按鈕闊度 (Rx:38, Ry:9)！
+                    const rx = (5 * (1.0 - progress)) + (38 * progress);
+                    const ry = (22 * (1.0 - progress)) + (9 * progress);
                     ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
                 }
                 ctx.fill();
@@ -418,7 +430,7 @@ function gameLoop() {
                 const tailX = tx + (bx - tx) * tailProgress;
 
                 ctx.strokeStyle = colorObj.glow;
-                ctx.lineWidth = note.holding ? 20 : 14;
+                ctx.lineWidth = note.holding ? 22 : 15;
                 ctx.shadowColor = colorObj.main;
                 ctx.shadowBlur = 16;
                 ctx.beginPath();
