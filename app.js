@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v2.3 - Perfect Button Alignment & Fullscreen
+   🔒 Arcatdia Battle Engine v2.6 - Starfield & 3D Skew Lanes
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -14,19 +14,21 @@ resizeCanvas();
 
 let bpm = 175;
 let isPlaying = false;
+let isCalibrationMode = false;
 let score = 0;
 let combo = 0;
 let hp = 100;
 let notes = [];
 let particles = [];
+let stars = []; // 🌟 動態背景星空
 let startTime = 0;
 
 const audioOffsetMs = 250; 
 let noteSpeed = 6.0; 
+let playbackSpeed = 1.0; 
 
 const lanePressed = [false, false, false, false];
 
-// 🎨 4 軌獨立色彩
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
     { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
@@ -34,7 +36,7 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 2; // 預設 🚀 3D 尖角
+let currentPerspectiveMode = 2; // 預設 3D 尖角
 
 function togglePerspectiveMode() {
     currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
@@ -54,7 +56,36 @@ function toggleNoteSpeed() {
     }
 }
 
-/* 🎛️ DSP 高音 Hi-Hat */
+function togglePlaybackSpeed() {
+    const speeds = [0.7, 1.0, 1.2];
+    let idx = speeds.indexOf(playbackSpeed);
+    playbackSpeed = speeds[(idx + 1) % speeds.length];
+    
+    Object.keys(audioElements).forEach(key => {
+        audioElements[key].playbackRate = playbackSpeed;
+    });
+
+    const speedBtn = document.getElementById('speedToggleBtn');
+    if (speedBtn) {
+        speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
+    }
+}
+
+/* 🌟 初始化背景星空粒子 */
+function initStars() {
+    stars = [];
+    for (let i = 0; i < 70; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 1.5 + 0.5,
+            alpha: Math.random()
+        });
+    }
+}
+initStars();
+
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 
@@ -95,20 +126,16 @@ function playHiHatHitSound() {
 }
 
 function createHitParticles(x, y, color) {
-    if (particles.length > 30) {
-        particles.splice(0, 10);
-    }
+    if (particles.length > 30) particles.splice(0, 10);
     for (let i = 0; i < 6; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 5 + 2;
         particles.push({
-            x: x,
-            y: y,
+            x: x, y: y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             size: Math.random() * 3 + 2,
-            color: color,
-            alpha: 1.0
+            color: color, alpha: 1.0
         });
     }
 }
@@ -130,41 +157,52 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-function generate175BpmChart() {
+function generateChart(isCalibration = false) {
     notes = [];
     particles = [];
     const beatMs = (60 / bpm) * 1000;
-
     let currentMs = audioOffsetMs;
 
-    for (let i = 0; i < 600; i++) {
-        if (i % 16 === 7) {
+    if (isCalibration) {
+        for (let i = 0; i < 4; i++) {
             notes.push({
-                type: 'hold',
-                lane: (i % 4),
-                startTime: currentMs,
-                endTime: currentMs + (beatMs * 3.0),
-                holding: false,
-                completed: false,
+                type: 'tap',
+                lane: 1,
+                targetTime: currentMs,
                 hit: false
             });
-            currentMs += beatMs * 4.0;
-        } else {
-            const pattern = [
-                [0], [2], [1], [3], 
-                [0, 2], [1], [3], [0], 
-                [1, 3], [2], [0], [3]
-            ][i % 12];
-
-            pattern.forEach(laneIndex => {
+            currentMs += beatMs;
+        }
+    } else {
+        for (let i = 0; i < 600; i++) {
+            if (i % 16 === 7) {
                 notes.push({
-                    type: 'tap',
-                    lane: laneIndex,
-                    targetTime: currentMs,
+                    type: 'hold',
+                    lane: (i % 4),
+                    startTime: currentMs,
+                    endTime: currentMs + (beatMs * 3.0),
+                    holding: false,
+                    completed: false,
                     hit: false
                 });
-            });
-            currentMs += beatMs;
+                currentMs += beatMs * 4.0;
+            } else {
+                const pattern = [
+                    [0], [2], [1], [3], 
+                    [0, 2], [1], [3], [0], 
+                    [1, 3], [2], [0], [3]
+                ][i % 12];
+
+                pattern.forEach(laneIndex => {
+                    notes.push({
+                        type: 'tap',
+                        lane: laneIndex,
+                        targetTime: currentMs,
+                        hit: false
+                    });
+                });
+                currentMs += beatMs;
+            }
         }
     }
 }
@@ -201,7 +239,7 @@ for (let i = 0; i < 4; i++) {
 
 function handleTap(laneIndex) {
     if (!isPlaying) return;
-    const currentTimeMs = performance.now() - startTime;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const W = canvas.width;
     const laneW = W / 4;
     const hitZoneY = canvas.height - 95;
@@ -241,7 +279,7 @@ function handleTap(laneIndex) {
 
 function handleRelease(laneIndex) {
     if (!isPlaying) return;
-    const currentTimeMs = performance.now() - startTime;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
 
     const holdNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.completed);
     if (holdNote) {
@@ -282,6 +320,7 @@ function showJudgement(text, color) {
 
 function playAllAudio() {
     Object.keys(audioElements).forEach(key => {
+        audioElements[key].playbackRate = playbackSpeed;
         audioElements[key].currentTime = 0;
         audioElements[key].play().catch(() => {});
     });
@@ -298,11 +337,12 @@ function togglePlay() {
     const playBtn = document.getElementById('mainPlayBtn');
     if (!isPlaying) {
         isPlaying = true;
+        isCalibrationMode = false;
         score = 0;
         combo = 0;
         hp = 100;
         updateUI();
-        generate175BpmChart();
+        generateChart(false);
         playAllAudio();
         startTime = performance.now();
         if (playBtn) playBtn.innerText = "⏸ PAUSE";
@@ -314,47 +354,64 @@ function togglePlay() {
     }
 }
 
-// 🎯 點擊啟動自動進入手機全螢幕（縮埋網址列！）
-function startBattle() {
+function startCalibration() {
     initDSP();
-
-    // 嘗試隱藏網址列進入全螢幕
-    const docEl = document.documentElement;
-    if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {});
-    } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen().catch(() => {});
-    }
-
     const mask = document.getElementById('startMask');
     if (mask) mask.style.display = 'none';
-    togglePlay();
+
+    isPlaying = true;
+    isCalibrationMode = true;
+    score = 0;
+    combo = 0;
+    hp = 100;
+    updateUI();
+    generateChart(true);
+    
+    if (audioElements['drums']) {
+        audioElements['drums'].playbackRate = playbackSpeed;
+        audioElements['drums'].currentTime = 0;
+        audioElements['drums'].play().catch(() => {});
+    }
+
+    startTime = performance.now();
+    const playBtn = document.getElementById('mainPlayBtn');
+    if (playBtn) playBtn.innerText = "⏸ PAUSE";
+    requestAnimationFrame(gameLoop);
+}
+
+function startBattle() {
+    startCalibration();
 }
 
 function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const currentTimeMs = performance.now() - startTime;
-    const travelDuration = 7200 / noteSpeed; 
+    // 🌟 1. 渲染背景動態星空
+    stars.forEach(s => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        s.y += s.speed * (playbackSpeed * 1.5);
+        if (s.y > canvas.height) {
+            s.y = 0;
+            s.x = Math.random() * canvas.width;
+        }
+    });
+
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+    const travelDuration = (7200 / noteSpeed); 
     const W = canvas.width;
     const H = canvas.height;
-
-    // 🎯 打擊點 Y 座標對齊按鈕上方頂線
     const hitZoneY = H - 95;
     const startY = 20;
 
     const laneW = W / 4;
-
-    // 🎯 精準對位公式：4 條線底部點 100% 落在 4 個按鈕的正中心 (12.5%, 37.5%, 62.5%, 87.5%)
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
+    const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    // Mode 1: 純直軌 | Mode 2: 🚀 3D 尖角
-    const topX = (currentPerspectiveMode === 1) 
-        ? botX
-        : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
-
-    // 1. 畫 4 軌獨立色彩線 (正中心穿過按鈕)
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = laneColors[i].glow;
         ctx.lineWidth = 2;
@@ -371,7 +428,6 @@ function gameLoop() {
         ctx.fill();
     }
 
-    // 2. 畫 Notes 樂譜 (橫向展開剛好等於按鈕對應闊度！)
     notes.forEach(note => {
         const laneIndex = note.lane;
         const tx = topX[laneIndex];
@@ -397,7 +453,6 @@ function gameLoop() {
                 if (currentPerspectiveMode === 1) {
                     ctx.ellipse(currentX, currentY, 14, 20, 0, 0, Math.PI * 2);
                 } else {
-                    // 🚀 遠處企直 (Rx:5, Ry:22) ➔ 衝到打擊區橫向展寬剛好匹配按鈕闊度 (Rx:38, Ry:9)！
                     const rx = (5 * (1.0 - progress)) + (38 * progress);
                     const ry = (22 * (1.0 - progress)) + (9 * progress);
                     ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
@@ -467,7 +522,6 @@ function gameLoop() {
         }
     });
 
-    // 3. 粒子渲染
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         ctx.save();

@@ -9,7 +9,7 @@
 body, html {
     width: 100%;
     height: 100%;
-    background-color: #050508;
+    background-color: #030305;
     color: #00ffcc;
     font-family: 'Courier New', Courier, monospace;
     overflow: hidden;
@@ -23,10 +23,10 @@ body, html {
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    background: #080910;
+    background: radial-gradient(circle at center, #0f1020 0%, #030305 100%);
 }
 
-/* 頂部貼盡半透明 HUD (橫屏極致寬廣) */
+/* 頂部貼盡 HUD */
 .hud-overlay {
     position: absolute;
     top: 0;
@@ -37,24 +37,24 @@ body, html {
     justify-content: space-between;
     align-items: center;
     background: rgba(10, 15, 25, 0.75);
-    padding: 4px 16px;
+    padding: 4px 12px;
     border-bottom: 1px solid rgba(0, 255, 204, 0.3);
     backdrop-filter: blur(8px);
 }
 
 .track-info {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
     color: #00ffcc;
     white-space: nowrap;
 }
 
 .hp-bar-container {
-    width: 80px;
-    height: 10px;
+    width: 70px;
+    height: 8px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #ff0077;
-    border-radius: 5px;
+    border-radius: 4px;
     overflow: hidden;
 }
 
@@ -66,13 +66,12 @@ body, html {
 
 .hud-buttons {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
-/* 水晶半透明按鈕 */
 .btn-panel {
-    min-width: 90px;
-    height: 30px;
+    min-width: 80px;
+    height: 28px;
     background: rgba(0, 255, 204, 0.15);
     border: 1px solid rgba(0, 255, 204, 0.6);
     color: #00ffcc;
@@ -93,7 +92,7 @@ body, html {
 }
 
 .score-board {
-    font-size: 13px;
+    font-size: 12px;
     color: #ff00aa;
     font-weight: bold;
     text-shadow: 0 0 5px #ff00aa;
@@ -130,75 +129,80 @@ body, html {
     display: block;
 }
 
-/* 🎯 橫屏專屬：4 軌半透明按鈕 (完美精緻高度 65px) */
+/* 🎯 3D 梯形斜角貼合按鈕區 */
 .touch-controller {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 65px;
+    height: 95px;
     display: flex;
     z-index: 8;
-    background: rgba(5, 8, 15, 0.3);
+    background: rgba(5, 8, 15, 0.35);
     backdrop-filter: blur(4px);
+    border-top: 1px solid rgba(0, 255, 204, 0.3);
 }
 
 .touch-lane {
     flex: 1;
     display: flex;
     justify-content: center;
-    align-items: center;
-    font-size: 16px;
+    align-items: flex-end;
+    padding-bottom: 12px;
+    font-size: 18px;
     font-weight: 900;
-    border-top: 2px solid;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.1s ease;
 }
 
-/* L1: 粉紅 */
+/* L1: 粉紅半透明 (配合梯形斜角微微向內傾斜) */
 #lane0 {
     color: #ff0055;
-    border-color: #ff0055;
-    background: linear-gradient(180deg, rgba(255, 0, 85, 0.03) 0%, rgba(255, 0, 85, 0.25) 100%);
+    transform: skewX(8deg);
+    background: linear-gradient(180deg, rgba(255, 0, 85, 0.05) 0%, rgba(255, 0, 85, 0.3) 100%);
+    border-top: 3px solid #ff0055;
 }
 #lane0.pressed {
-    background: rgba(255, 0, 85, 0.5);
+    background: rgba(255, 0, 85, 0.6);
     box-shadow: inset 0 0 25px #ff0055;
     color: #fff;
 }
 
-/* L2: 黃綠 */
+/* L2: 黃綠半透明 */
 #lane1 {
     color: #ccff00;
-    border-color: #ccff00;
-    background: linear-gradient(180deg, rgba(204, 255, 0, 0.03) 0%, rgba(204, 255, 0, 0.25) 100%);
+    transform: skewX(3deg);
+    background: linear-gradient(180deg, rgba(204, 255, 0, 0.05) 0%, rgba(204, 255, 0, 0.3) 100%);
+    border-top: 3px solid #ccff00;
 }
 #lane1.pressed {
-    background: rgba(204, 255, 0, 0.5);
+    background: rgba(204, 255, 0, 0.6);
     box-shadow: inset 0 0 25px #ccff00;
     color: #fff;
 }
 
-/* R1: 冰藍 */
+/* R1: 冰藍半透明 */
 #lane2 {
     color: #00ccff;
-    border-color: #00ccff;
-    background: linear-gradient(180deg, rgba(0, 204, 255, 0.03) 0%, rgba(0, 204, 255, 0.25) 100%);
+    transform: skewX(-3deg);
+    background: linear-gradient(180deg, rgba(0, 204, 255, 0.05) 0%, rgba(0, 204, 255, 0.3) 100%);
+    border-top: 3px solid #00ccff;
 }
 #lane2.pressed {
-    background: rgba(0, 204, 255, 0.5);
+    background: rgba(0, 204, 255, 0.6);
     box-shadow: inset 0 0 25px #00ccff;
     color: #fff;
 }
 
-/* R2: 夢幻紫 */
+/* R2: 夢幻紫半透明 */
 #lane3 {
     color: #aa00ff;
-    border-color: #aa00ff;
-    background: linear-gradient(180deg, rgba(170, 0, 255, 0.03) 0%, rgba(170, 0, 255, 0.25) 100%);
+    transform: skewX(-8deg);
+    background: linear-gradient(180deg, rgba(170, 0, 255, 0.05) 0%, rgba(170, 0, 255, 0.3) 100%);
+    border-top: 3px solid #aa00ff;
 }
 #lane3.pressed {
-    background: rgba(170, 0, 255, 0.5);
+    background: rgba(170, 0, 255, 0.6);
     box-shadow: inset 0 0 25px #aa00ff;
     color: #fff;
 }
