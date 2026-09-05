@@ -7,10 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#030305">
-    
-    <!-- 🎯 引入 PWA 身分證，啟動純全螢幕無網址列模式 -->
     <link rel="manifest" href="manifest.json">
-    
     <title>Arcatdia Whole Note Lab</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -18,17 +15,11 @@
 
 <div id="stage-container">
     <div class="hud-overlay">
-        <div class="track-info">01_最大的愛</div>
-        
-        <div class="hp-bar-container">
-            <div id="hpFill" class="hp-fill"></div>
-        </div>
-
+        <div class="track-info" id="hudTrackInfo">01_最大的愛</div>
+        <div class="hp-bar-container"><div id="hpFill" class="hp-fill"></div></div>
         <div class="score-board"><span id="scoreVal">000000</span></div>
 
         <div class="hud-buttons">
-            <!-- 🎯 核心：雙模式切換掣 (打歌 / 測試) -->
-            <button id="gameModeToggleBtn" class="btn-panel" style="border-color:#ff0055; color:#ff0055;" onclick="toggleGameMode()">🔥 打歌模式</button>
             <button id="lineToggleBtn" class="btn-panel" style="border-color:#ccff00; color:#ccff00;" onclick="toggleJudgeLineLevel()">🎯 調線位</button>
             <button id="modeToggleBtn" class="btn-panel" onclick="togglePerspectiveMode()">🏊 2D 直軌</button>
             <button id="speedToggleBtn" class="btn-panel" onclick="togglePlaybackSpeed()">🎵 1.0x</button>
@@ -48,10 +39,24 @@
         <div class="touch-lane" id="lane3">R2</div>
     </div>
 
+    <!-- 🎯 首頁遮罩：三難度大掣 -->
     <div id="startMask" class="start-mask">
-        <h2 class="title-text">ARCATDIA WHOLE NOTE LAB</h2>
-        <p class="sub-text">175 BPM | 雙模式切換 | 550ms 咬死版</p>
-        <button class="btn-start" onclick="startCalibration()">🎵 進入 Arcatdia 戰場</button>
+        <h2 class="title-text">ARCATDIA</h2>
+        <p class="sub-text">175 BPM | 550ms 咬死對齊 | 難度選擇</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; width: 75%; max-width: 280px;">
+            <button class="btn-start" style="background:#00ccff; color:#000; box-shadow:0 0 15px rgba(0,204,255,0.4);" onclick="chooseDifficultyAndStart('easy')">
+                🌱 EASY 模式<br><span style="font-size:10px; font-weight:normal;">(只得 4 拍與 2 拍，超舒服適應)</span>
+            </button>
+            
+            <button class="btn-start" style="background:#ff0055; color:#fff; box-shadow:0 0 15px rgba(255,0,85,0.4);" onclick="chooseDifficultyAndStart('normal')">
+                🔥 NORMAL 模式<br><span style="font-size:10px; font-weight:normal;">(2 拍與 1 拍正音，絕無半拍)</span>
+            </button>
+
+            <button class="btn-start" style="background:#222; color:#00ffcc; border:1px solid #00ffcc; box-shadow:0 0 10px rgba(0,255,204,0.2);" onclick="chooseDifficultyAndStart('test')">
+                🛠️ 測試校準場<br><span style="font-size:10px; font-weight:normal;">(單軌全音符 + 實測飛行數據 HUD)</span>
+            </button>
+        </div>
     </div>
 </div>
 

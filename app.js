@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v4.3 - Full Production (雙模式完美對齊版)
+   🔒 Arcatdia Battle Engine v4.6 - Part 1 (架構與純淨譜面)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -22,11 +22,8 @@ let particles = [];
 let stars = [];
 let startTime = 0;
 
-// 🎯 預設鎖死 1.0x 原速
 let playbackSpeed = 1.0;
-
-// 🎯 核心模式切換：'battle' (打歌模式) | 'test' (測試模式)
-let gameMode = 'battle'; 
+let currentMode = 'easy'; // 'easy' | 'normal' | 'test'
 
 const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
@@ -50,29 +47,20 @@ function togglePerspectiveMode() {
     }
 }
 
-// 🎯 一鍵切換模式
-function toggleGameMode() {
-    if (gameMode === 'battle') {
-        gameMode = 'test';
-        showJudgement("🛠️ 進入測試模式", "#00ffcc");
-    } else {
-        gameMode = 'battle';
-        showJudgement("🔥 進入打歌模式", "#ff0055");
-    }
-    updateModeButtonUI();
-    if (isPlaying) {
-        generateChart(); // 即時重刷新譜面
-    }
-}
+// 🎯 首頁難度選擇
+function chooseDifficultyAndStart(mode) {
+    currentMode = mode;
+    const mask = document.getElementById('startMask');
+    if (mask) mask.style.display = 'none';
 
-// 🎯 精確更新頂部模式按鈕
-function updateModeButtonUI() {
-    const modeBtn = document.getElementById('gameModeToggleBtn');
-    if (modeBtn) {
-        modeBtn.innerText = gameMode === 'battle' ? "🔥 打歌模式" : "🛠️ 測試模式";
-        modeBtn.style.color = gameMode === 'battle' ? "#ff0055" : "#00ffcc";
-        modeBtn.style.borderColor = gameMode === 'battle' ? "#ff0055" : "#00ffcc";
+    const info = document.getElementById('hudTrackInfo');
+    if (info) {
+        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍)";
+        else info.innerText = "01_TEST (全音符校準)";
     }
+
+    togglePlay();
 }
 
 function togglePlaybackSpeed() {
@@ -201,16 +189,15 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
-// 🎯 動態譜面生成
+// 🎯 譜面生成：嚴格杜絕半拍，Easy (4拍/2拍) 與 Normal (2拍/1拍)
 function generateChart() {
     notes = [];
     particles = [];
-    const beatMs = (60 / bpm) * 1000;
-    const barMs = beatMs * 4; // 1371.4ms
+    const beatMs = (60 / bpm) * 1000; // ~342.8ms
+    const barMs = beatMs * 4;         // 1371.4ms
     const firstHitTime = barMs; 
 
-    if (gameMode === 'test') {
-        // 🛠️ 測試模式：單軌全音符
+    if (currentMode === 'test') {
         for (let i = 0; i < 150; i++) {
             notes.push({
                 type: 'tap',
@@ -219,27 +206,65 @@ function generateChart() {
                 hit: false
             });
         }
-    } else {
-        // 🔥 打歌模式：四軌開火節奏
-        const rhythmPattern = [
-            { lane: 1, delayBeats: 0 },    // 第 1 拍：大鼓重音 (黃)
-            { lane: 2, delayBeats: 1 },    // 第 2 拍 (藍)
-            { lane: 0, delayBeats: 1.5 },  // 第 2 拍半：切分音 (紅)
-            { lane: 3, delayBeats: 2 },    // 第 3 拍：軍鼓 (紫)
-            { lane: 1, delayBeats: 3 },    // 第 4 拍 (黃)
-            { lane: 2, delayBeats: 3.5 }   // 第 4 拍半 (藍)
-        ];
-
+    } else if (currentMode === 'easy') {
         for (let bar = 0; bar < 80; bar++) {
-            const barStartTime = firstHitTime + (bar * barMs);
-            rhythmPattern.forEach(p => {
-                notes.push({
-                    type: 'tap',
-                    lane: p.lane,
-                    targetTime: barStartTime + (p.delayBeats * beatMs),
-                    hit: false
+            const barStart = firstHitTime + (bar * barMs);
+            const cycle = bar % 4;
+
+            if (cycle === 0) {
+                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
+                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 2), hit: false });
+            } else if (cycle === 1) {
+                notes.push({ 
+                    type: 'hold', lane: 0, 
+                    targetTime: barStart, duration: beatMs * 2, 
+                    holding: false, hit: false, lastTick: 0 
                 });
-            });
+                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 2), hit: false });
+            } else if (cycle === 2) {
+                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
+            } else {
+                notes.push({ 
+                    type: 'hold', lane: 2, 
+                    targetTime: barStart, duration: beatMs * 2, 
+                    holding: false, hit: false, lastTick: 0 
+                });
+                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
+                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 2), hit: false });
+            }
+        }
+    } else if (currentMode === 'normal') {
+        for (let bar = 0; bar < 80; bar++) {
+            const barStart = firstHitTime + (bar * barMs);
+            const cycle = bar % 4;
+
+            if (cycle === 0) {
+                notes.push({ type: 'tap', lane: 1, targetTime: barStart, hit: false });
+                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 1), hit: false });
+                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
+                notes.push({ type: 'tap', lane: 3, targetTime: barStart + (beatMs * 3), hit: false });
+            } else if (cycle === 1) {
+                notes.push({ 
+                    type: 'hold', lane: 1, 
+                    targetTime: barStart, duration: beatMs * 2, 
+                    holding: false, hit: false, lastTick: 0 
+                });
+                notes.push({ type: 'tap', lane: 0, targetTime: barStart + (beatMs * 2), hit: false });
+                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 3), hit: false });
+            } else if (cycle === 2) {
+                notes.push({ type: 'tap', lane: 0, targetTime: barStart, hit: false });
+                notes.push({ type: 'tap', lane: 3, targetTime: barStart, hit: false });
+                notes.push({ type: 'tap', lane: 1, targetTime: barStart + (beatMs * 2), hit: false });
+                notes.push({ type: 'tap', lane: 2, targetTime: barStart + (beatMs * 2), hit: false });
+            } else {
+                notes.push({ type: 'tap', lane: 0, targetTime: barStart, hit: false });
+                notes.push({ type: 'tap', lane: 1, targetTime: barStart + (beatMs * 1), hit: false });
+                notes.push({ 
+                    type: 'hold', lane: 2, 
+                    targetTime: barStart + (beatMs * 2), duration: beatMs * 2, 
+                    holding: false, hit: false, lastTick: 0 
+                });
+            }
         }
     }
 
@@ -257,11 +282,15 @@ for (let i = 0; i < 4; i++) {
             playHiHatHitSound();
             handleTap(i);
         });
-        laneBtn.addEventListener('touchend', (e) => {
+        const handleTouchRelease = (e) => {
             e.preventDefault();
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
-        });
+            handleRelease(i);
+        };
+        laneBtn.addEventListener('touchend', handleTouchRelease);
+        laneBtn.addEventListener('touchcancel', handleTouchRelease);
+
         laneBtn.addEventListener('mousedown', () => {
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
@@ -271,9 +300,20 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mouseup', () => {
             laneBtn.classList.remove('pressed');
             lanePressed[i] = false;
+            handleRelease(i);
+        });
+        laneBtn.addEventListener('mouseleave', () => {
+            if (lanePressed[i]) {
+                laneBtn.classList.remove('pressed');
+                lanePressed[i] = false;
+                handleRelease(i);
+            }
         });
     }
 }
+/* =============================================================
+   🔒 Arcatdia Battle Engine v4.6 - Part 2 (判定與遊戲循環)
+   ============================================================= */
 
 let countInTimers = [];
 let audioStartTimer = null;
@@ -301,21 +341,51 @@ function handleTap(laneIndex) {
             recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
         }
 
-        if (timeDiff < 180) {
-            targetNote.hit = true;
-            score += 1000;
-            combo++;
-            hp = Math.min(100, hp + 2);
-            showJudgement("PERFECT!", laneColor);
-            createHitParticles(targetX, currentHitY, laneColor);
-        } else if (timeDiff < 320) {
-            targetNote.hit = true;
-            score += 500;
-            combo++;
-            showJudgement("GREAT", "#ffaa00");
-            createHitParticles(targetX, currentHitY, "#ffaa00");
+        if (targetNote.type === 'hold') {
+            if (timeDiff < 250) {
+                targetNote.holding = true;
+                targetNote.lastTick = currentTimeMs;
+                score += 500;
+                combo++;
+                showJudgement("HOLD!", laneColor);
+                createHitParticles(targetX, currentHitY, laneColor);
+                updateUI();
+            }
+        } else {
+            if (timeDiff < 180) {
+                targetNote.hit = true;
+                score += 1000;
+                combo++;
+                hp = Math.min(100, hp + 2);
+                showJudgement("PERFECT!", laneColor);
+                createHitParticles(targetX, currentHitY, laneColor);
+            } else if (timeDiff < 320) {
+                targetNote.hit = true;
+                score += 500;
+                combo++;
+                showJudgement("GREAT", "#ffaa00");
+                createHitParticles(targetX, currentHitY, "#ffaa00");
+            }
+            updateUI();
         }
-        updateUI();
+    }
+}
+
+function handleRelease(laneIndex) {
+    if (!isPlaying) return;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+
+    const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
+    if (holdingNote) {
+        const endTime = holdingNote.targetTime + holdingNote.duration;
+        if (currentTimeMs < endTime - 150) {
+            holdingNote.holding = false;
+            holdingNote.hit = true;
+            combo = 0;
+            hp = Math.max(0, hp - 4);
+            showJudgement("BREAK!", "#ff0055");
+            updateUI();
+        }
     }
 }
 
@@ -366,11 +436,11 @@ function clearAllTimers() {
     }
 }
 
-// 🎯 核心調度：保留驗證成功的 550ms 預熱啟動
+// 🎯 核心調度：550ms 空氣差咬死對齊
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000;
-    const totalLeadMs = beatMs * 4; // 1371.4ms
+    const totalLeadMs = beatMs * 4;
 
     [0, 1, 2, 3].forEach(b => {
         const t = setTimeout(() => {
@@ -415,16 +485,6 @@ function togglePlay() {
     }
 }
 
-function startCalibration() {
-    const mask = document.getElementById('startMask');
-    if (mask) mask.style.display = 'none';
-    togglePlay();
-}
-
-function startBattle() {
-    startCalibration();
-}
-
 function gameLoop() {
     if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -444,7 +504,7 @@ function gameLoop() {
 
     const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const beatMs = (60 / bpm) * 1000;
-    const travelDuration = beatMs * 2; // 下落 2 拍 (~685.7ms)
+    const travelDuration = beatMs * 2;
 
     const W = canvas.width;
     const H = canvas.height;
@@ -492,6 +552,7 @@ function gameLoop() {
         const colorObj = laneColors[laneIndex];
 
         if (note.hit) return;
+
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
@@ -499,35 +560,98 @@ function gameLoop() {
             firstNoteBornTime = currentTimeMs;
         }
 
-        if (rawProgress > 0 && rawProgress < 1.15) {
-            const currentX = tx + (bx - tx) * rawProgress;
-            const currentY = startY + (hitZoneY - startY) * rawProgress;
+        if (note.type === 'hold') {
+            const endTime = note.targetTime + note.duration;
+            const timeTillEnd = endTime - currentTimeMs;
+            const endProgress = 1.0 - (timeTillEnd / travelDuration);
 
-            ctx.fillStyle = colorObj.main;
-            ctx.shadowColor = colorObj.main;
-            ctx.shadowBlur = 20 * rawProgress;
-            ctx.beginPath();
+            if (note.holding) {
+                if (currentTimeMs - note.lastTick >= 120) {
+                    note.lastTick = currentTimeMs;
+                    score += 150;
+                    combo++;
+                    createHitParticles(bx, hitZoneY, colorObj.main);
+                    updateUI();
+                }
 
-            if (currentPerspectiveMode === 1) {
-                ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
-            } else {
-                const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
-                const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
-                ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
+                if (currentTimeMs >= endTime) {
+                    note.hit = true;
+                    note.holding = false;
+                    score += 800;
+                    combo++;
+                    hp = Math.min(100, hp + 3);
+                    showJudgement("COMPLETE!", "#00ffcc");
+                    createHitParticles(bx, hitZoneY, "#00ffcc");
+                    updateUI();
+                }
             }
-            ctx.fill();
-        }
 
-        if (rawProgress > 1.08 && !note.hit) {
-            if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
-                firstNoteHitTime = currentTimeMs;
-                recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+            if (rawProgress > 0 && endProgress < 1.15) {
+                const headP = Math.min(1.0, Math.max(0, rawProgress));
+                const tailP = Math.min(1.0, Math.max(0, endProgress));
+
+                const hy = startY + (hitZoneY - startY) * headP;
+                const hx = tx + (bx - tx) * headP;
+                const ty = startY + (hitZoneY - startY) * tailP;
+                const txPos = tx + (bx - tx) * tailP;
+
+                ctx.save();
+                ctx.strokeStyle = note.holding ? "#ffffff" : colorObj.glow;
+                ctx.lineWidth = note.holding ? 32 : 24;
+                ctx.lineCap = "round";
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = note.holding ? 25 : 12;
+                ctx.beginPath();
+                ctx.moveTo(hx, hy);
+                ctx.lineTo(txPos, ty);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.fillStyle = colorObj.main;
+                ctx.beginPath();
+                ctx.arc(hx, hy, 24, 0, Math.PI * 2);
+                ctx.fill();
             }
-            note.hit = true;
-            combo = 0;
-            hp = Math.max(0, hp - 5);
-            showJudgement("MISS", "#ff0055");
-            updateUI();
+
+            if (rawProgress > 1.15 && !note.holding && !note.hit) {
+                note.hit = true;
+                combo = 0;
+                hp = Math.max(0, hp - 5);
+                showJudgement("MISS", "#ff0055");
+                updateUI();
+            }
+
+        } else {
+            if (rawProgress > 0 && rawProgress < 1.15) {
+                const currentX = tx + (bx - tx) * rawProgress;
+                const currentY = startY + (hitZoneY - startY) * rawProgress;
+
+                ctx.fillStyle = colorObj.main;
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = 20 * rawProgress;
+                ctx.beginPath();
+
+                if (currentPerspectiveMode === 1) {
+                    ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
+                } else {
+                    const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
+                    const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
+                    ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
+                }
+                ctx.fill();
+            }
+
+            if (rawProgress > 1.08 && !note.hit) {
+                if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
+                    firstNoteHitTime = currentTimeMs;
+                    recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+                }
+                note.hit = true;
+                combo = 0;
+                hp = Math.max(0, hp - 5);
+                showJudgement("MISS", "#ff0055");
+                updateUI();
+            }
         }
     });
 
@@ -552,8 +676,8 @@ function gameLoop() {
         }
     }
 
-    // 🎯 模式判斷：只在「測試模式」先出 HUD 綠色遙測盒
-    if (gameMode === 'test') {
+    // 🎯 測試模式才顯示綠色 HUD 遙測盒
+    if (currentMode === 'test') {
         ctx.save();
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(8, 55, 230, 95);
@@ -576,9 +700,8 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 初始化靜態畫布與按鈕 UI
+// 🎯 初始化畫布
 (function initialDraw() {
-    updateModeButtonUI();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const W = canvas.width;
     const H = canvas.height;
