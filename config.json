@@ -1,0 +1,15 @@
+{
+  "song_id": "01",
+  "title": "最大的愛",
+  "artist": "Original J-Rock",
+  "bpm": 175,
+  "offset_ms": 0,
+  "tracks": {
+    "drums": "最大の愛(original jp)_drums_mixed.mp3",
+    "guitars": "最大の愛(original jp)_guitars_mixed.mp3",
+    "bass": "最大の愛(original jp)_bass_mixed.mp3",
+    "piano": "最大の愛(original jp)_piano_mixed.mp3",
+    "vocals": "最大の愛(original jp)_vocals_mixed.mp3",
+    "other": "最大の愛(original jp)_other_mixed.mp3"
+  }
+}

@@ -1,0 +1,121 @@
+/* =================================================================
+   🎨 Arcatdia - Cyberpunk Style (style.css)
+   ================================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #07080d;
+    color: #00ffcc;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#stage-container {
+    position: relative;
+    width: 95vw;
+    height: 85vh;
+    max-width: 900px;
+    max-height: 550px;
+    border: 2px solid #00ffcc;
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
+    background: #0d0f18;
+    overflow: hidden;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 頂部 HUD */
+.hud-overlay {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    right: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 5;
+    font-size: 13px;
+    font-weight: bold;
+    text-shadow: 0 0 6px #00ffcc;
+}
+
+.btn-panel {
+    background: rgba(0, 255, 204, 0.2);
+    color: #00ffcc;
+    border: 1px solid #00ffcc;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* 滑出式抽屜 (Drawer) */
+.drawer-panel {
+    position: absolute;
+    top: 0;
+    right: -320px;
+    width: 290px;
+    height: 100%;
+    background: rgba(13, 15, 24, 0.95);
+    border-left: 2px solid #00ffcc;
+    padding: 15px;
+    transition: right 0.3s ease;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+}
+
+.drawer-panel.open {
+    right: 0;
+}
+
+.file-group {
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+}
+
+.file-group label {
+    color: #ff0077;
+    font-weight: bold;
+}
+
+/* 啟動遮罩 */
+.start-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(7, 8, 13, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+}
+
+.btn-start {
+    background: #ff0077;
+    color: #fff;
+    border: none;
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 0 20px #ff0077;
+}

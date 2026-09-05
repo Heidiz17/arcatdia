@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arcatdia - 01 最大的愛 (175 BPM 主引擎)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #07080d;
+            color: #00ffcc;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #stage-container {
+            position: relative;
+            width: 95vw;
+            height: 85vh;
+            max-width: 900px;
+            max-height: 550px;
+            border: 2px solid #00ffcc;
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
+            background: #0d0f18;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 頂部 HUD */
+        .hud-overlay {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: 0 0 6px #00ffcc;
+        }
+
+        .btn-panel {
+            background: rgba(0, 255, 204, 0.2);
+            color: #00ffcc;
+            border: 1px solid #00ffcc;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* 滑出式抽屜 (Drawer) */
+        .drawer-panel {
+            position: absolute;
+            top: 0;
+            right: -320px;
+            width: 290px;
+            height: 100%;
+            background: rgba(13, 15, 24, 0.95);
+            border-left: 2px solid #00ffcc;
+            padding: 15px;
+            transition: right 0.3s ease;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .drawer-panel.open {
+            right: 0;
+        }
+
+        .file-group {
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-group label {
+            color: #ff0077;
+            font-weight: bold;
+        }
+
+        /* 啟動遮罩 */
+        .start-mask {
+            position: absolute;
+            inset: 0;
+            background: rgba(7, 8, 13, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+        }
+
+        .btn-start {
+            background: #ff0077;
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 20px #ff0077;
+        }
+    </style>
+</head>
+<body>
+
+<div id="stage-container">
+    <div class="hud-overlay">
+        <div>TRACK: 01_最大的愛 (<span id="bpmDisplay" style="color:#ff0077;">175</span> BPM)</div>
+        <div style="display: flex; gap: 8px;">
+            <button id="mainPlayBtn" class="btn-panel" style="background:#ff0077; color:#fff;" onclick="togglePlay()">▶ PLAY</button>
+            <button class="btn-panel" onclick="toggleMenu()">📂 導入 MP3 / BPM 設定</button>
+        </div>
+    </div>
+
+    <!-- 側邊抽屜 -->
+    <div id="drawerPanel" class="drawer-panel">
+        <h3 style="color:#00ffcc; border-bottom:1px solid #00ffcc; padding-bottom:4px;">🎛️ 6 軌 Stems 導入</h3>
+        <div class="file-group"><label>1. 🥁 Drums (鼓組):</label><input type="file" id="fileDrums"></div>
+        <div class="file-group"><label>2. 🎸 Guitars (電結他):</label><input type="file" id="fileGuitars"></div>
+        <div class="file-group"><label>3. 🎹 Piano (鋼琴):</label><input type="file" id="filePiano"></div>
+        <div class="file-group"><label>4. 🎸 Bass (貝斯):</label><input type="file" id="fileBass"></div>
+        <div class="file-group"><label>5. 🎤 Vocals (主唱):</label><input type="file" id="fileVocals"></div>
+        <div class="file-group"><label>6. 🎛️ Other (其他):</label><input type="file" id="fileOther"></div>
+        
+        <div style="margin-top:8px;">
+            <label style="font-size:11px;">BPM 微調:</label>
+            <input type="number" id="bpmInput" value="175" style="width:60px; background:#111; color:#00ffcc; border:1px solid #00ffcc;" onchange="updateBPM()">
+        </div>
+        <button class="btn-panel" style="margin-top:10px;" onclick="toggleMenu()">✖ 確定並返回戰鬥</button>
+    </div>
+
+    <!-- 啟動遮罩 -->
+    <div id="startMask" class="start-mask">
+        <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
+        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">目標速度: 175 BPM | 6 軌動態切換</p>
+        <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
+    </div>
+
+    <canvas id="battleCanvas"></canvas>
+</div>
+
+<script>
+/* -------------------------------------------------------------
+   🎵 Arcatdia - 175 BPM Engine Core
+   ------------------------------------------------------------- */
+const canvas = document.getElementById('battleCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 850; 
+canvas.height = 520;
+
+let bpm = 175;
+const lanes = [170, 340, 510, 680];
+const hitZoneY = 440;
+let isPlaying = false;
+let notes = [];
+
+const stemFiles = {
+    drums: "最大の愛(original jp)_drums_mixed.mp3",
+    guitars: "最大の愛(original jp)_guitars_mixed.mp3",
+    piano: "最大の愛(original jp)_piano_mixed.mp3",
+    bass: "最大の愛(original jp)_bass_mixed.mp3",
+    vocals: "最大の愛(original jp)_vocals_mixed.mp3",
+    other: "最大の愛(original jp)_other_mixed.mp3"
+};
+
+const audioElements = {};
+
+Object.keys(stemFiles).forEach(key => {
+    const audio = new Audio();
+    audio.src = stemFiles[key];
+    audio.preload = "auto";
+    audioElements[key] = audio;
+});
+
+function updateBPM() {
+    bpm = document.getElementById('bpmInput').value;
+    const bpmDisp = document.getElementById('bpmDisplay');
+    if (bpmDisp) bpmDisp.innerText = bpm;
+}
+
+function toggleMenu() {
+    const panel = document.getElementById('drawerPanel');
+    if (panel) panel.classList.toggle('open');
+}
+
+function playAllAudio() {
+    Object.keys(audioElements).forEach(key => {
+        audioElements[key].currentTime = 0;
+        audioElements[key].play().then(() => {
+            console.log(`🔊 ${key} 成功播放！`);
+        }).catch(err => {
+            console.error(`❌ ${key} 播放失敗:`, err);
+        });
+    });
+}
+
+function pauseAllAudio() {
+    Object.keys(audioElements).forEach(key => {
+        audioElements[key].pause();
+    });
+}
+
+function togglePlay() {
+    const playBtn = document.getElementById('mainPlayBtn');
+    
+    if (!isPlaying) {
+        isPlaying = true;
+        playAllAudio();
+        if (playBtn) playBtn.innerText = "⏸ PAUSE";
+        
+        if (notes.length === 0) {
+            const speed = (bpm / 150) * 5.0;
+            for (let i = 0; i < 50; i++) {
+                notes.push({ lane: Math.floor(Math.random() * 4), y: -i * 70, speed: speed });
+            }
+        }
+        requestAnimationFrame(gameLoop);
+    } else {
+        isPlaying = false;
+        pauseAllAudio();
+        if (playBtn) playBtn.innerText = "▶ PLAY";
+    }
+}
+
+function startBattle() {
+    const mask = document.getElementById('startMask');
+    if (mask) mask.style.display = 'none';
+    togglePlay();
+}
+
+function gameLoop() {
+    if (!isPlaying) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    lanes.forEach((x) => {
+        ctx.strokeStyle = "rgba(0, 255, 204, 0.25)"; 
+        ctx.lineWidth = 2;
+        ctx.beginPath(); 
+        ctx.moveTo(x, 0); 
+        ctx.lineTo(x, canvas.height); 
+        ctx.stroke();
+
+        ctx.fillStyle = "#ff0077"; 
+        ctx.shadowColor = "#ff0077"; 
+        ctx.shadowBlur = 12;
+        ctx.beginPath(); 
+        ctx.arc(x, hitZoneY, 16, 0, Math.PI * 2); 
+        ctx.fill();
+    });
+
+    notes.forEach(note => {
+        note.y += note.speed;
+        if (note.y > canvas.height + 20) note.y = -100;
+
+        ctx.fillStyle = "#00ffcc"; 
+        ctx.shadowColor = "#00ffcc"; 
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); 
+        ctx.arc(lanes[note.lane], note.y, 14, 0, Math.PI * 2); 
+        ctx.fill();
+    });
+
+    requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
