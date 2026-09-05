@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcatdia - 01 最大的愛 (DSP 打擊音效版)</title>
+    <title>Arcatdia - 01 最大的愛 (Hi-Hat 高音切切聲版)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -165,7 +165,7 @@
 
     <div id="startMask" class="start-mask">
         <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
-        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | DSP 極速打擊音效解鎖版</p>
+        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | 初音風格 Hi-Hat 高音切切聲</p>
         <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
     </div>
 </div>
@@ -188,7 +188,7 @@ const audioOffsetMs = 250;
 const noteSpeed = 0.35; 
 
 /* -------------------------------------------------------------
-   🎛️ DSP Web Audio 實時音效合成器引擎 (零延遲按鍵聲)
+   🎛️ DSP 高音 Hi-Hat 切切聲合成引擎 (類似初音音遊 Hit Sound)
    ------------------------------------------------------------- */
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
@@ -202,25 +202,36 @@ function initDSP() {
     }
 }
 
-// 動態發出清脆 Cyber 嘟/嗒聲 (Hit Sound)
-function playDspHitSound() {
+// 用白噪音 (White Noise) + 高通濾波器 (Highpass Filter) 合成初音切切聲
+function playHiHatHitSound() {
     if (!dspCtx) return;
 
-    const osc = dspCtx.createOscillator();
+    // 1. 產生 0.04 秒白噪音
+    const bufferSize = dspCtx.sampleRate * 0.04;
+    const buffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = dspCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    // 2. 切走低音，留 7000Hz 超高頻清脆切切聲
+    const filter = dspCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 7000;
+
+    // 3. 快速衰減音量包絡 (Envelope)
     const gain = dspCtx.createGain();
+    gain.gain.setValueAtTime(0.6, dspCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.04);
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, dspCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(120, dspCtx.currentTime + 0.05);
-
-    gain.gain.setValueAtTime(0.4, dspCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.05);
-
-    osc.connect(gain);
+    noise.connect(filter);
+    filter.connect(gain);
     gain.connect(dspCtx.destination);
 
-    osc.start();
-    osc.stop(dspCtx.currentTime + 0.05);
+    noise.start();
 }
 
 const stemFiles = {
@@ -240,35 +251,31 @@ Object.keys(stemFiles).forEach(key => {
     audioElements[key] = audio;
 });
 
+// 極簡舒暢譜面：一拍一粒，得閒先嚟個雙按，絕不連擊亂跌！
 function generate175BpmChart() {
     notes = [];
-    const beatMs = (60 / bpm) * 1000;
+    const beatMs = (60 / bpm) * 1000; // 175 BPM 正拍
 
     const rhythmBlocks = [
-        [ [0, 2] ],          // L1 + R1 雙按
-        [ [0], [0] ],        // L1, L1 連擊
-        [ [1, 3] ],          // L2 + R2 雙按
-        [ [3], [3] ],        // R2, R2 連擊
-        [ [0, 3] ],          // L1 + R2 雙按
-        [ [1], [1], [1] ],   // L2 三連擊
-        [ [2], [2], [2] ]    // R1 三連擊
+        [0], [2], [1], [3],       // 單按慢慢落 (L1 -> R1 -> L2 -> R2)
+        [0, 2],                   // L1 + R1 雙按
+        [1], [3], [0], [2],       // 單按慢慢落
+        [1, 3]                    // L2 + R2 雙按
     ];
 
     let currentMs = audioOffsetMs;
 
-    for (let i = 0; i < 120; i++) {
-        const block = rhythmBlocks[i % rhythmBlocks.length];
+    for (let i = 0; i < 200; i++) {
+        const pattern = rhythmBlocks[i % rhythmBlocks.length];
         
-        block.forEach(subStep => {
-            subStep.forEach(laneIndex => {
-                notes.push({
-                    lane: laneIndex,
-                    targetTime: currentMs,
-                    hit: false
-                });
+        pattern.forEach(laneIndex => {
+            notes.push({
+                lane: laneIndex,
+                targetTime: currentMs,
+                hit: false
             });
-            currentMs += beatMs;
         });
+        currentMs += beatMs; // 穩穩每拍落一次，節奏超舒服
     }
 }
 
@@ -277,7 +284,7 @@ for (let i = 0; i < 4; i++) {
     laneBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         laneBtn.classList.add('pressed');
-        playDspHitSound();
+        playHiHatHitSound(); // 觸碰即時發出「切！」高音聲
         handleTap(i);
     });
     laneBtn.addEventListener('touchend', (e) => {
@@ -286,7 +293,7 @@ for (let i = 0; i < 4; i++) {
     });
     laneBtn.addEventListener('mousedown', () => {
         laneBtn.classList.add('pressed');
-        playDspHitSound();
+        playHiHatHitSound(); // 點擊即時發出「切！」高音聲
         handleTap(i);
     });
     laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
