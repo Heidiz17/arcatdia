@@ -3,159 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcatdia - 01 最大的愛 (Hi-Hat 高音切切聲版)</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        body {
-            background-color: #07080d;
-            color: #00ffcc;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
-
-        #stage-container {
-            position: relative;
-            width: 95vw;
-            height: 90vh;
-            max-width: 900px;
-            max-height: 600px;
-            border: 2px solid #00ffcc;
-            border-radius: 12px;
-            box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
-            background: #0d0f18;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .hud-overlay {
-            position: absolute;
-            top: 10px;
-            left: 15px;
-            right: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-            font-size: 13px;
-            font-weight: bold;
-            text-shadow: 0 0 6px #00ffcc;
-        }
-
-        .score-board {
-            color: #ff0077;
-            font-size: 16px;
-        }
-
-        .btn-panel {
-            background: rgba(0, 255, 204, 0.2);
-            color: #00ffcc;
-            border: 1px solid #00ffcc;
-            padding: 5px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        canvas {
-            width: 100%;
-            height: 75%;
-            display: block;
-        }
-
-        .touch-controller {
-            height: 25%;
-            width: 100%;
-            display: flex;
-            border-top: 2px solid #00ffcc;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 15;
-        }
-
-        .touch-lane {
-            flex: 1;
-            border-right: 1px solid rgba(0, 255, 204, 0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-            font-size: 18px;
-            color: #00ffcc;
-            background: rgba(0, 0, 0, 0.05);
-        }
-
-        .touch-lane:last-child {
-            border-right: none;
-        }
-
-        .touch-lane:active, .touch-lane.pressed {
-            background: rgba(255, 0, 119, 0.5);
-            color: #fff;
-            box-shadow: inset 0 0 15px #ff0077;
-        }
-
-        #judgementDisplay {
-            position: absolute;
-            top: 45%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 28px;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 20;
-            opacity: 0;
-            transition: opacity 0.1s ease;
-        }
-
-        .start-mask {
-            position: absolute;
-            inset: 0;
-            background: rgba(7, 8, 13, 0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 30;
-        }
-
-        .btn-start {
-            background: #ff0077;
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 0 20px #ff0077;
-        }
-    </style>
+    <title>Arcatdia Rhythm Engine - Production Version</title>
+    <!-- 引入獨立 CSS 樣式表 -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="stage-container">
+    <!-- 頂部 HUD 資訊與血條 -->
     <div class="hud-overlay">
-        <div>TRACK: 01_最大的愛 (<span style="color:#ff0077;">175</span> BPM)</div>
+        <div class="track-info">TRACK: 01_最大的愛 (<span class="bpm-text">175</span> BPM)</div>
+        
+        <!-- 血條 (HP Bar) 介面 -->
+        <div class="hp-bar-container">
+            <div id="hpFill" class="hp-fill"></div>
+        </div>
+
         <div class="score-board">SCORE: <span id="scoreVal">000000</span></div>
-        <button id="mainPlayBtn" class="btn-panel" style="background:#ff0077; color:#fff;" onclick="togglePlay()">▶ PLAY</button>
+        <button id="mainPlayBtn" class="btn-panel" onclick="togglePlay()">▶ PLAY</button>
     </div>
 
+    <!-- 打擊判定與 Combo 提示 -->
     <div id="judgementDisplay">PERFECT!</div>
+    <div id="comboDisplay">0 COMBO</div>
 
+    <!-- 遊戲 Canvas 畫面 -->
     <canvas id="battleCanvas"></canvas>
 
+    <!-- 下方 4 軌觸控區 -->
     <div class="touch-controller">
         <div class="touch-lane" id="lane0">L1</div>
         <div class="touch-lane" id="lane1">L2</div>
@@ -163,253 +38,15 @@
         <div class="touch-lane" id="lane3">R2</div>
     </div>
 
+    <!-- 啟動遮罩 -->
     <div id="startMask" class="start-mask">
-        <h2 style="color:#00ffcc; margin-bottom:10px;">ARCATDIA BATTLE ENGINE</h2>
-        <p style="color:#aaa; font-size:12px; margin-bottom:20px;">175 BPM | 初音風格 Hi-Hat 高音切切聲</p>
-        <button class="btn-start" onclick="startBattle()">▶ 啟動 175 BPM 同步戰鬥</button>
+        <h2 class="title-text">ARCATDIA BATTLE ENGINE</h2>
+        <p class="sub-text">175 BPM J-Rock | 商業級防爆防盜 Release v1.0</p>
+        <button class="btn-start" onclick="startBattle()">▶ 啟動同步戰鬥</button>
     </div>
 </div>
 
-<script>
-const canvas = document.getElementById('battleCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = 850; 
-canvas.height = 420;
-
-let bpm = 175;
-const lanesX = [106, 318, 530, 742];
-const hitZoneY = 380;
-let isPlaying = false;
-let score = 0;
-let notes = [];
-let startTime = 0;
-
-const audioOffsetMs = 250; 
-const noteSpeed = 0.35; 
-
-/* -------------------------------------------------------------
-   🎛️ DSP 高音 Hi-Hat 切切聲合成引擎 (類似初音音遊 Hit Sound)
-   ------------------------------------------------------------- */
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let dspCtx = null;
-
-function initDSP() {
-    if (!dspCtx) {
-        dspCtx = new AudioContext();
-    }
-    if (dspCtx.state === 'suspended') {
-        dspCtx.resume();
-    }
-}
-
-// 用白噪音 (White Noise) + 高通濾波器 (Highpass Filter) 合成初音切切聲
-function playHiHatHitSound() {
-    if (!dspCtx) return;
-
-    // 1. 產生 0.04 秒白噪音
-    const bufferSize = dspCtx.sampleRate * 0.04;
-    const buffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-    }
-
-    const noise = dspCtx.createBufferSource();
-    noise.buffer = buffer;
-
-    // 2. 切走低音，留 7000Hz 超高頻清脆切切聲
-    const filter = dspCtx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 7000;
-
-    // 3. 快速衰減音量包絡 (Envelope)
-    const gain = dspCtx.createGain();
-    gain.gain.setValueAtTime(0.6, dspCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.04);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(dspCtx.destination);
-
-    noise.start();
-}
-
-const stemFiles = {
-    drums: "最大の愛(original jp)_drums_mixed.mp3",
-    guitars: "最大の愛(original jp)_guitars_mixed.mp3",
-    piano: "最大の愛(original jp)_piano_mixed.mp3",
-    bass: "最大の愛(original jp)_bass_mixed.mp3",
-    vocals: "最大の愛(original jp)_vocals_mixed.mp3",
-    other: "最大の愛(original jp)_other_mixed.mp3"
-};
-
-const audioElements = {};
-Object.keys(stemFiles).forEach(key => {
-    const audio = new Audio();
-    audio.src = stemFiles[key];
-    audio.preload = "auto";
-    audioElements[key] = audio;
-});
-
-// 極簡舒暢譜面：一拍一粒，得閒先嚟個雙按，絕不連擊亂跌！
-function generate175BpmChart() {
-    notes = [];
-    const beatMs = (60 / bpm) * 1000; // 175 BPM 正拍
-
-    const rhythmBlocks = [
-        [0], [2], [1], [3],       // 單按慢慢落 (L1 -> R1 -> L2 -> R2)
-        [0, 2],                   // L1 + R1 雙按
-        [1], [3], [0], [2],       // 單按慢慢落
-        [1, 3]                    // L2 + R2 雙按
-    ];
-
-    let currentMs = audioOffsetMs;
-
-    for (let i = 0; i < 200; i++) {
-        const pattern = rhythmBlocks[i % rhythmBlocks.length];
-        
-        pattern.forEach(laneIndex => {
-            notes.push({
-                lane: laneIndex,
-                targetTime: currentMs,
-                hit: false
-            });
-        });
-        currentMs += beatMs; // 穩穩每拍落一次，節奏超舒服
-    }
-}
-
-for (let i = 0; i < 4; i++) {
-    const laneBtn = document.getElementById(`lane${i}`);
-    laneBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        laneBtn.classList.add('pressed');
-        playHiHatHitSound(); // 觸碰即時發出「切！」高音聲
-        handleTap(i);
-    });
-    laneBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        laneBtn.classList.remove('pressed');
-    });
-    laneBtn.addEventListener('mousedown', () => {
-        laneBtn.classList.add('pressed');
-        playHiHatHitSound(); // 點擊即時發出「切！」高音聲
-        handleTap(i);
-    });
-    laneBtn.addEventListener('mouseup', () => laneBtn.classList.remove('pressed'));
-}
-
-function handleTap(laneIndex) {
-    if (!isPlaying) return;
-    const currentTimeMs = performance.now() - startTime;
-    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
-
-    if (targetNote) {
-        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-        if (timeDiff < 180) {
-            targetNote.hit = true;
-            score += 1000;
-            showJudgement("PERFECT!", "#00ffcc");
-        } else if (timeDiff < 300) {
-            targetNote.hit = true;
-            score += 500;
-            showJudgement("GREAT", "#ffaa00");
-        }
-        document.getElementById('scoreVal').innerText = String(score).padStart(6, '0');
-    }
-}
-
-function showJudgement(text, color) {
-    const disp = document.getElementById('judgementDisplay');
-    disp.innerText = text;
-    disp.style.color = color;
-    disp.style.opacity = '1';
-    setTimeout(() => { disp.style.opacity = '0'; }, 250);
-}
-
-function playAllAudio() {
-    Object.keys(audioElements).forEach(key => {
-        audioElements[key].currentTime = 0;
-        audioElements[key].play();
-    });
-}
-
-function pauseAllAudio() {
-    Object.keys(audioElements).forEach(key => {
-        audioElements[key].pause();
-    });
-}
-
-function togglePlay() {
-    initDSP();
-    const playBtn = document.getElementById('mainPlayBtn');
-    if (!isPlaying) {
-        isPlaying = true;
-        score = 0;
-        document.getElementById('scoreVal').innerText = "000000";
-        generate175BpmChart();
-        playAllAudio();
-        startTime = performance.now();
-        if (playBtn) playBtn.innerText = "⏸ PAUSE";
-        requestAnimationFrame(gameLoop);
-    } else {
-        isPlaying = false;
-        pauseAllAudio();
-        if (playBtn) playBtn.innerText = "▶ PLAY";
-    }
-}
-
-function startBattle() {
-    initDSP();
-    document.getElementById('startMask').style.display = 'none';
-    togglePlay();
-}
-
-function gameLoop() {
-    if (!isPlaying) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const currentTimeMs = performance.now() - startTime;
-
-    lanesX.forEach((x) => {
-        ctx.strokeStyle = "rgba(0, 255, 204, 0.2)"; 
-        ctx.lineWidth = 2;
-        ctx.beginPath(); 
-        ctx.moveTo(x, 0); 
-        ctx.lineTo(x, canvas.height); 
-        ctx.stroke();
-
-        ctx.fillStyle = "#ff0077"; 
-        ctx.shadowColor = "#ff0077"; 
-        ctx.shadowBlur = 10;
-        ctx.beginPath(); 
-        ctx.arc(x, hitZoneY, 18, 0, Math.PI * 2); 
-        ctx.fill();
-    });
-
-    notes.forEach(note => {
-        if (note.hit) return;
-
-        const timeTillHit = note.targetTime - currentTimeMs;
-        const currentY = hitZoneY - (timeTillHit * noteSpeed);
-
-        if (currentY > -20 && currentY < canvas.height + 30) {
-            ctx.fillStyle = "#00ffcc"; 
-            ctx.shadowColor = "#00ffcc"; 
-            ctx.shadowBlur = 12;
-            ctx.beginPath(); 
-            ctx.arc(lanesX[note.lane], currentY, 15, 0, Math.PI * 2); 
-            ctx.fill();
-        }
-
-        if (timeTillHit < -350 && !note.hit) {
-            note.hit = true;
-            showJudgement("MISS", "#ff0055");
-        }
-    });
-
-    requestAnimationFrame(gameLoop);
-}
-</script>
+<!-- 引入獨立 JS 遊戲引擎主程式 -->
+<script src="app.js"></script>
 </body>
 </html>

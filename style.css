@@ -1,11 +1,9 @@
-/* =================================================================
-   🎨 Arcatdia - Cyberpunk Style (style.css)
-   ================================================================= */
-
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 body {
@@ -17,28 +15,25 @@ body {
     align-items: center;
     min-height: 100vh;
     overflow: hidden;
+    touch-action: manipulation;
 }
 
 #stage-container {
     position: relative;
     width: 95vw;
-    height: 85vh;
+    height: 90vh;
     max-width: 900px;
-    max-height: 550px;
+    max-height: 600px;
     border: 2px solid #00ffcc;
     border-radius: 12px;
     box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
     background: #0d0f18;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* 頂部 HUD */
+/* 頂部 HUD 資訊與血條 */
 .hud-overlay {
     position: absolute;
     top: 10px;
@@ -47,10 +42,41 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 5;
+    z-index: 10;
     font-size: 13px;
     font-weight: bold;
     text-shadow: 0 0 6px #00ffcc;
+}
+
+.track-info {
+    font-size: 12px;
+}
+
+.bpm-text {
+    color: #ff0077;
+}
+
+/* 血條 (HP Bar) 防爆介面 */
+.hp-bar-container {
+    width: 140px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #00ffcc;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.hp-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff0077, #00ffcc);
+    box-shadow: 0 0 8px #00ffcc;
+    transition: width 0.2s ease;
+}
+
+.score-board {
+    color: #ff0077;
+    font-size: 15px;
 }
 
 .btn-panel {
@@ -63,37 +89,69 @@ canvas {
     font-size: 12px;
 }
 
-/* 滑出式抽屜 (Drawer) */
-.drawer-panel {
-    position: absolute;
-    top: 0;
-    right: -320px;
-    width: 290px;
-    height: 100%;
-    background: rgba(13, 15, 24, 0.95);
-    border-left: 2px solid #00ffcc;
-    padding: 15px;
-    transition: right 0.3s ease;
-    z-index: 20;
+canvas {
+    width: 100%;
+    height: 75%;
+    display: block;
+}
+
+/* 下方 4 軌觸控區 */
+.touch-controller {
+    height: 25%;
+    width: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
+    border-top: 2px solid #00ffcc;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 15;
 }
 
-.drawer-panel.open {
-    right: 0;
-}
-
-.file-group {
-    font-size: 11px;
+.touch-lane {
+    flex: 1;
+    border-right: 1px solid rgba(0, 255, 204, 0.3);
     display: flex;
-    flex-direction: column;
-}
-
-.file-group label {
-    color: #ff0077;
+    justify-content: center;
+    align-items: center;
     font-weight: bold;
+    font-size: 18px;
+    color: #00ffcc;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.touch-lane:last-child {
+    border-right: none;
+}
+
+.touch-lane:active, .touch-lane.pressed {
+    background: rgba(255, 0, 119, 0.5);
+    color: #fff;
+    box-shadow: inset 0 0 15px #ff0077;
+}
+
+#judgementDisplay {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+#comboDisplay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    color: #ffaa00;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.1s ease;
 }
 
 /* 啟動遮罩 */
@@ -106,6 +164,17 @@ canvas {
     align-items: center;
     justify-content: center;
     z-index: 30;
+}
+
+.title-text {
+    color: #00ffcc;
+    margin-bottom: 10px;
+}
+
+.sub-text {
+    color: #aaa;
+    font-size: 12px;
+    margin-bottom: 20px;
 }
 
 .btn-start {
