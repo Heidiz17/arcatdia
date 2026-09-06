@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.2 - Part 1 (快勞歌曲路徑 & 空間 DSP)
+   🔒 Arcatdia Battle Engine v6.3 - Part 1 (DIVA Crystal Hit Edition)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -32,6 +32,7 @@ let judgeLineLevel = 1;
 
 const lanePressed = [false, false, false, false];
 
+// 🎨 初音/世界計劃風格經典 4 色霓虹
 const laneColors = [
     { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.7)" },
     { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.7)" },
@@ -41,13 +42,13 @@ const laneColors = [
 
 let currentPerspectiveMode = 2;
 
-// 🎯 1. 歌曲資料庫配置（直接讀取新資料夾）
+// 🎯 1. 歌曲資料庫配置（自動解析日文路徑與預載）
 const songDatabase = [
     {
         id: "01",
         title: "最大の愛",
         folder: "songs/01_最大の愛",
-        fileName: "master.mp3", // 如果你入面係叫 master.mp3 就寫 master.mp3
+        fileName: "master.mp3",
         bpm: 175
     }
 ];
@@ -55,16 +56,21 @@ const songDatabase = [
 let currentSong = songDatabase[0];
 
 const masterAudio = new Audio();
-masterAudio.src = `${currentSong.folder}/${currentSong.fileName}`;
+masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
 masterAudio.preload = "auto";
+masterAudio.load();
 bpm = currentSong.bpm;
 
-// 🎯 2. 立體聲空間殘響 DSP 模組
+masterAudio.onerror = function() {
+    alert("❌ 找不到音訊檔案！請檢查路徑:\n" + masterAudio.src);
+};
+
+// 🎯 2. 初音未來風格晶瑩高頻 DSP 核心 (Crystal Hi-Hat Engine)
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 let masterDspGain = null;
 
-function createReverbImpulse(context, duration = 0.6, decay = 2.5) {
+function createReverbImpulse(context, duration = 0.4, decay = 3.5) {
     const sampleRate = context.sampleRate;
     const length = sampleRate * duration;
     const impulse = context.createBuffer(2, length, sampleRate);
@@ -85,15 +91,15 @@ function initDSP() {
         if (!dspCtx) {
             dspCtx = new AudioContextClass();
             masterDspGain = dspCtx.createGain();
-            masterDspGain.gain.value = 0.85;
+            masterDspGain.gain.value = 0.9;
 
             const convolver = dspCtx.createConvolver();
-            convolver.buffer = createReverbImpulse(dspCtx, 0.5, 3.2);
+            convolver.buffer = createReverbImpulse(dspCtx, 0.35, 4.0);
 
             const dryGain = dspCtx.createGain();
             const wetGain = dspCtx.createGain();
-            dryGain.gain.value = 0.75;
-            wetGain.gain.value = 0.45;
+            dryGain.gain.value = 0.85;
+            wetGain.gain.value = 0.35;
 
             masterDspGain.connect(dryGain);
             masterDspGain.connect(convolver);
@@ -106,42 +112,45 @@ function initDSP() {
     } catch (e) {}
 }
 
+// 🎯 初音式高音打磚音：金屬高頻 Hi-Hat + 晶瑩 Bell Tone
 function playFastHitSound() {
     if (!dspCtx || !masterDspGain) return;
     try {
         const now = dspCtx.currentTime;
 
-        const osc = dspCtx.createOscillator();
-        const oscGain = dspCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(280, now);
-        osc.frequency.exponentialRampToValueAtTime(40, now + 0.06);
+        // 1. 金屬脆拍高頻 (Metallic Snap)
+        const snapOsc = dspCtx.createOscillator();
+        const snapGain = dspCtx.createGain();
+        snapOsc.type = 'sine';
+        snapOsc.frequency.setValueAtTime(2600, now);
+        snapOsc.frequency.exponentialRampToValueAtTime(900, now + 0.04);
 
-        oscGain.gain.setValueAtTime(0.8, now);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        snapGain.gain.setValueAtTime(0.7, now);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
-        osc.connect(oscGain);
-        oscGain.connect(masterDspGain);
-        osc.start(now);
-        osc.stop(now + 0.06);
+        snapOsc.connect(snapGain);
+        snapGain.connect(masterDspGain);
+        snapOsc.start(now);
+        snapOsc.stop(now + 0.04);
 
-        const clickOsc = dspCtx.createOscillator();
-        const clickGain = dspCtx.createGain();
-        clickOsc.type = 'sine';
-        clickOsc.frequency.setValueAtTime(1600, now);
-        clickOsc.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+        // 2. 超高頻光澤 Bell Click (3800Hz 極致清脆)
+        const bellOsc = dspCtx.createOscillator();
+        const bellGain = dspCtx.createGain();
+        bellOsc.type = 'sine';
+        bellOsc.frequency.setValueAtTime(3800, now);
+        bellOsc.frequency.exponentialRampToValueAtTime(1400, now + 0.03);
 
-        clickGain.gain.setValueAtTime(0.4, now);
-        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+        bellGain.gain.setValueAtTime(0.5, now);
+        bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
 
-        clickOsc.connect(clickGain);
-        clickGain.connect(masterDspGain);
-        clickOsc.start(now);
-        clickOsc.stop(now + 0.03);
+        bellOsc.connect(bellGain);
+        bellGain.connect(masterDspGain);
+        bellOsc.start(now);
+        bellOsc.stop(now + 0.03);
     } catch (e) {}
 }
 
-function playStickClick(freq = 1200) {
+function playStickClick(freq = 1400) {
     if (!dspCtx || !masterDspGain) return;
     try {
         const now = dspCtx.currentTime;
@@ -150,11 +159,11 @@ function playStickClick(freq = 1200) {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now);
         gain.gain.setValueAtTime(0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
         osc.connect(gain);
         gain.connect(masterDspGain);
         osc.start(now);
-        osc.stop(now + 0.05);
+        osc.stop(now + 0.04);
     } catch (e) {}
 }
 
@@ -352,6 +361,7 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
+// 🎯 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -392,7 +402,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.2 - Part 2 (判定與世界計劃磚面)
+   🔒 Arcatdia Battle Engine v6.3 - Part 2 (判定與主渲染循環)
    ============================================================= */
 
 let countInTimers = [];
@@ -500,7 +510,12 @@ function showJudgement(text) {
 function playAllAudio() {
     masterAudio.playbackRate = playbackSpeed;
     masterAudio.currentTime = 0;
-    masterAudio.play().catch(() => {});
+    const playPromise = masterAudio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            alert("⚠️ 瀏覽器阻止播放: " + error.message);
+        });
+    }
 }
 
 function pauseAllAudio() {
@@ -524,7 +539,7 @@ function scheduleCountInAndPlay() {
     [0, 1, 2, 3].forEach(b => {
         const t = setTimeout(() => {
             if (!isPlaying) return;
-            playStickClick(b === 3 ? 1800 : 1200);
+            playStickClick(b === 3 ? 1800 : 1300);
             showJudgement(`${b + 1}`);
         }, (b * beatMs) / playbackSpeed);
         countInTimers.push(t);
