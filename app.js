@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.1 - Part 1 (Master 音頻 & 空間 DSP)
+   🔒 Arcatdia Battle Engine v6.2 - Part 1 (快勞歌曲路徑 & 空間 DSP)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -32,7 +32,6 @@ let judgeLineLevel = 1;
 
 const lanePressed = [false, false, false, false];
 
-// 🎨 經典 4 色霓虹
 const laneColors = [
     { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.7)" },
     { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.7)" },
@@ -42,12 +41,25 @@ const laneColors = [
 
 let currentPerspectiveMode = 2;
 
-// 🎯 1. 單一 Master 音頻載入（零 Lag、超順暢）
-const masterAudio = new Audio();
-masterAudio.src = "最大の愛(original jp)_master.mp3"; // 請確保檔案名與目錄下的 Master MP3 一致
-masterAudio.preload = "auto";
+// 🎯 1. 歌曲資料庫配置（直接讀取新資料夾）
+const songDatabase = [
+    {
+        id: "01",
+        title: "最大の愛",
+        folder: "songs/01_最大の愛",
+        fileName: "master.mp3", // 如果你入面係叫 master.mp3 就寫 master.mp3
+        bpm: 175
+    }
+];
 
-// 🎯 2. 全新立體聲空間殘響 DSP 模組（解決第 3 下冇環境感問題）
+let currentSong = songDatabase[0];
+
+const masterAudio = new Audio();
+masterAudio.src = `${currentSong.folder}/${currentSong.fileName}`;
+masterAudio.preload = "auto";
+bpm = currentSong.bpm;
+
+// 🎯 2. 立體聲空間殘響 DSP 模組
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 let masterDspGain = null;
@@ -75,14 +87,13 @@ function initDSP() {
             masterDspGain = dspCtx.createGain();
             masterDspGain.gain.value = 0.85;
 
-            // 建立立體聲殘響空間
             const convolver = dspCtx.createConvolver();
             convolver.buffer = createReverbImpulse(dspCtx, 0.5, 3.2);
 
             const dryGain = dspCtx.createGain();
             const wetGain = dspCtx.createGain();
             dryGain.gain.value = 0.75;
-            wetGain.gain.value = 0.45; // 豐富環境感
+            wetGain.gain.value = 0.45;
 
             masterDspGain.connect(dryGain);
             masterDspGain.connect(convolver);
@@ -95,13 +106,11 @@ function initDSP() {
     } catch (e) {}
 }
 
-// 🎯 敲擊打擊音：帶高頻鈴音 + 雙頻 Punch + 空間回音
 function playFastHitSound() {
     if (!dspCtx || !masterDspGain) return;
     try {
         const now = dspCtx.currentTime;
 
-        // Punch 振盪器
         const osc = dspCtx.createOscillator();
         const oscGain = dspCtx.createGain();
         osc.type = 'triangle';
@@ -116,7 +125,6 @@ function playFastHitSound() {
         osc.start(now);
         osc.stop(now + 0.06);
 
-        // 晶體脆感 High Click
         const clickOsc = dspCtx.createOscillator();
         const clickGain = dspCtx.createGain();
         clickOsc.type = 'sine';
@@ -157,9 +165,9 @@ function chooseDifficultyAndStart(mode) {
 
     const info = document.getElementById('hudTrackInfo');
     if (info) {
-        if (currentMode === 'easy') info.innerText = "01_EASY (4拍/2拍 慢悠舒適)";
-        else if (currentMode === 'normal') info.innerText = "01_NORMAL (2拍/1拍 正音連動)";
-        else info.innerText = "01_TEST (校準實驗場)";
+        if (currentMode === 'easy') info.innerText = `${currentSong.title} (EASY)`;
+        else if (currentMode === 'normal') info.innerText = `${currentSong.title} (NORMAL)`;
+        else info.innerText = `${currentSong.title} (TEST)`;
     }
 
     updateHeaderButtons();
@@ -197,7 +205,7 @@ function toggleSpeedButton() {
         if (idx === -1) idx = 0;
         playbackSpeed = speeds[(idx + 1) % speeds.length];
         masterAudio.playbackRate = playbackSpeed;
-        showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`);
+        showJudgement(`慢速: ${playbackSpeed.toFixed(1)}x`);
     } else {
         const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
         let idx = scrollMultipliers.indexOf(scrollSpeedMultiplier);
@@ -344,7 +352,6 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// 🎯 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -385,7 +392,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.1 - Part 2 (判定核心與立體磚渲染)
+   🔒 Arcatdia Battle Engine v6.2 - Part 2 (判定與世界計劃磚面)
    ============================================================= */
 
 let countInTimers = [];
@@ -566,7 +573,6 @@ function gameLoop() {
     const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
     const startY = 40;
 
-    // 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.fillRect(s.x, s.y, s.size, s.size);
@@ -574,7 +580,6 @@ function gameLoop() {
         if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    // 行星事件背景
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -610,7 +615,6 @@ function gameLoop() {
         }
     });
 
-    // 梯形 4 軌幾何
     const topTrackWidth = W * 0.42;
     const botTrackWidth = W * 0.96;
     const topStartX = (W - topTrackWidth) / 2;
@@ -632,7 +636,6 @@ function gameLoop() {
         ctx.stroke();
     }
 
-    // 判定線
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
     ctx.shadowColor = "#00ffcc";
