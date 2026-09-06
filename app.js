@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.0 - Part 1 (世界計劃標準立體磚面版)
+   🔒 Arcatdia Battle Engine v6.1 - Part 1 (Master 音頻 & 空間 DSP)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -32,15 +32,123 @@ let judgeLineLevel = 1;
 
 const lanePressed = [false, false, false, false];
 
-// 🎨 世界計劃風格經典 4 色（高對比度、乾淨霓虹光）
+// 🎨 經典 4 色霓虹
 const laneColors = [
-    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.7)" },  // 櫻粉紅
-    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.7)" },   // 亮青藍
-    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.7)" },   // 燦金黃
-    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.7)" }   // 幻夜紫
+    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.7)" },
+    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.7)" },
+    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.7)" },
+    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.7)" }
 ];
 
-let currentPerspectiveMode = 2; // 預設鎖定 3D 經典世界計劃梯形視角
+let currentPerspectiveMode = 2;
+
+// 🎯 1. 單一 Master 音頻載入（零 Lag、超順暢）
+const masterAudio = new Audio();
+masterAudio.src = "最大の愛(original jp)_master.mp3"; // 請確保檔案名與目錄下的 Master MP3 一致
+masterAudio.preload = "auto";
+
+// 🎯 2. 全新立體聲空間殘響 DSP 模組（解決第 3 下冇環境感問題）
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let dspCtx = null;
+let masterDspGain = null;
+
+function createReverbImpulse(context, duration = 0.6, decay = 2.5) {
+    const sampleRate = context.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = context.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+
+    for (let i = 0; i < length; i++) {
+        const t = i / length;
+        const env = Math.exp(-t * decay);
+        left[i] = (Math.random() * 2 - 1) * env;
+        right[i] = (Math.random() * 2 - 1) * env;
+    }
+    return impulse;
+}
+
+function initDSP() {
+    try {
+        if (!dspCtx) {
+            dspCtx = new AudioContextClass();
+            masterDspGain = dspCtx.createGain();
+            masterDspGain.gain.value = 0.85;
+
+            // 建立立體聲殘響空間
+            const convolver = dspCtx.createConvolver();
+            convolver.buffer = createReverbImpulse(dspCtx, 0.5, 3.2);
+
+            const dryGain = dspCtx.createGain();
+            const wetGain = dspCtx.createGain();
+            dryGain.gain.value = 0.75;
+            wetGain.gain.value = 0.45; // 豐富環境感
+
+            masterDspGain.connect(dryGain);
+            masterDspGain.connect(convolver);
+            convolver.connect(wetGain);
+
+            dryGain.connect(dspCtx.destination);
+            wetGain.connect(dspCtx.destination);
+        }
+        if (dspCtx.state === 'suspended') dspCtx.resume();
+    } catch (e) {}
+}
+
+// 🎯 敲擊打擊音：帶高頻鈴音 + 雙頻 Punch + 空間回音
+function playFastHitSound() {
+    if (!dspCtx || !masterDspGain) return;
+    try {
+        const now = dspCtx.currentTime;
+
+        // Punch 振盪器
+        const osc = dspCtx.createOscillator();
+        const oscGain = dspCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.06);
+
+        oscGain.gain.setValueAtTime(0.8, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+        osc.connect(oscGain);
+        oscGain.connect(masterDspGain);
+        osc.start(now);
+        osc.stop(now + 0.06);
+
+        // 晶體脆感 High Click
+        const clickOsc = dspCtx.createOscillator();
+        const clickGain = dspCtx.createGain();
+        clickOsc.type = 'sine';
+        clickOsc.frequency.setValueAtTime(1600, now);
+        clickOsc.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+
+        clickGain.gain.setValueAtTime(0.4, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+        clickOsc.connect(clickGain);
+        clickGain.connect(masterDspGain);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.03);
+    } catch (e) {}
+}
+
+function playStickClick(freq = 1200) {
+    if (!dspCtx || !masterDspGain) return;
+    try {
+        const now = dspCtx.currentTime;
+        const osc = dspCtx.createOscillator();
+        const gain = dspCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain);
+        gain.connect(masterDspGain);
+        osc.start(now);
+        osc.stop(now + 0.05);
+    } catch (e) {}
+}
 
 function chooseDifficultyAndStart(mode) {
     currentMode = mode;
@@ -66,9 +174,6 @@ function restartSong() {
     score = 0;
     combo = 0;
     hp = 100;
-    firstNoteBornTime = null;
-    firstNoteHitTime = null;
-    recordedTravelTime = "--";
     updateUI();
 
     showJudgement("🔄 RESTART!");
@@ -91,10 +196,7 @@ function toggleSpeedButton() {
         let idx = speeds.indexOf(playbackSpeed);
         if (idx === -1) idx = 0;
         playbackSpeed = speeds[(idx + 1) % speeds.length];
-        
-        Object.keys(audioElements).forEach(key => {
-            audioElements[key].playbackRate = playbackSpeed;
-        });
+        masterAudio.playbackRate = playbackSpeed;
         showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`);
     } else {
         const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
@@ -158,56 +260,6 @@ function initCelestialJourney() {
     ];
 }
 
-// 🎯 音頻引擎：極簡低負載 DSP
-const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-let dspCtx = null;
-let tapBuffer = null;
-
-function initDSP() {
-    try {
-        if (!dspCtx) {
-            dspCtx = new AudioContextClass();
-            // 預先生成一小段極脆、零運算負荷的打擊 Buffer (音遊標準)
-            const bufferSize = dspCtx.sampleRate * 0.025;
-            tapBuffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
-            const data = tapBuffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
-            }
-        }
-        if (dspCtx.state === 'suspended') dspCtx.resume();
-    } catch (e) {}
-}
-
-function playFastHitSound() {
-    if (!dspCtx || !tapBuffer) return;
-    try {
-        const src = dspCtx.createBufferSource();
-        src.buffer = tapBuffer;
-        const gain = dspCtx.createGain();
-        gain.gain.value = 0.6;
-        src.connect(gain);
-        gain.connect(dspCtx.destination);
-        src.start();
-    } catch (e) {}
-}
-
-function playStickClick(freq = 1200) {
-    if (!dspCtx) return;
-    try {
-        const osc = dspCtx.createOscillator();
-        const gain = dspCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, dspCtx.currentTime);
-        gain.gain.setValueAtTime(0.7, dspCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04);
-        osc.connect(gain);
-        gain.connect(dspCtx.destination);
-        osc.start();
-        osc.stop(dspCtx.currentTime + 0.04);
-    } catch (e) {}
-}
-
 function createHitParticles(x, y, color) {
     if (particles.length > 25) particles.splice(0, 8);
     for (let i = 0; i < 6; i++) {
@@ -222,23 +274,6 @@ function createHitParticles(x, y, color) {
         });
     }
 }
-
-const stemFiles = {
-    drums: "最大の愛(original jp)_drums_mixed.mp3",
-    guitars: "最大の愛(original jp)_guitars_mixed.mp3",
-    piano: "最大の愛(original jp)_piano_mixed.mp3",
-    bass: "最大の愛(original jp)_bass_mixed.mp3",
-    vocals: "最大の愛(original jp)_vocals_mixed.mp3",
-    other: "最大の愛(original jp)_other_mixed.mp3"
-};
-
-const audioElements = {};
-Object.keys(stemFiles).forEach(key => {
-    const audio = new Audio();
-    audio.src = stemFiles[key];
-    audio.preload = "auto";
-    audioElements[key] = audio;
-});
 
 function getNextLane(lastLane) {
     let next = Math.floor(Math.random() * 4);
@@ -255,7 +290,7 @@ function generateChart() {
     const barMs = beatMs * 4;
     const firstHitTime = barMs; 
     const totalBars = 145; 
-    const holdDuration = beatMs * 0.5; // 半拍短 Hold
+    const holdDuration = beatMs * 0.5;
 
     let lastLane = 1;
 
@@ -350,14 +385,11 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v6.0 - Part 2 (立體橫磚渲染核心)
+   🔒 Arcatdia Battle Engine v6.1 - Part 2 (判定核心與立體磚渲染)
    ============================================================= */
 
 let countInTimers = [];
 let audioStartTimer = null;
-let firstNoteBornTime = null;
-let firstNoteHitTime = null;
-let recordedTravelTime = "--";
 
 function handleTap(laneIndex) {
     if (!isPlaying) return;
@@ -459,17 +491,13 @@ function showJudgement(text) {
 }
 
 function playAllAudio() {
-    Object.keys(audioElements).forEach(key => {
-        audioElements[key].playbackRate = playbackSpeed;
-        audioElements[key].currentTime = 0;
-        audioElements[key].play().catch(() => {});
-    });
+    masterAudio.playbackRate = playbackSpeed;
+    masterAudio.currentTime = 0;
+    masterAudio.play().catch(() => {});
 }
 
 function pauseAllAudio() {
-    Object.keys(audioElements).forEach(key => {
-        audioElements[key].pause();
-    });
+    masterAudio.pause();
 }
 
 function clearAllTimers() {
@@ -512,9 +540,6 @@ function togglePlay() {
         score = 0;
         combo = 0;
         hp = 100;
-        firstNoteBornTime = null;
-        firstNoteHitTime = null;
-        recordedTravelTime = "--";
         updateUI();
         initCelestialJourney();
         generateChart();
@@ -541,7 +566,7 @@ function gameLoop() {
     const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
     const startY = 40;
 
-    // 🎯 1. 繁星背景
+    // 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.fillRect(s.x, s.y, s.size, s.size);
@@ -549,7 +574,7 @@ function gameLoop() {
         if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    // 🎯 2. 行星事件背景
+    // 行星事件背景
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -585,7 +610,7 @@ function gameLoop() {
         }
     });
 
-    // 🎯 3. 世界計劃經典梯形 4 軌幾何計算
+    // 梯形 4 軌幾何
     const topTrackWidth = W * 0.42;
     const botTrackWidth = W * 0.96;
     const topStartX = (W - topTrackWidth) / 2;
@@ -598,7 +623,6 @@ function gameLoop() {
         laneBotLeft.push(botStartX + (botTrackWidth / 4) * i);
     }
 
-    // 繪製軌道分割線（透視雷射線）
     for (let i = 0; i <= 4; i++) {
         ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.18)";
         ctx.lineWidth = (i === 0 || i === 4) ? 3 : 1.5;
@@ -608,7 +632,7 @@ function gameLoop() {
         ctx.stroke();
     }
 
-    // 🎯 4. 判定線（白金光芒）
+    // 判定線
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
     ctx.shadowColor = "#00ffcc";
@@ -619,7 +643,6 @@ function gameLoop() {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // 🎯 5. 繪製音符（世界計劃經典發光橫磚）
     const beatMs = (60 / bpm) * 1000;
     const baseTravelDuration = beatMs * 2;
     const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
@@ -630,7 +653,6 @@ function gameLoop() {
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        // 🎯 Hold 長按（半透明立體光帶）
         if (note.type === 'hold') {
             const endTime = note.targetTime + note.duration;
             const timeTillEnd = endTime - currentTimeMs;
@@ -668,7 +690,6 @@ function gameLoop() {
                 const txL = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * tailP;
                 const txR = laneTopLeft[i+1] + (laneBotLeft[i+1] - laneTopLeft[i+1]) * tailP;
 
-                // 畫光柱長帶
                 ctx.save();
                 ctx.fillStyle = note.holding ? "rgba(255, 255, 255, 0.45)" : laneColors[i].glow;
                 ctx.beginPath();
@@ -680,7 +701,6 @@ function gameLoop() {
                 ctx.fill();
                 ctx.restore();
 
-                // 頭部發光橫磚
                 drawSekaiBar(hxL, hxR, hy, laneColors[i]);
             }
 
@@ -693,7 +713,6 @@ function gameLoop() {
             }
 
         } else {
-            // 🎯 Tap 單擊：立體發光長方形橫磚
             if (rawProgress > 0 && rawProgress < 1.12) {
                 const curY = startY + (hitZoneY - startY) * rawProgress;
                 const curLeft = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * rawProgress;
@@ -712,27 +731,22 @@ function gameLoop() {
         }
     });
 
-    // 🎯 輔助：繪製世界計劃發光橫磚 (GPU 極速繪製)
     function drawSekaiBar(x1, x2, y, colorObj) {
         const barWidth = x2 - x1 - 4;
         const barHeight = 14; 
         const barX = x1 + 2;
         const barY = y - (barHeight / 2);
 
-        // 外層主色橫磚
         ctx.fillStyle = colorObj.main;
         ctx.fillRect(barX, barY, barWidth, barHeight);
 
-        // 頂部高光（白色條紋，塑造立體感）
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(barX + 2, barY + 2, barWidth - 4, 3);
 
-        // 底部陰影加強質感
         ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
         ctx.fillRect(barX, barY + barHeight - 3, barWidth, 3);
     }
 
-    // 🎯 6. 打擊粒子爆發
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         ctx.save();
