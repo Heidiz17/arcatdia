@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v8.8 - Part 1 (Core & DSP)
+   🔒 Arcatdia Battle Engine v9.0 - Part 1 (Core, DSP & Inputs)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -102,7 +102,7 @@ function updateSeVolume(val) {
     if (disp) disp.innerText = `${val}%`;
 }
 
-// 磨砂玻璃與壁紙
+// 磨砂玻璃與自選相簿
 function updateGlassOpacity(val) {
     const opacity = val / 100;
     document.documentElement.style.setProperty('--glass-opacity', opacity);
@@ -282,6 +282,13 @@ function setSpeed(speedVal) {
 function startVoyage() {
     const r = document.getElementById('readyRoom');
     if (r) r.classList.remove('active');
+
+    // 顯示戰鬥 HUD 與四軌底座
+    const hud = document.getElementById('battleHud');
+    if (hud) hud.style.display = 'flex';
+    const touch = document.getElementById('touchController');
+    if (touch) touch.style.display = 'flex';
+
     const info = document.getElementById('hudTrackInfo');
     if (info) info.innerText = `${currentSong.title} (${currentMode.toUpperCase()})`;
     
@@ -325,7 +332,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v8.8 - Part 2 (Bowl Loop & Wakeup)
+   🔒 Arcatdia Battle Engine v9.0 - Part 2 (Judgement & Render Loop)
    ============================================================= */
 
 function pauseGame() {
@@ -366,6 +373,12 @@ function returnToReadyRoom() {
     if (p) p.classList.remove('active');
     const drawer = document.getElementById('wallpaperDrawer');
     if (drawer) drawer.classList.remove('open');
+
+    // 隱藏戰鬥 HUD 與底座
+    const hud = document.getElementById('battleHud');
+    if (hud) hud.style.display = 'none';
+    const touch = document.getElementById('touchController');
+    if (touch) touch.style.display = 'none';
 
     isPaused = false;
     isPlaying = false;
@@ -686,15 +699,17 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 開局即戰備用自啟動：防止黑屏定格
-(function initialDraw() {
-    initStars();
-    initCelestialJourney();
-    generateChart();
+// 🎯 開局背景慢速星空（未開戰前絕不黑屏定格）
+initStars();
+(function idleBackground() {
     if (!isPlaying) {
-        isPlaying = true;
-        startTime = performance.now();
-        scheduleCountInAndPlay();
-        requestAnimationFrame(gameLoop);
+        ctx.clearRect(0, 0, W, H);
+        stars.forEach(s => {
+            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+            s.y += s.speed * 0.5;
+            if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+        });
+        requestAnimationFrame(idleBackground);
     }
 })();

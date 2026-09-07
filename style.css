@@ -44,7 +44,7 @@ body, html {
 .theme-live { background: radial-gradient(circle at 50% 30%, #380826 0%, #09020d 100%); }
 .theme-deepspace { background: radial-gradient(circle at center, #07070a 0%, #000000 100%); }
 
-/* 🛡️ 戰鬥磨砂黑曜石夾心遮罩（確保後面張相幾花都唔會冚住字） */
+/* 🛡️ 戰鬥磨砂黑曜石遮罩（確保字同軌道永遠清晰） */
 .battle-glass-overlay {
     position: absolute;
     top: 0; left: 0;
@@ -116,7 +116,7 @@ body, html {
     100% { filter: brightness(1.6) drop-shadow(0 0 22px #ff0077); }
 }
 
-/* 🎯 觸控感應底座：全通透無遮擋，手按不擋線 */
+/* 🎯 觸控感應底座：加厚 195px，全通透無遮擋 */
 .touch-controller {
     position: absolute;
     bottom: 0;
@@ -238,7 +238,7 @@ body, html {
 }
 @keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
 
-/* 🐾 Production 招牌 */
+/* 🐾 Production 招牌宣告 */
 .production-footer {
     position: absolute;
     bottom: 25px;
@@ -306,7 +306,7 @@ body, html {
 }
 .launch-btn:active { transform: scale(0.97); }
 
-/* 🎯 右側壁紙抽屜樣式 */
+/* 🎯 右側壁紙抽屜 */
 .btn-drawer-toggle {
     position: absolute;
     top: 16px; right: 16px;
