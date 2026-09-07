@@ -1,16 +1,25 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v7.8 - Part 1 (Custom Wallpaper & DSP)
+   🔒 Arcatdia Battle Engine v8.5 - Part 1 (Offset & Fat Glow Bar)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+let W = window.innerWidth;
+let H = window.innerHeight;
+
+function handleResize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    initStars();
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', () => {
+    setTimeout(handleResize, 150);
+});
+handleResize();
 
 let bpm = 175;
 let isPlaying = false;
@@ -30,19 +39,30 @@ let playbackSpeed = 1.0;
 let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'easy';
 
-const judgeLineOffsets = [165, 185, 205, 225];
-let judgeLineLevel = 1; 
+// 🎯 核心手感 Offset 變數（手動微調 ms，預設 0ms，自動記住）
+let inputOffsetMs = parseInt(localStorage.getItem('arcatdia_offset_ms') || "0", 10);
+
+function adjustOffset(delta) {
+    inputOffsetMs += delta;
+    localStorage.setItem('arcatdia_offset_ms', inputOffsetMs);
+    showJudgement(`手感: ${inputOffsetMs > 0 ? '+' : ''}${inputOffsetMs}ms`);
+}
+
+function getJudgeLineY() {
+    const isLandscape = W > H;
+    return H - (isLandscape ? 130 : 210);
+}
 
 const lanePressed = [false, false, false, false];
 
 const laneColors = [
-    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.8)" },
-    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.8)" },
-    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.8)" },
-    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.8)" }
+    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.85)" },
+    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.85)" },
+    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.85)" },
+    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.85)" }
 ];
 
-// 🎯 1. 歌曲配置與音頻初始化
+// 歌曲配置
 const songDatabase = [
     {
         id: "01",
@@ -64,36 +84,38 @@ masterAudio.onerror = function() {
     alert("❌ 找不到音訊檔案！請檢查路徑:\n" + masterAudio.src);
 };
 
-// 🎯 2. 雙軌音量推桿 (Mixer)
+// 雙軌音量推桿 (Mixer)
 let bgmVolume = 0.70;
 let seVolume = 1.30;
 
 function updateBgmVolume(val) {
     bgmVolume = val / 100;
     masterAudio.volume = bgmVolume;
-    document.getElementById('bgmVolVal').innerText = `${val}%`;
+    const disp = document.getElementById('bgmVolVal');
+    if (disp) disp.innerText = `${val}%`;
 }
 
 function updateSeVolume(val) {
     seVolume = val / 100;
     if (masterDspGain) masterDspGain.gain.value = seVolume;
-    document.getElementById('seVolVal').innerText = `${val}%`;
+    const disp = document.getElementById('seVolVal');
+    if (disp) disp.innerText = `${val}%`;
 }
 
-// 🎯 3. 磨砂玻璃、自選相簿與三朝壁紙抽屜
+// 磨砂玻璃與壁紙
 function updateGlassOpacity(val) {
     const opacity = val / 100;
     document.documentElement.style.setProperty('--glass-opacity', opacity);
     document.documentElement.style.setProperty('--battle-frost', (opacity * 0.75).toFixed(2));
-    document.getElementById('glassOpacityVal').innerText = `${val}%`;
+    const disp = document.getElementById('glassOpacityVal');
+    if (disp) disp.innerText = `${val}%`;
 }
 
 function toggleWallpaperDrawer() {
     const drawer = document.getElementById('wallpaperDrawer');
-    drawer.classList.toggle('open');
+    if (drawer) drawer.classList.toggle('open');
 }
 
-// 📸 玩家自選手機相簿處理（自動持久保存）
 function handleCustomWallpaperUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -102,40 +124,40 @@ function handleCustomWallpaperUpload(event) {
     reader.onload = function(e) {
         const customUrl = e.target.result;
         const bg = document.getElementById('bgWallpaper');
-        bg.className = 'wallpaper-bg';
-        bg.style.backgroundImage = `url(${customUrl})`;
-
+        if (bg) {
+            bg.className = 'wallpaper-bg';
+            bg.style.backgroundImage = `url(${customUrl})`;
+        }
         document.querySelectorAll('.wp-card').forEach(c => c.classList.remove('active'));
-
-        try {
-            localStorage.setItem('arcatdia_custom_bg', customUrl);
-        } catch(err) {}
+        try { localStorage.setItem('arcatdia_custom_bg', customUrl); } catch(err) {}
     };
     reader.readAsDataURL(file);
 }
 
-// 讀取本地已存相片
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('arcatdia_custom_bg');
     if (saved) {
         const bg = document.getElementById('bgWallpaper');
-        bg.className = 'wallpaper-bg';
-        bg.style.backgroundImage = `url(${saved})`;
+        if (bg) {
+            bg.className = 'wallpaper-bg';
+            bg.style.backgroundImage = `url(${saved})`;
+        }
     }
 });
 
 function changeWallpaper(theme) {
     const bg = document.getElementById('bgWallpaper');
-    bg.style.backgroundImage = '';
-    bg.className = `wallpaper-bg theme-${theme}`;
+    if (bg) {
+        bg.style.backgroundImage = '';
+        bg.className = `wallpaper-bg theme-${theme}`;
+    }
     localStorage.removeItem('arcatdia_custom_bg');
-
     document.querySelectorAll('.wp-card').forEach(c => c.classList.remove('active'));
     const target = document.getElementById(`wp-${theme}`);
     if (target) target.classList.add('active');
 }
 
-// 🎯 4. 初音風格晶瑩金屬高頻 DSP
+// 初音晶瑩高音 DSP
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 let masterDspGain = null;
@@ -193,7 +215,7 @@ function playFastHitSound() {
         snapOsc.frequency.setValueAtTime(2800, now);
         snapOsc.frequency.exponentialRampToValueAtTime(950, now + 0.04);
 
-        snapGain.gain.setValueAtTime(0.85, now);
+        snapGain.gain.setValueAtTime(0.9, now);
         snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
         snapOsc.connect(snapGain);
@@ -207,7 +229,7 @@ function playFastHitSound() {
         bellOsc.frequency.setValueAtTime(3900, now);
         bellOsc.frequency.exponentialRampToValueAtTime(1500, now + 0.03);
 
-        bellGain.gain.setValueAtTime(0.6, now);
+        bellGain.gain.setValueAtTime(0.65, now);
         bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
 
         bellOsc.connect(bellGain);
@@ -234,19 +256,19 @@ function playStickClick(freq = 1400) {
     } catch (e) {}
 }
 
-// 🎯 5. 導航與模式切換
 function goToReadyRoom() {
-    document.getElementById('titleScreen').classList.remove('active');
-    document.getElementById('readyRoom').classList.add('active');
+    const t = document.getElementById('titleScreen');
+    if (t) t.classList.remove('active');
+    const r = document.getElementById('readyRoom');
+    if (r) r.classList.add('active');
     initDSP();
 }
 
 function selectDifficulty(mode) {
     currentMode = mode;
     document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-    if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active');
-    if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active');
-    if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active');
+    const btn = document.getElementById(`btnDiff${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+    if (btn) btn.classList.add('active');
 }
 
 function setSpeed(speedVal) {
@@ -258,7 +280,8 @@ function setSpeed(speedVal) {
 }
 
 function startVoyage() {
-    document.getElementById('readyRoom').classList.remove('active');
+    const r = document.getElementById('readyRoom');
+    if (r) r.classList.remove('active');
     const info = document.getElementById('hudTrackInfo');
     if (info) info.innerText = `${currentSong.title} (${currentMode.toUpperCase()})`;
     
@@ -275,7 +298,7 @@ function startVoyage() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 6. 觸控綁定
+// 觸控綁定
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -292,31 +315,32 @@ for (let i = 0; i < 4; i++) {
             lanePressed[i] = false;
             handleRelease(i);
         };
-        laneBtn.addEventListener('touchstart', press);
-        laneBtn.addEventListener('touchend', release);
-        laneBtn.addEventListener('touchcancel', release);
+        laneBtn.addEventListener('touchstart', press, { passive: false });
+        laneBtn.addEventListener('touchend', release, { passive: false });
+        laneBtn.addEventListener('touchcancel', release, { passive: false });
         laneBtn.addEventListener('mousedown', press);
         laneBtn.addEventListener('mouseup', release);
         laneBtn.addEventListener('mouseleave', release);
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v7.8 - Part 2 (Pause & Curved Engine)
+   🔒 Arcatdia Battle Engine v8.5 - Part 2 (Glow Zone & Game Loop)
    ============================================================= */
 
-// 🎯 7. 暫停與退回整備室
 function pauseGame() {
     if (!isPlaying || isPaused) return;
     isPaused = true;
     pauseStartTime = performance.now();
     masterAudio.pause();
     clearAllTimers();
-    document.getElementById('pauseMenu').classList.add('active');
+    const p = document.getElementById('pauseMenu');
+    if (p) p.classList.add('active');
 }
 
 function resumeGame() {
     if (!isPaused) return;
-    document.getElementById('pauseMenu').classList.remove('active');
+    const p = document.getElementById('pauseMenu');
+    if (p) p.classList.remove('active');
     const drawer = document.getElementById('wallpaperDrawer');
     if (drawer) drawer.classList.remove('open');
 
@@ -328,7 +352,8 @@ function resumeGame() {
 }
 
 function restartFromPause() {
-    document.getElementById('pauseMenu').classList.remove('active');
+    const p = document.getElementById('pauseMenu');
+    if (p) p.classList.remove('active');
     const drawer = document.getElementById('wallpaperDrawer');
     if (drawer) drawer.classList.remove('open');
     isPaused = false;
@@ -336,7 +361,8 @@ function restartFromPause() {
 }
 
 function returnToReadyRoom() {
-    document.getElementById('pauseMenu').classList.remove('active');
+    const p = document.getElementById('pauseMenu');
+    if (p) p.classList.remove('active');
     const drawer = document.getElementById('wallpaperDrawer');
     if (drawer) drawer.classList.remove('open');
 
@@ -345,55 +371,69 @@ function returnToReadyRoom() {
     masterAudio.pause();
     masterAudio.currentTime = 0;
     clearAllTimers();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    document.getElementById('readyRoom').classList.add('active');
+    ctx.clearRect(0, 0, W, H);
+    const r = document.getElementById('readyRoom');
+    if (r) r.classList.add('active');
 }
 
-// 🎯 8. 判定系統
+// 🎯 核心擊打判定（加入 inputOffsetMs 手感補償）
 function handleTap(laneIndex) {
     if (!isPlaying || isPaused) return;
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
-    const W = canvas.width;
-    const laneW = W / 4;
-    const currentHitY = canvas.height - judgeLineOffsets[judgeLineLevel];
-    const targetX = laneW * laneIndex + (laneW / 2);
-    const laneColor = laneColors[laneIndex].main;
+    // 加入玩家設定的 offset 補償微調
+    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed + inputOffsetMs;
+    const hitZoneY = getJudgeLineY();
+    
+    const isLandscape = W > H;
+    const botTrackWidth = isLandscape ? W * 0.88 : W * 0.94;
+    const botStartX = (W - botTrackWidth) / 2;
+    const laneBotW = botTrackWidth / 4;
+    const targetX = botStartX + laneBotW * laneIndex + (laneBotW / 2);
 
+    const laneColor = laneColors[laneIndex].main;
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
 
     if (targetNote) {
-        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+        const timeDiff = currentTimeMs - targetNote.targetTime;
+        const absDiff = Math.abs(timeDiff);
 
         if (targetNote.type === 'hold') {
-            if (timeDiff < 260) {
+            if (absDiff < 280) {
                 targetNote.holding = true;
                 targetNote.lastTick = currentTimeMs;
                 score += 500; combo++;
                 showJudgement("HOLD!");
-                createHitParticles(targetX, currentHitY, laneColor);
+                createHitParticles(targetX, hitZoneY, laneColor);
                 updateUI();
             }
         } else {
-            if (timeDiff < 180) {
+            // 🎯 寬容判定窗口（徹底杜絕冤枉 Miss）
+            if (absDiff <= 65) {
                 targetNote.hit = true;
                 score += 1000; combo++;
                 hp = Math.min(100, hp + 2);
-                showJudgement("PERFECT!");
-                createHitParticles(targetX, currentHitY, "#ffffff");
-            } else if (timeDiff < 320) {
+                showJudgement(timeDiff < -25 ? "FAST PERFECT" : (timeDiff > 25 ? "LATE PERFECT" : "PERFECT!"));
+                createHitParticles(targetX, hitZoneY, "#ffffff");
+                updateUI();
+            } else if (absDiff <= 125) {
                 targetNote.hit = true;
-                score += 500; combo++;
-                showJudgement("GREAT");
-                createHitParticles(targetX, currentHitY, "#ffaa00");
+                score += 700; combo++;
+                showJudgement(timeDiff < 0 ? "FAST GREAT" : "LATE GREAT");
+                createHitParticles(targetX, hitZoneY, "#ffaa00");
+                updateUI();
+            } else if (absDiff <= 190) {
+                targetNote.hit = true;
+                score += 400; combo++;
+                showJudgement(timeDiff < 0 ? "FAST GOOD" : "LATE GOOD");
+                createHitParticles(targetX, hitZoneY, "#00ffcc");
+                updateUI();
             }
-            updateUI();
         }
     }
 }
 
 function handleRelease(laneIndex) {
     if (!isPlaying || isPaused) return;
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
+    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed + inputOffsetMs;
     const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
     if (holdingNote) {
         const endTime = holdingNote.targetTime + holdingNote.duration;
@@ -423,13 +463,13 @@ function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
     if (disp) {
         disp.innerText = text;
-        disp.style.color = text === "PERFECT!" ? "#ffffff" : (text === "BREAK!" ? "#ff0055" : "#ffd700");
+        disp.style.color = text.includes("PERFECT") ? "#ffffff" : (text.includes("BREAK") || text === "MISS" ? "#ff0055" : "#ffd700");
         disp.style.opacity = '1';
         disp.style.transform = 'translate(-50%, -50%) scale(1.15)';
         setTimeout(() => { 
             disp.style.opacity = '0'; 
             disp.style.transform = 'translate(-50%, -50%) scale(1.0)';
-        }, 300);
+        }, 280);
     }
 }
 
@@ -494,8 +534,8 @@ function initStars() {
     stars = [];
     for (let i = 0; i < 70; i++) {
         stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
+            x: Math.random() * W,
+            y: Math.random() * H,
             size: Math.random() * 2 + 1,
             speed: Math.random() * 1.5 + 0.5,
             alpha: Math.random()
@@ -527,18 +567,16 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 🎯 9. 核心主渲染循環（真・3D 碗型拋物線弧面）
+// 🎯 主渲染循環（加厚發光打擊區間 ＋ 弧形碗底）
 function gameLoop() {
     if (!isPlaying || isPaused) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, W, H);
 
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
-    const currentSec = currentTimeMs / 1000;
-    const W = canvas.width;
-    const H = canvas.height;
-    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
-    const startY = 40;
+    const hitZoneY = getJudgeLineY();
+    const startY = 30;
 
+    // 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.fillRect(s.x, s.y, s.size, s.size);
@@ -546,41 +584,56 @@ function gameLoop() {
         if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    const topTrackWidth = W * 0.40;
-    const botTrackWidth = W * 0.94;
+    const isLandscape = W > H;
+    const topTrackWidth = isLandscape ? W * 0.42 : W * 0.36;
+    const botTrackWidth = isLandscape ? W * 0.88 : W * 0.94;
     const topStartX = (W - topTrackWidth) / 2;
     const botStartX = (W - botTrackWidth) / 2;
 
-    const laneTopLeft = [];
-    const laneBotLeft = [];
+    const laneTop = [];
+    const laneBot = [];
     for (let i = 0; i <= 4; i++) {
-        laneTopLeft.push(topStartX + (topTrackWidth / 4) * i);
-        laneBotLeft.push(botStartX + (botTrackWidth / 4) * i);
+        laneTop.push(topStartX + (topTrackWidth / 4) * i);
+        laneBot.push(botStartX + (botTrackWidth / 4) * i);
     }
 
-    // 繪製碗型曲面軌道
+    // 碗型弧度分割線
+    const bowlDepth = 24;
     for (let i = 0; i <= 4; i++) {
-        ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(0, 255, 204, 0.45)" : "rgba(255, 255, 255, 0.15)";
-        ctx.lineWidth = (i === 0 || i === 4) ? 3 : 1.5;
+        ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(0, 255, 204, 0.55)" : "rgba(255, 255, 255, 0.16)";
+        ctx.lineWidth = (i === 0 || i === 4) ? 3.5 : 1.5;
+        
         ctx.beginPath();
-        ctx.moveTo(laneTopLeft[i], startY);
-        const ctrlX = (laneTopLeft[i] + laneBotLeft[i]) / 2 + (i - 2) * 8;
-        const ctrlY = (startY + H) * 0.55;
-        ctx.quadraticCurveTo(ctrlX, ctrlY, laneBotLeft[i], H);
+        ctx.moveTo(laneTop[i], startY);
+        const outwardOffset = (i - 2) * 12;
+        const ctrlX = (laneTop[i] + laneBot[i]) / 2 + outwardOffset;
+        const ctrlY = (startY + hitZoneY) * 0.55;
+        ctx.quadraticCurveTo(ctrlX, ctrlY, laneBot[i], H);
         ctx.stroke();
     }
 
-    // 弧形碗底判定線
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
-    ctx.shadowColor = "#00ffcc";
-    ctx.shadowBlur = 16;
-    ctx.beginPath();
-    ctx.moveTo(botStartX - 10, hitZoneY - 4);
-    ctx.quadraticCurveTo(W / 2, hitZoneY + 12, botStartX + botTrackWidth + 10, hitZoneY - 4);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    // 🎯 核心加厚發光打擊區間（Hit Zone Area）
+    ctx.save();
+    // 1. 上下 18px 霓虹漸變色帶光暈（區間感）
+    const zoneGradient = ctx.createLinearGradient(0, hitZoneY - 20, 0, hitZoneY + 20);
+    zoneGradient.addColorStop(0, "rgba(0, 255, 204, 0)");
+    zoneGradient.addColorStop(0.5, "rgba(0, 255, 204, 0.28)");
+    zoneGradient.addColorStop(1, "rgba(0, 255, 204, 0)");
+    ctx.fillStyle = zoneGradient;
+    ctx.fillRect(botStartX - 15, hitZoneY - 20, botTrackWidth + 30, 40);
 
+    // 2. 加厚 6px 核心白光判定線
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 6;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.moveTo(botStartX - 8, hitZoneY - 6);
+    ctx.quadraticCurveTo(W / 2, hitZoneY + bowlDepth, botStartX + botTrackWidth + 8, hitZoneY - 6);
+    ctx.stroke();
+    ctx.restore();
+
+    // 磚塊下落與判定
     const beatMs = (60 / bpm) * 1000;
     const travelDuration = (beatMs * 2) / scrollSpeedMultiplier;
 
@@ -590,27 +643,38 @@ function gameLoop() {
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        if (rawProgress > 0 && rawProgress < 1.12) {
-            const curvedProgress = Math.pow(Math.max(0, rawProgress), 1.55);
-            const curY = startY + (hitZoneY - startY) * curvedProgress;
-            const curLeft = laneTopLeft[i] + (laneBotLeft[i] - laneTopLeft[i]) * curvedProgress;
-            const curRight = laneTopLeft[i+1] + (laneBotLeft[i+1] - laneTopLeft[i+1]) * curvedProgress;
+        if (rawProgress > 0 && rawProgress < 1.15) {
+            const curvedP = Math.pow(Math.max(0, rawProgress), 1.55);
+            const laneCenterDist = Math.abs(i - 1.5);
+            const laneArcDrop = (1.5 - laneCenterDist) * (bowlDepth * 0.7);
+            
+            const currentHitTargetY = hitZoneY + laneArcDrop;
+            const curY = startY + (currentHitTargetY - startY) * curvedP;
+
+            const curLeft = laneTop[i] + (laneBot[i] - laneTop[i]) * curvedP;
+            const curRight = laneTop[i+1] + (laneBot[i+1] - laneTop[i+1]) * curvedP;
 
             const barWidth = curRight - curLeft - 4;
-            const barHeight = 12 + curvedProgress * 4;
+            const barHeight = 14 + curvedP * 6;
             const barX = curLeft + 2;
             const barY = curY - (barHeight / 2);
 
+            ctx.save();
             ctx.fillStyle = laneColors[i].main;
+            ctx.shadowColor = laneColors[i].main;
+            ctx.shadowBlur = 12;
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(barX + 2, barY + 2, barWidth - 4, 3);
+            ctx.restore();
         }
 
-        if (rawProgress > 1.08 && !note.hit) {
+        // 🎯 寬容 Miss 條件：超過 220ms 跌到底先判 Miss
+        if ((currentTimeMs - note.targetTime) > 220 && !note.hit) {
             note.hit = true;
-            combo = 0; hp = Math.max(0, hp - 5);
+            combo = 0;
+            hp = Math.max(0, hp - 5);
             showJudgement("MISS");
             updateUI();
         }
