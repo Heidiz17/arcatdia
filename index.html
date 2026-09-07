@@ -13,16 +13,16 @@
 <body>
 
 <div id="stage-container">
-    <!-- 🖼️ 戰鬥最底層：Canvas (負責畫星星同戰鬥幻燈片) -->
+    <!-- 🖼️ 戰鬥最底層：Canvas -->
     <canvas id="battleCanvas"></canvas>
 
     <!-- 🌌 第二層：候機室專屬背景 -->
     <div id="readyBg" class="bg-layer theme-ready"></div>
 
-    <!-- 🚀 第三層：開頭封面專屬背景 (預設顯示) -->
+    <!-- 🚀 第三層：開頭封面專屬背景 -->
     <div id="titleBg" class="bg-layer theme-title active"></div>
 
-    <!-- 🛡️ 第四層：磨砂玻璃遮罩 -->
+    <!-- 🛡️ 第四層：戰鬥專用玻璃遮罩 -->
     <div id="battleGlassMask" class="battle-glass-overlay"></div>
 
     <!-- 戰鬥頂部 HUD -->
@@ -49,8 +49,8 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- 🎯 畫面一：封面 Title Screen -->
-    <div id="titleScreen" class="overlay-modal glass-panel active">
+    <!-- 🎯 畫面一：封面 Title Screen (已移除玻璃層，相片完全顯示) -->
+    <div id="titleScreen" class="overlay-modal active">
         <button class="btn-drawer-toggle" onclick="toggleWallpaperDrawer()">🎨 相簿與設定</button>
         <div class="title-content" onclick="goToReadyRoom()">
             <h1 class="game-logo">ARCATDIA</h1>
@@ -59,10 +59,10 @@
         </div>
     </div>
 
-    <!-- 🎯 畫面二：出發準備室 (Ready Room) -->
-    <div id="readyRoom" class="overlay-modal glass-panel">
+    <!-- 🎯 畫面二：出發準備室 (已移除玻璃層，相片完全顯示) -->
+    <div id="readyRoom" class="overlay-modal">
         <button class="btn-drawer-toggle" onclick="toggleWallpaperDrawer()">🎨 相簿與設定</button>
-        <h2 class="room-title">🚀 航行整備室</h2>
+        <h2 class="room-title" style="text-shadow: 0 0 10px #000;">🚀 航行整備室</h2>
         <div class="ready-panel glass-card">
             <div class="setting-group">
                 <label>選擇航行難度：</label>
@@ -73,23 +73,24 @@
                 </div>
             </div>
             <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
+            <button class="return-btn" onclick="returnToTitle()">🔙 返回開頭封面</button>
         </div>
     </div>
 
-    <!-- 🎯 隨身抽屜：三層獨立相簿上載 -->
+    <!-- 🎯 隨身抽屜 -->
     <div id="wallpaperDrawer" class="drawer-modal">
         <div class="drawer-header">
             <h3>🎨 視覺與相簿設定</h3>
             <button class="btn-close-drawer" onclick="toggleWallpaperDrawer()">✕</button>
         </div>
         <div class="drawer-body">
-            <label>1️⃣ 開頭封面 (單張概念圖)：</label>
+            <label>1️⃣ 開頭封面 (原相 Fit to Page)：</label>
             <label class="custom-upload-btn">
                 📁 選擇封面圖...
                 <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
             </label>
 
-            <label style="margin-top: 10px;">2️⃣ 候機室 (專屬壁紙)：</label>
+            <label style="margin-top: 10px;">2️⃣ 候機室 (原相 Fit to Page)：</label>
             <label class="custom-upload-btn" style="border-color:#ccff00;">
                 📁 選擇候機室壁紙...
                 <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="display:none;">
@@ -100,10 +101,15 @@
                 📁 選擇多張樂隊相片...
                 <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
             </label>
+
+            <label style="margin-top: 15px;">🌗 戰鬥幻燈片透明度 (0 - 100)：</label>
+            <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="45" oninput="updateSlideOpacity(this.value)">
+
+            <button class="save-btn" onclick="saveSettings()">💾 SAVE 設定</button>
         </div>
     </div>
 
-    <!-- 🎯 戰鬥暫停選單 -->
+    <!-- 🎯 戰鬥暫停選單 (保留玻璃層) -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>

@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - v2 (第1拍正位 + 1943能源Bar版) Part 1
+   🔒 Arcatdia Battle Engine - v3 (Fit原相 + 漸變血條 + Slider設定)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -8,7 +8,6 @@ const ctx = canvas.getContext('2d');
 let W = window.innerWidth;
 let H = window.innerHeight;
 
-// 🌟 核心參數與狀態
 let bpm = 175;
 let isPlaying = false;
 let isPaused = false;
@@ -27,8 +26,8 @@ let playbackSpeed = 1.0;
 let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'easy';
 
-const judgeLineOffsets = [165, 185, 205, 225];
-let judgeLineLevel = 1; 
+// 🌟 戰鬥背景透明度變數 (由 Slider 控制)
+let battleBgOpacity = 0.45;
 
 const lanePressed = [false, false, false, false];
 const laneColors = [
@@ -55,7 +54,6 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 handleResize(); 
 
-// 📸 三層獨立視覺上載與透明度控制
 let preloadedSlideImages = [];
 
 function handleUpload(event, target) {
@@ -78,24 +76,25 @@ function handleUpload(event, target) {
         reader.onload = function(e) {
             if (target === 'title') {
                 const el = document.getElementById('titleBg');
-                if (el) el.style.backgroundImage = `url(${e.target.result})`;
+                // 直接轉 background-image
+                if (el) el.style.backgroundImage = `url('${e.target.result}')`;
             } else if (target === 'ready') {
                 const el = document.getElementById('readyBg');
-                if (el) el.style.backgroundImage = `url(${e.target.result})`;
+                if (el) el.style.backgroundImage = `url('${e.target.result}')`;
             }
         };
         reader.readAsDataURL(files[0]);
     }
 }
 
-function updateGlassOpacity(val) {
-    const opacity = val / 100;
-    document.documentElement.style.setProperty('--glass-opacity', opacity);
-    document.documentElement.style.setProperty('--battle-frost', (opacity * 0.65).toFixed(2));
-    const mask = document.getElementById('battleGlassMask');
-    if (mask) {
-        mask.style.backdropFilter = `blur(${Math.round(val * 0.08)}px)`;
-    }
+// 🌟 透明度與儲存設定
+function updateSlideOpacity(val) {
+    battleBgOpacity = val / 100;
+}
+
+function saveSettings() {
+    alert("設定已儲存！");
+    toggleWallpaperDrawer();
 }
 
 function toggleWallpaperDrawer() {
@@ -103,33 +102,19 @@ function toggleWallpaperDrawer() {
     if (drawer) drawer.classList.toggle('open');
 }
 
-// 🎵 音樂載入 (防死火 Try-Catch)
 const songDatabase = [{ id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 }];
 let currentSong = songDatabase[0];
 const masterAudio = new Audio();
 try {
     masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
     masterAudio.preload = "auto";
-} catch (e) {
-    console.error("Audio error:", e);
-}
+} catch (e) {}
 bpm = currentSong.bpm;
 
 function initCelestialJourney() {
     celestialEvents = [
         { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] },
-        { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] },
-        { timeSec: 52, duration: 11, planets: [
-            { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 },
-            { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true }
-        ]},
-        { timeSec: 88, duration: 11, planets: [
-            { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.32)", radius: 52, xRatio: 0.62, yRatio: 0.20 },
-            { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.35)", radius: 50, xRatio: 0.80, yRatio: 0.25 }
-        ]},
-        { timeSec: 122, duration: 9, planets: [{ name: "❄️ 冥王星冰界", color: "rgba(195, 220, 240, 0.28)", radius: 42, xRatio: 0.72, yRatio: 0.22 }] },
-        { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] },
-        { timeSec: 175, duration: 25, planets: [{ name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }] }
+        { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }
     ];
 }
 
@@ -157,16 +142,21 @@ function playStickClick(freq = 1200) {
         osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
-/* =============================================================
-   🔒 Arcatdia Battle Engine - v2 (第1拍正位 + 1943能源Bar版) Part 2
-   ============================================================= */
 
+// 🌟 畫面切換 (3 -> 2 -> 1)
 function goToReadyRoom() {
     const ts = document.getElementById('titleScreen'); if (ts) ts.classList.remove('active');
     const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
     const rr = document.getElementById('readyRoom'); if (rr) rr.classList.add('active');
     const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
     initDSP();
+}
+
+function returnToTitle() {
+    const rr = document.getElementById('readyRoom'); if (rr) rr.classList.remove('active');
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
+    const ts = document.getElementById('titleScreen'); if (ts) ts.classList.add('active');
+    const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active');
 }
 
 function returnToReadyRoom() {
@@ -240,25 +230,16 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 🎯 核心拍子修復：準確落喺第 1 拍！
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     const barMs = beatMs * 4;
-    
-    // Count-in 有 4 拍，所以「第 1 拍」落點正正喺第 4 拍完結嗰一刻 (4 * beatMs)
     const firstBeatOffset = 4 * beatMs;
     let lastLane = 1;
 
     for (let bar = 0; bar < 145; bar++) {
         lastLane = (lastLane + 1) % 4;
-        // 第一粒音準確落喺第一拍，其後每個 Bar 嘅第 1 拍落一粒！
-        notes.push({ 
-            type: 'tap', 
-            lane: lastLane, 
-            targetTime: firstBeatOffset + (bar * barMs), 
-            hit: false 
-        });
+        notes.push({ type: 'tap', lane: lastLane, targetTime: firstBeatOffset + (bar * barMs), hit: false });
     }
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
@@ -287,25 +268,22 @@ function handleTap(laneIndex) {
     }
 }
 
-// 🕹️ 1943 街機復古能源 Bar + 分數加大渲染
+// 🌟 1943 漸變血條 + 大字體分數
 function updateUI() {
     const scoreVal = document.getElementById('scoreVal');
     if (scoreVal) {
         scoreVal.innerText = String(score).padStart(6, '0');
-        // 分數放大醒目 Style
-        scoreVal.style.fontSize = "24px";
+        scoreVal.style.fontSize = "32px"; // 大隻字
         scoreVal.style.fontWeight = "900";
-        scoreVal.style.letterSpacing = "2px";
-        scoreVal.style.textShadow = "0 0 12px #ffcc00";
+        scoreVal.style.letterSpacing = "3px";
+        scoreVal.style.textShadow = "0 0 15px #ffcc00";
     }
 
     const hpFill = document.getElementById('hpFill');
     if (hpFill) {
         hpFill.style.width = `${hp}%`;
-        // 1943 街機能量條經典格仔紋
-        hpFill.style.background = "repeating-linear-gradient(90deg, #ff0055 0px, #ffaa00 12px, #00ffcc 24px)";
-        hpFill.style.boxShadow = "0 0 12px #00ffcc";
-        hpFill.style.height = "6px";
+        // 紅/橙/黃/綠 漸變
+        hpFill.style.background = "linear-gradient(90deg, #ff0000 0%, #ff8800 35%, #ffff00 70%, #00ff00 100%)";
     }
 
     const comboDisp = document.getElementById('comboDisplay');
@@ -329,7 +307,6 @@ function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countIn
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000;
-    // 預備拍 1-2-3-4
     [0, 1, 2, 3].forEach(b => {
         countInTimers.push(setTimeout(() => {
             if (!isPlaying || isPaused) return;
@@ -338,7 +315,6 @@ function scheduleCountInAndPlay() {
         }, (b * beatMs) / playbackSpeed));
     });
 
-    // 正好喺第 4 拍完結（即第 1 拍開始時）音樂準時起跑！
     audioStartTimer = setTimeout(() => {
         if (!isPlaying || isPaused) return;
         masterAudio.playbackRate = playbackSpeed; 
@@ -347,20 +323,20 @@ function scheduleCountInAndPlay() {
     }, (beatMs * 4) / playbackSpeed);
 }
 
-// 🎯 主循環：Canvas 幻燈片、星空與音符渲染
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 📸 戰鬥幻燈片 (每 5.5 秒優雅切換)
+    // 📸 戰鬥幻燈片 (加入變數控制透明度)
     if (preloadedSlideImages.length > 0) {
         const slideIndex = Math.floor(currentSec / 5.5);
         if (slideIndex < preloadedSlideImages.length) {
             const img = preloadedSlideImages[slideIndex];
             if (img.complete && img.naturalWidth !== 0) {
-                ctx.save(); ctx.globalAlpha = 0.45;
+                ctx.save(); 
+                ctx.globalAlpha = battleBgOpacity; // <--- 讀取 Slider 設定值
                 const r = W / H > img.width / img.height;
                 const dW = r ? W : H * (img.width / img.height);
                 const dH = r ? W / (img.width / img.height) : H;
@@ -383,12 +359,7 @@ function gameLoop() {
                 ctx.save(); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 35;
                 const px = W * p.xRatio - (progress * 40), py = H * p.yRatio + (progress * 30);
                 ctx.beginPath(); ctx.arc(px, py, p.radius, 0, Math.PI * 2); ctx.fill();
-                if (p.hasRing) {
-                    ctx.save(); ctx.translate(px, py); ctx.rotate(-0.35); ctx.strokeStyle = "rgba(240, 220, 160, 0.55)"; ctx.lineWidth = 6;
-                    ctx.beginPath(); ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
-                }
-                ctx.fillStyle = `rgba(255, 255, 255, ${Math.sin(progress * Math.PI) * 0.72})`;
-                ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif"; ctx.fillText(p.name, px - 40, py + p.radius + 20); ctx.restore();
+                ctx.restore();
             });
         }
     });
@@ -400,7 +371,6 @@ function gameLoop() {
         ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 飛行時間對齊 4 拍（剛好跟 Count-in 同步起飛）
     const beatMs = (60 / bpm) * 1000;
     const tDur = (beatMs * 4) / scrollSpeedMultiplier;
 

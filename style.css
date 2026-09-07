@@ -1,22 +1,24 @@
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; font-family: 'Zen Maru Gothic', sans-serif !important; }
 :root { --glass-opacity: 0.65; --battle-frost: 0.50; }
-body, html { width: 100vw; height: 100vh; background-color: #030305; color: #ffffff; overflow: hidden; position: fixed; }
+body, html { width: 100vw; height: 100vh; background-color: #000000; color: #ffffff; overflow: hidden; position: fixed; }
 
 #stage-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
 
-/* 🌟 三層視覺核心 CSS */
 #battleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: block; }
 
 .bg-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background-size: cover; background-position: center;
+    background-size: contain; 
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #03040a;
     z-index: 2; opacity: 0; pointer-events: none;
-    transition: opacity 0.6s ease-in-out; /* 柔和淡入淡出 */
+    transition: opacity 0.6s ease-in-out;
 }
 .bg-layer.active { opacity: 1; }
 
-.theme-title { background: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
-.theme-ready { background: radial-gradient(circle at center, #0b2e25 0%, #03040a 100%); }
+.theme-title { background-image: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
+.theme-ready { background-image: radial-gradient(circle at center, #0b2e25 0%, #03040a 100%); }
 
 .battle-glass-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -27,11 +29,12 @@ body, html { width: 100vw; height: 100vh; background-color: #030305; color: #fff
 .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; z-index: 15; display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: rgba(6, 10, 20, 0.75); backdrop-filter: blur(10px); }
 .brand-mini { font-size: 10px; color: #00ffcc; letter-spacing: 1.5px; font-weight: 900; }
 .track-info { font-size: 14px; font-weight: 900; color: #fff; text-shadow: 0 0 8px rgba(0, 255, 204, 0.7); }
-.score-board { font-size: 17px; color: #ffcc00; font-weight: 900; }
+.score-board { font-size: 28px; color: #ffcc00; font-weight: 900; }
 
 .btn-pause { padding: 6px 14px; background: rgba(255, 0, 119, 0.2); border: 1.5px solid #ff0077; color: #ff0077; font-size: 12px; font-weight: 900; border-radius: 8px; cursor: pointer; }
-.hp-bar-line { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: rgba(255, 255, 255, 0.1); }
-.hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0077, #00ffcc); box-shadow: 0 0 10px #00ffcc; }
+
+.hp-bar-line { position: absolute; bottom: 0; left: 0; width: 100%; height: 15px; background: rgba(255, 255, 255, 0.1); border-top: 1px solid rgba(0,0,0,0.5); }
+.hp-fill { width: 100%; height: 100%; box-shadow: 0 0 10px #00ffcc; transition: width 0.1s ease-out; }
 
 #judgementDisplay { position: absolute; top: 36%; left: 50%; transform: translate(-50%, -50%); font-size: 42px; font-weight: 900; color: #ffffff; opacity: 0; z-index: 6; pointer-events: none; text-shadow: 0 0 15px rgba(0, 0, 0, 0.8); }
 #comboDisplay { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 26px; font-weight: 900; color: #ffaa00; opacity: 0; z-index: 6; pointer-events: none; }
@@ -46,9 +49,11 @@ body, html { width: 100vw; height: 100vh; background-color: #030305; color: #fff
 .overlay-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; display: none; flex-direction: column; justify-content: center; align-items: center; }
 .overlay-modal.active { display: flex; }
 .glass-panel { background: rgba(5, 8, 16, var(--glass-opacity)); backdrop-filter: blur(14px); }
-.glass-card { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 18px; }
 
-.title-content { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+/* 🌟 強化選單底色，避免 100% 顯示相片時啲字隱形 */
+.glass-card { background: rgba(10, 15, 25, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 18px; }
+.title-content { display: flex; flex-direction: column; align-items: center; cursor: pointer; background: rgba(0, 0, 0, 0.4); padding: 40px; border-radius: 24px; backdrop-filter: blur(5px); }
+
 .game-logo { font-size: 46px; font-weight: 900; color: #00ffcc; text-shadow: 0 0 25px rgba(0, 255, 204, 0.8); }
 .logo-sub { font-size: 15px; color: #ffaa00; margin-top: 6px; }
 .tap-start-hint { margin-top: 35px; font-size: 15px; color: #fff; }
@@ -61,12 +66,17 @@ body, html { width: 100vw; height: 100vh; background-color: #030305; color: #fff
 .opt-btn.active { background: #00ffcc; color: #000; }
 .launch-btn { margin-top: 10px; padding: 14px; font-size: 16px; font-weight: 900; background: linear-gradient(90deg, #ff0077, #ffaa00); border: none; border-radius: 12px; color: #fff; cursor: pointer; }
 
-.btn-drawer-toggle { position: absolute; top: 16px; right: 16px; padding: 7px 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; font-size: 11px; font-weight: 900; border-radius: 8px; cursor: pointer; z-index: 60; }
+.return-btn { margin-top: 4px; padding: 12px; font-size: 14px; font-weight: 900; background: transparent; border: 1.5px solid #ffaa00; border-radius: 10px; color: #ffaa00; cursor: pointer; }
+
+.btn-drawer-toggle { position: absolute; top: 16px; right: 16px; padding: 7px 12px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; font-size: 11px; font-weight: 900; border-radius: 8px; cursor: pointer; z-index: 60; backdrop-filter: blur(4px); }
 .drawer-modal { position: absolute; top: 0; right: -330px; width: 300px; height: 100%; background: rgba(8, 12, 22, 0.95); backdrop-filter: blur(20px); border-left: 1px solid rgba(0, 255, 204, 0.35); z-index: 100; transition: right 0.35s ease; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .drawer-modal.open { right: 0; }
 .drawer-header { display: flex; justify-content: space-between; align-items: center; }
 .btn-close-drawer { background: none; border: none; color: #ff0077; font-size: 22px; cursor: pointer; }
 .custom-upload-btn { display: block; padding: 10px; text-align: center; background: rgba(255,255,255,0.05); border: 1.5px dashed #00ffcc; border-radius: 10px; color: #fff; font-size: 12px; cursor: pointer; }
+
+.custom-slider { width: 100%; accent-color: #00ffcc; margin-bottom: 10px; }
+.save-btn { margin-top: auto; padding: 14px; font-size: 16px; font-weight: 900; background: #00ffcc; border: none; border-radius: 10px; color: #000; cursor: pointer; box-shadow: 0 0 10px rgba(0, 255, 204, 0.5); }
 
 .pause-card { width: 82%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
 .pause-opt-btn { padding: 12px; background: rgba(0, 255, 204, 0.12); border: 1px solid #00ffcc; color: #00ffcc; font-size: 14px; font-weight: 900; border-radius: 10px; cursor: pointer; }
