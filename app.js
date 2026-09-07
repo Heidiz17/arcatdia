@@ -1,3 +1,7 @@
+/* =============================================================
+   🔒 Arcatdia Battle Engine - 最終完美流暢版 Part 1 (預載防死火)
+   ============================================================= */
+
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -12,7 +16,7 @@ function handleResize() {
     initStars();
 }
 window.addEventListener('resize', handleResize);
-resizeCanvas();
+handleResize();
 
 let bpm = 175;
 let isPlaying = false;
@@ -45,16 +49,25 @@ const laneColors = [
 
 let currentPerspectiveMode = 1;
 
+// 📸 預載圖片陣列，防爆 RAM、防死機
 let customSlideImages = [];
+let preloadedSlideImages = [];
 
 function handleCustomWallpaperUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     customSlideImages = [];
+    preloadedSlideImages = [];
+    
     for (let i = 0; i < files.length; i++) {
         const reader = new FileReader();
         reader.onload = function(e) {
             customSlideImages.push(e.target.result);
+            
+            const img = new Image();
+            img.src = e.target.result;
+            preloadedSlideImages.push(img);
+
             if (i === 0) {
                 const bg = document.getElementById('bgWallpaper');
                 if (bg) { bg.className = 'wallpaper-bg'; bg.style.backgroundImage = `url(${e.target.result})`; }
@@ -82,7 +95,6 @@ let currentSong = songDatabase[0];
 const masterAudio = new Audio();
 masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
 masterAudio.preload = "auto";
-masterAudio.load();
 bpm = currentSong.bpm;
 
 function initCelestialJourney() {
@@ -211,6 +223,10 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mouseup', release);
     }
 }
+/* =============================================================
+   🔒 Arcatdia Battle Engine - 最終完美流暢版 Part 2 (零負擔幻燈片)
+   ============================================================= */
+
 function pauseGame() {
     if (!isPlaying || isPaused) return;
     isPaused = true;
@@ -333,20 +349,31 @@ function gameLoop() {
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 📸 幻燈片輪播背景（每 5.5 秒切換一張，播完變黑夜星空）
-    if (customSlideImages.length > 0) {
+    // 📸 1. 預載幻燈片繪製（零卡頓、每 5.5 秒輪播）
+    if (preloadedSlideImages.length > 0) {
         const slideIndex = Math.floor(currentSec / 5.5);
-        if (slideIndex < customSlideImages.length) {
-            ctx.save();
-            const img = new Image();
-            img.src = customSlideImages[slideIndex];
-            ctx.globalAlpha = 0.35;
-            ctx.drawImage(img, 0, 0, W, H);
-            ctx.restore();
+        if (slideIndex < preloadedSlideImages.length) {
+            const img = preloadedSlideImages[slideIndex];
+            if (img.complete && img.naturalWidth !== 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.35;
+                const imgRatio = img.width / img.height;
+                const screenRatio = W / H;
+                let drawW = W, drawH = H, drawX = 0, drawY = 0;
+                if (screenRatio > imgRatio) {
+                    drawH = W / imgRatio;
+                    drawY = (H - drawH) / 2;
+                } else {
+                    drawW = H * imgRatio;
+                    drawX = (W - drawW) / 2;
+                }
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                ctx.restore();
+            }
         }
     }
 
-    // 星星背景
+    // 🎯 2. 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.beginPath();
@@ -356,7 +383,7 @@ function gameLoop() {
         if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    // 太陽系星球航行
+    // 🎯 3. 太陽系經典星球航行
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -392,6 +419,7 @@ function gameLoop() {
         }
     });
 
+    // 🎯 4. 判定軌道
     const hitZoneY = H - 185;
     const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
@@ -408,6 +436,52 @@ function gameLoop() {
         ctx.beginPath();
         ctx.arc(botX[i], hitZoneY, 22, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // 🎯 5. 音符渲染
+    const beatMs = (60 / bpm) * 1000;
+    const travelDuration = (beatMs * 2) / scrollSpeedMultiplier;
+
+    notes.forEach(note => {
+        if (note.hit) return;
+        const timeTillHit = note.targetTime - currentTimeMs;
+        const rawProgress = 1.0 - (timeTillHit / travelDuration);
+
+        if (rawProgress > 0 && rawProgress < 1.15) {
+            const currentX = botX[note.lane];
+            const currentY = 20 + (hitZoneY - 20) * rawProgress;
+
+            ctx.fillStyle = laneColors[note.lane].main;
+            ctx.shadowColor = laneColors[note.lane].main;
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (rawProgress > 1.08 && !note.hit) {
+            note.hit = true;
+            combo = 0;
+            hp = Math.max(0, hp - 5);
+            showJudgement("MISS");
+            updateUI();
+        }
+    });
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.05;
+        if (p.alpha <= 0) particles.splice(i, 1);
     }
 
     requestAnimationFrame(gameLoop);
