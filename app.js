@@ -1,398 +1,512 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.6 - Part 1 (Planets & Glow Core)
+   🔒 Arcatdia Battle Engine v5.3 - Part 1 (太陽系全星際航行)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 
-let W = window.innerWidth;
-let H = window.innerHeight;
-
-function handleResize() {
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.width = W;
-    canvas.height = H;
-    initStars();
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 }
-window.addEventListener('resize', handleResize);
-window.addEventListener('orientationchange', () => { setTimeout(handleResize, 150); });
-handleResize();
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 let bpm = 175;
 let isPlaying = false;
-let isPaused = false;
 let score = 0;
 let combo = 0;
 let hp = 100;
 let notes = [];
 let particles = [];
 let stars = [];
-let celestialEvents = []; // 🌍 星球事件陣列
+let celestialEvents = [];
 let startTime = 0;
-let pauseStartTime = 0;
-let totalPausedDuration = 0;
 
 let playbackSpeed = 1.0;
 let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'easy';
 
-let inputOffsetMs = parseInt(localStorage.getItem('arcatdia_offset_ms') || "0", 10);
+const judgeLineOffsets = [165, 185, 205, 225];
+let judgeLineLevel = 1; 
 
-function getJudgeLineY() {
-    const isLandscape = W > H;
-    return H - (isLandscape ? 130 : 210);
-}
-
-// 🎯 紀錄四條軌道有冇被撳住，用嚟發光
 const lanePressed = [false, false, false, false];
 
 const laneColors = [
-    { main: "#ff2a6d", border: "#ffffff", glow: "rgba(255, 42, 109, 0.85)", trackGlow: "rgba(255, 42, 109, 0.45)" },
-    { main: "#05d9e8", border: "#ffffff", glow: "rgba(5, 217, 232, 0.85)", trackGlow: "rgba(5, 217, 232, 0.45)" },
-    { main: "#ffb703", border: "#ffffff", glow: "rgba(255, 183, 3, 0.85)", trackGlow: "rgba(255, 183, 3, 0.45)" },
-    { main: "#b5179e", border: "#ffffff", glow: "rgba(181, 23, 158, 0.85)", trackGlow: "rgba(181, 23, 158, 0.45)" }
+    { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
+    { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
+    { main: "#00ccff", glow: "rgba(0, 204, 255, 0.8)" },
+    { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-const songDatabase = [{ id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 }];
-let currentSong = songDatabase[0];
-const masterAudio = new Audio();
-masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
-masterAudio.preload = "auto";
-masterAudio.load();
-bpm = currentSong.bpm;
+let currentPerspectiveMode = 1;
 
-let bgmVolume = 0.70;
-let seVolume = 1.30;
-
-function updateBgmVolume(val) {
-    bgmVolume = val / 100;
-    masterAudio.volume = bgmVolume;
-    const disp = document.getElementById('bgmVolVal');
-    if (disp) disp.innerText = `${val}%`;
-}
-
-function updateSeVolume(val) {
-    seVolume = val / 100;
-    if (masterDspGain) masterDspGain.gain.value = seVolume;
-    const disp = document.getElementById('seVolVal');
-    if (disp) disp.innerText = `${val}%`;
-}
-
-function updateGlassOpacity(val) {
-    const opacity = val / 100;
-    document.documentElement.style.setProperty('--glass-opacity', opacity);
-    document.documentElement.style.setProperty('--battle-frost', (opacity * 0.75).toFixed(2));
-    const disp = document.getElementById('glassOpacityVal');
-    if (disp) disp.innerText = `${val}%`;
-}
-
-function toggleWallpaperDrawer() {
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.toggle('open');
-}
-
-function handleCustomWallpaperUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const customUrl = e.target.result;
-        const bg = document.getElementById('bgWallpaper');
-        if (bg) { bg.className = 'wallpaper-bg'; bg.style.backgroundImage = `url(${customUrl})`; }
-        document.querySelectorAll('.wp-card').forEach(c => c.classList.remove('active'));
-        try { localStorage.setItem('arcatdia_custom_bg', customUrl); } catch(err) {}
-    };
-    reader.readAsDataURL(file);
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('arcatdia_custom_bg');
-    if (saved) {
-        const bg = document.getElementById('bgWallpaper');
-        if (bg) { bg.className = 'wallpaper-bg'; bg.style.backgroundImage = `url(${saved})`; }
+function togglePerspectiveMode() {
+    currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1;
+    const btn = document.getElementById('modeToggleBtn');
+    if (btn) {
+        btn.innerText = currentPerspectiveMode === 1 ? "🏊 2D 直軌" : "🚀 3D 尖角";
     }
-});
+}
 
-function changeWallpaper(theme) {
-    const bg = document.getElementById('bgWallpaper');
-    if (bg) { bg.style.backgroundImage = ''; bg.className = `wallpaper-bg theme-${theme}`; }
-    localStorage.removeItem('arcatdia_custom_bg');
-    document.querySelectorAll('.wp-card').forEach(c => c.classList.remove('active'));
-    const target = document.getElementById(`wp-${theme}`);
-    if (target) target.classList.add('active');
+function chooseDifficultyAndStart(mode) {
+    currentMode = mode;
+    const mask = document.getElementById('startMask');
+    if (mask) mask.style.display = 'none';
+
+    const info = document.getElementById('hudTrackInfo');
+    if (info) {
+        if (currentMode === 'easy') info.innerText = "01_EASY (星際巡航)";
+        else if (currentMode === 'normal') info.innerText = "01_NORMAL (正音連動)";
+        else info.innerText = "01_TEST (校準場)";
+    }
+
+    updateHeaderButtons();
+    togglePlay();
+}
+
+function restartSong() {
+    clearAllTimers();
+    pauseAllAudio();
+    isPlaying = false;
+
+    score = 0;
+    combo = 0;
+    hp = 100;
+    firstNoteBornTime = null;
+    firstNoteHitTime = null;
+    recordedTravelTime = "--";
+    updateUI();
+
+    showJudgement("🔄 RESTART!");
+
+    isPlaying = true;
+    initCelestialJourney();
+    generateChart();
+    startTime = performance.now();
+    scheduleCountInAndPlay();
+
+    const playBtn = document.getElementById('mainPlayBtn');
+    if (playBtn) playBtn.innerText = "⏸ PAUSE";
+
+    requestAnimationFrame(gameLoop);
+}
+
+function toggleSpeedButton() {
+    if (currentMode === 'test') {
+        const speeds = [1.0, 0.8, 0.6, 0.5];
+        let idx = speeds.indexOf(playbackSpeed);
+        if (idx === -1) idx = 0;
+        playbackSpeed = speeds[(idx + 1) % speeds.length];
+        
+        Object.keys(audioElements).forEach(key => {
+            audioElements[key].playbackRate = playbackSpeed;
+        });
+        showJudgement(`歌曲慢速: ${playbackSpeed.toFixed(1)}x`);
+    } else {
+        const scrollMultipliers = [1.0, 1.5, 2.0, 0.7];
+        let idx = scrollMultipliers.indexOf(scrollSpeedMultiplier);
+        if (idx === -1) idx = 0;
+        scrollSpeedMultiplier = scrollMultipliers[(idx + 1) % scrollMultipliers.length];
+        showJudgement(`流速: ${scrollSpeedMultiplier.toFixed(1)}x`);
+    }
+    updateHeaderButtons();
+}
+
+function updateHeaderButtons() {
+    const speedBtn = document.getElementById('speedToggleBtn');
+    if (speedBtn) {
+        if (currentMode === 'test') {
+            speedBtn.innerText = `🎵 ${playbackSpeed.toFixed(1)}x`;
+            speedBtn.style.color = "#00ffcc";
+            speedBtn.style.borderColor = "#00ffcc";
+        } else {
+            speedBtn.innerText = `🚀 ${scrollSpeedMultiplier.toFixed(1)}x`;
+            speedBtn.style.color = "#ffaa00";
+            speedBtn.style.borderColor = "#ffaa00";
+        }
+    }
+
+    let restartBtn = document.getElementById('restartToggleBtn');
+    if (!restartBtn) {
+        const container = document.querySelector('.hud-buttons');
+        if (container) {
+            restartBtn = document.createElement('button');
+            restartBtn.id = 'restartToggleBtn';
+            restartBtn.className = 'btn-panel';
+            restartBtn.style.borderColor = '#ffaa00';
+            restartBtn.style.color = '#ffaa00';
+            restartBtn.innerText = '🔄 重玩';
+            restartBtn.onclick = restartSong;
+            container.insertBefore(restartBtn, container.firstChild);
+        }
+    }
+}
+
+function toggleJudgeLineLevel() {
+    judgeLineLevel = (judgeLineLevel + 1) % judgeLineOffsets.length;
+    showJudgement(`線位: LV ${judgeLineLevel + 1}`);
+}
+
+function initStars() {
+    stars = [];
+    for (let i = 0; i < 80; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 1.5 + 0.5,
+            alpha: Math.random()
+        });
+    }
+}
+initStars();
+
+// 🎯 太陽系全序列時間軸：地球 -> 金星 -> 木土雙星 -> 天海雙星 -> 冥王星 -> 星雲 -> 貓星
+function initCelestialJourney() {
+    celestialEvents = [
+        // 1. 地球起航
+        {
+            timeSec: 2, duration: 8,
+            planets: [
+                { name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }
+            ]
+        },
+        // 2. 金星
+        {
+            timeSec: 25, duration: 8,
+            planets: [
+                { name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }
+            ]
+        },
+        // 3. 木星 ＆ 土星 (雙星同現，土星帶環)
+        {
+            timeSec: 52, duration: 11,
+            planets: [
+                { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 },
+                { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true }
+            ]
+        },
+        // 4. 天王星 ＆ 海王星 (冰巨星雙子)
+        {
+            timeSec: 88, duration: 11,
+            planets: [
+                { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.32)", radius: 52, xRatio: 0.62, yRatio: 0.20 },
+                { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.35)", radius: 50, xRatio: 0.80, yRatio: 0.25 }
+            ]
+        },
+        // 5. 冥王星邊緣
+        {
+            timeSec: 122, duration: 9,
+            planets: [
+                { name: "❄️ 冥王星冰界", color: "rgba(195, 220, 240, 0.28)", radius: 42, xRatio: 0.72, yRatio: 0.22 }
+            ]
+        },
+        // 6. 阿卡迪亞星雲門
+        {
+            timeSec: 148, duration: 12,
+            planets: [
+                { name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }
+            ]
+        },
+        // 7. 抵達：阿卡迪亞貓星
+        {
+            timeSec: 175, duration: 25,
+            planets: [
+                { name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }
+            ]
+        }
+    ];
 }
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
-let masterDspGain = null;
 
 function initDSP() {
     try {
-        if (!dspCtx) {
-            dspCtx = new AudioContextClass();
-            masterDspGain = dspCtx.createGain();
-            masterDspGain.gain.value = seVolume;
-            masterDspGain.connect(dspCtx.destination);
-        }
+        if (!dspCtx) dspCtx = new AudioContextClass();
         if (dspCtx.state === 'suspended') dspCtx.resume();
     } catch (e) {}
 }
 
-function playFastHitSound() {
-    if (!dspCtx || !masterDspGain) return;
+function playHiHatHitSound() {
+    if (!dspCtx) return;
     try {
-        const now = dspCtx.currentTime;
-        const snapOsc = dspCtx.createOscillator();
-        const snapGain = dspCtx.createGain();
-        snapOsc.type = 'sine';
-        snapOsc.frequency.setValueAtTime(2800, now);
-        snapOsc.frequency.exponentialRampToValueAtTime(950, now + 0.04);
-        snapGain.gain.setValueAtTime(0.8, now);
-        snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        snapOsc.connect(snapGain);
-        snapGain.connect(masterDspGain);
-        snapOsc.start(now);
-        snapOsc.stop(now + 0.04);
+        const bufferSize = dspCtx.sampleRate * 0.03;
+        const buffer = dspCtx.createBuffer(1, bufferSize, dspCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = dspCtx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = dspCtx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 7500;
+
+        const gain = dspCtx.createGain();
+        gain.gain.setValueAtTime(0.5, dspCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, dspCtx.currentTime + 0.03);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(dspCtx.destination);
+
+        noise.start();
     } catch (e) {}
 }
 
-function playStickClick(freq = 1400) {
-    if (!dspCtx || !masterDspGain) return;
+function playStickClick(freq = 1200) {
+    if (!dspCtx) return;
     try {
-        const now = dspCtx.currentTime;
         const osc = dspCtx.createOscillator();
         const gain = dspCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.frequency.setValueAtTime(freq, dspCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.8, dspCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04);
+
         osc.connect(gain);
-        gain.connect(masterDspGain);
-        osc.start(now);
-        osc.stop(now + 0.04);
+        gain.connect(dspCtx.destination);
+
+        osc.start();
+        osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
 
-function goToReadyRoom() {
-    const t = document.getElementById('titleScreen');
-    if (t) t.classList.remove('active');
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.add('active');
-    initDSP();
+function createHitParticles(x, y, color) {
+    if (particles.length > 30) particles.splice(0, 10);
+    for (let i = 0; i < 8; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        particles.push({
+            x: x, y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: Math.random() * 4 + 2,
+            color: color, alpha: 1.0
+        });
+    }
 }
 
-function selectDifficulty(mode) {
-    currentMode = mode;
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.getElementById(`btnDiff${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
-    if (btn) btn.classList.add('active');
+const stemFiles = {
+    drums: "最大の愛(original jp)_drums_mixed.mp3",
+    guitars: "最大の愛(original jp)_guitars_mixed.mp3",
+    piano: "最大の愛(original jp)_piano_mixed.mp3",
+    bass: "最大の愛(original jp)_bass_mixed.mp3",
+    vocals: "最大の愛(original jp)_vocals_mixed.mp3",
+    other: "最大の愛(original jp)_other_mixed.mp3"
+};
+
+const audioElements = {};
+Object.keys(stemFiles).forEach(key => {
+    const audio = new Audio();
+    audio.src = stemFiles[key];
+    audio.preload = "auto";
+    audioElements[key] = audio;
+});
+
+function getNextLane(lastLane) {
+    let next = Math.floor(Math.random() * 4);
+    while (next === lastLane) {
+        next = Math.floor(Math.random() * 4);
+    }
+    return next;
 }
 
-function setSpeed(speedVal) {
-    scrollSpeedMultiplier = speedVal;
-    document.querySelectorAll('.speed-btn').forEach(b => {
-        b.classList.remove('active');
-        if (b.innerText === `${speedVal.toFixed(1)}x`) b.classList.add('active');
-    });
+function generateChart() {
+    notes = [];
+    particles = [];
+    const beatMs = (60 / bpm) * 1000; // ~342.8ms
+    const barMs = beatMs * 4;         // 1371.4ms
+    const firstHitTime = barMs; 
+    const totalBars = 145;            
+    const holdDuration = beatMs * 0.5;
+
+    let lastLane = 1;
+
+    if (currentMode === 'test') {
+        for (let i = 0; i < totalBars; i++) {
+            notes.push({
+                type: 'tap',
+                lane: 1, 
+                targetTime: firstHitTime + (i * barMs),
+                hit: false
+            });
+        }
+    } else if (currentMode === 'easy') {
+        for (let bar = 0; bar < totalBars; bar++) {
+            const barStart = firstHitTime + (bar * barMs);
+            const roll = Math.random();
+
+            if (roll < 0.55) {
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+            } else if (roll < 0.8) {
+                lastLane = getNextLane(lastLane);
+                notes.push({ 
+                    type: 'hold', lane: lastLane, 
+                    targetTime: barStart, duration: holdDuration, 
+                    holding: false, hit: false, lastTick: 0 
+                });
+            } else {
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
+            }
+        }
+    } else if (currentMode === 'normal') {
+        for (let bar = 0; bar < totalBars; bar++) {
+            const barStart = firstHitTime + (bar * barMs);
+            const roll = Math.random();
+
+            if (roll < 0.6) {
+                for (let b = 0; b < 4; b++) {
+                    lastLane = getNextLane(lastLane);
+                    notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * b), hit: false });
+                }
+            } else if (roll < 0.85) {
+                lastLane = getNextLane(lastLane);
+                notes.push({ 
+                    type: 'hold', lane: lastLane, 
+                    targetTime: barStart, duration: holdDuration, 
+                    holding: false, hit: false, lastTick: 0 
+                });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 3), hit: false });
+            } else {
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart, hit: false });
+
+                lastLane = getNextLane(lastLane);
+                notes.push({ type: 'tap', lane: lastLane, targetTime: barStart + (beatMs * 2), hit: false });
+            }
+        }
+    }
+
+    notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// 🌍 回歸：初始化阿卡迪亞星際航程！
-function initCelestialJourney() {
-    celestialEvents = [
-        { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.28)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] },
-        { timeSec: 25, duration: 8, planets: [{ name: "🌟 金星晨曦", color: "rgba(255, 205, 80, 0.28)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] },
-        { timeSec: 52, duration: 11, planets: [
-            { name: "🪐 木星", color: "rgba(235, 140, 60, 0.28)", radius: 75, xRatio: 0.60, yRatio: 0.18 },
-            { name: "🪐 土星環", color: "rgba(240, 210, 140, 0.28)", radius: 52, xRatio: 0.82, yRatio: 0.26, hasRing: true }
-        ]},
-        { timeSec: 88, duration: 11, planets: [
-            { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.28)", radius: 50, xRatio: 0.62, yRatio: 0.20 },
-            { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.30)", radius: 48, xRatio: 0.80, yRatio: 0.25 }
-        ]},
-        { timeSec: 122, duration: 9, planets: [{ name: "❄️ 冥王星界", color: "rgba(195, 220, 240, 0.25)", radius: 40, xRatio: 0.72, yRatio: 0.22 }] },
-        { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.32)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] },
-        { timeSec: 175, duration: 25, planets: [{ name: "🐾 降落：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.40)", radius: 115, xRatio: 0.68, yRatio: 0.18 }] }
-    ];
-}
-
-function startVoyage() {
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.remove('active');
-
-    const hud = document.getElementById('battleHud');
-    if (hud) hud.style.display = 'flex';
-    const touch = document.getElementById('touchController');
-    if (touch) touch.style.display = 'flex';
-
-    const info = document.getElementById('hudTrackInfo');
-    if (info) info.innerText = `${currentSong.title} (${currentMode.toUpperCase()})`;
-    
-    score = 0; combo = 0; hp = 100;
-    totalPausedDuration = 0;
-    updateUI();
-    initStars();
-    initCelestialJourney(); // 🌍 呼叫星球事件
-    generateChart();
-    
-    isPlaying = true;
-    isPaused = false;
-    startTime = performance.now();
-    scheduleCountInAndPlay();
-    requestAnimationFrame(gameLoop);
-}
-
-// 🎯 觸控綁定（加入連動軌道發光紀錄）
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
-        const press = (e) => {
+        laneBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             laneBtn.classList.add('pressed');
-            lanePressed[i] = true; // 記錄被撳住，畀軌道發光用
-            initDSP();
-            playFastHitSound();
+            lanePressed[i] = true;
+            playHiHatHitSound();
             handleTap(i);
-        };
-        const release = (e) => {
+        });
+        const handleTouchRelease = (e) => {
             e.preventDefault();
             laneBtn.classList.remove('pressed');
-            lanePressed[i] = false; // 放手
+            lanePressed[i] = false;
             handleRelease(i);
         };
-        laneBtn.addEventListener('touchstart', press, { passive: false });
-        laneBtn.addEventListener('touchend', release, { passive: false });
-        laneBtn.addEventListener('touchcancel', release, { passive: false });
-        laneBtn.addEventListener('mousedown', press);
-        laneBtn.addEventListener('mouseup', release);
-        laneBtn.addEventListener('mouseleave', release);
+        laneBtn.addEventListener('touchend', handleTouchRelease);
+        laneBtn.addEventListener('touchcancel', handleTouchRelease);
+
+        laneBtn.addEventListener('mousedown', () => {
+            laneBtn.classList.add('pressed');
+            lanePressed[i] = true;
+            playHiHatHitSound();
+            handleTap(i);
+        });
+        laneBtn.addEventListener('mouseup', () => {
+            laneBtn.classList.remove('pressed');
+            lanePressed[i] = false;
+            handleRelease(i);
+        });
+        laneBtn.addEventListener('mouseleave', () => {
+            if (lanePressed[i]) {
+                laneBtn.classList.remove('pressed');
+                lanePressed[i] = false;
+                handleRelease(i);
+            }
+        });
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.6 - Part 2 (Planets & Glow Render)
+   🔒 Arcatdia Battle Engine v5.3 - Part 2 (雙星同現繪製循環)
    ============================================================= */
 
-function pauseGame() {
-    if (!isPlaying || isPaused) return;
-    isPaused = true;
-    pauseStartTime = performance.now();
-    masterAudio.pause();
-    clearAllTimers();
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.add('active');
-}
+let countInTimers = [];
+let audioStartTimer = null;
 
-function resumeGame() {
-    if (!isPaused) return;
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-
-    const pauseElapsed = performance.now() - pauseStartTime;
-    totalPausedDuration += pauseElapsed;
-    isPaused = false;
-    masterAudio.play().catch(() => {});
-    requestAnimationFrame(gameLoop);
-}
-
-function restartFromPause() {
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-    isPaused = false;
-    startVoyage();
-}
-
-function returnToReadyRoom() {
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-
-    const hud = document.getElementById('battleHud');
-    if (hud) hud.style.display = 'none';
-    const touch = document.getElementById('touchController');
-    if (touch) touch.style.display = 'none';
-
-    isPaused = false;
-    isPlaying = false;
-    masterAudio.pause();
-    masterAudio.currentTime = 0;
-    clearAllTimers();
-    ctx.clearRect(0, 0, W, H);
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.add('active');
-}
+let firstNoteBornTime = null;
+let firstNoteHitTime = null;
+let recordedTravelTime = "--";
 
 function handleTap(laneIndex) {
-    if (!isPlaying || isPaused) return;
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed + inputOffsetMs;
-    
-    // 🎯 修正打擊判定（Target Y 同碗底完美對齊）
-    const hitZoneY = getJudgeLineY();
-    const bowlDepth = 24;
-    const laneCenterDist = Math.abs(laneIndex - 1.5);
-    const laneArcDrop = (1.5 - laneCenterDist) * (bowlDepth * 0.7);
-    const preciseHitTargetY = hitZoneY + laneArcDrop;
-
-    const botTrackWidth = (W > H) ? W * 0.88 : W * 0.94;
-    const botStartX = (W - botTrackWidth) / 2;
-    const laneBotW = botTrackWidth / 4;
-    const targetX = botStartX + laneBotW * laneIndex + (laneBotW / 2);
-
+    if (!isPlaying) return;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+    const W = canvas.width;
+    const laneW = W / 4;
+    const currentHitY = canvas.height - judgeLineOffsets[judgeLineLevel];
+    const targetX = laneW * laneIndex + (laneW / 2);
     const laneColor = laneColors[laneIndex].main;
+
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
 
     if (targetNote) {
-        const timeDiff = currentTimeMs - targetNote.targetTime;
-        const absDiff = Math.abs(timeDiff);
+        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
+
+        if (targetNote === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
+            firstNoteHitTime = currentTimeMs;
+            recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+        }
 
         if (targetNote.type === 'hold') {
-            if (absDiff < 280) {
+            if (timeDiff < 260) {
                 targetNote.holding = true;
                 targetNote.lastTick = currentTimeMs;
-                score += 500; combo++;
+                score += 500;
+                combo++;
                 showJudgement("HOLD!");
-                createHitParticles(targetX, preciseHitTargetY, laneColor);
+                createHitParticles(targetX, currentHitY, laneColor);
                 updateUI();
             }
         } else {
-            if (absDiff <= 85) {
+            if (timeDiff < 180) {
                 targetNote.hit = true;
-                score += 1000; combo++;
+                score += 1000;
+                combo++;
                 hp = Math.min(100, hp + 2);
-                showJudgement(timeDiff < -30 ? "FAST PERFECT" : (timeDiff > 30 ? "LATE PERFECT" : "PERFECT!"));
-                createHitParticles(targetX, preciseHitTargetY, "#ffffff");
-                updateUI();
-            } else if (absDiff <= 145) {
+                showJudgement("PERFECT!");
+                createHitParticles(targetX, currentHitY, "#ffffff");
+            } else if (timeDiff < 320) {
                 targetNote.hit = true;
-                score += 700; combo++;
-                showJudgement(timeDiff < 0 ? "FAST GREAT" : "LATE GREAT");
-                createHitParticles(targetX, preciseHitTargetY, "#ffaa00");
-                updateUI();
-            } else if (absDiff <= 210) {
-                targetNote.hit = true;
-                score += 400; combo++;
-                showJudgement(timeDiff < 0 ? "FAST GOOD" : "LATE GOOD");
-                createHitParticles(targetX, preciseHitTargetY, "#00ffcc");
-                updateUI();
+                score += 500;
+                combo++;
+                showJudgement("GREAT");
+                createHitParticles(targetX, currentHitY, "#ffaa00");
             }
+            updateUI();
         }
     }
 }
 
 function handleRelease(laneIndex) {
-    if (!isPlaying || isPaused) return;
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed + inputOffsetMs;
+    if (!isPlaying) return;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
+
     const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
     if (holdingNote) {
         const endTime = holdingNote.targetTime + holdingNote.duration;
         if (currentTimeMs < endTime - 80) {
             holdingNote.holding = false;
             holdingNote.hit = true;
-            combo = 0; hp = Math.max(0, hp - 4);
+            combo = 0;
+            hp = Math.max(0, hp - 4);
             showJudgement("BREAK!");
             updateUI();
         }
@@ -402,8 +516,10 @@ function handleRelease(laneIndex) {
 function updateUI() {
     const scoreElem = document.getElementById('scoreVal');
     if (scoreElem) scoreElem.innerText = String(score).padStart(6, '0');
+    
     const hpFill = document.getElementById('hpFill');
     if (hpFill) hpFill.style.width = `${hp}%`;
+    
     const comboDisp = document.getElementById('comboDisplay');
     if (comboDisp && combo > 1) {
         comboDisp.innerText = `${combo} COMBO`;
@@ -415,23 +531,49 @@ function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
     if (disp) {
         disp.innerText = text;
-        disp.style.color = text.includes("PERFECT") ? "#ffffff" : (text.includes("BREAK") || text === "MISS" ? "#ff0055" : "#ffd700");
+        if (text === "PERFECT!") {
+            disp.style.color = "#ffffff";
+            disp.style.textShadow = "0 0 10px #fff, 0 0 25px #ffd700, 0 0 45px #ffaa00";
+        } else if (text === "GREAT" || text === "HOLD!") {
+            disp.style.color = "#ffd700";
+            disp.style.textShadow = "0 0 15px rgba(255, 215, 0, 0.8)";
+        } else if (text.includes("RESTART")) {
+            disp.style.color = "#00ffcc";
+            disp.style.textShadow = "0 0 20px #00ffcc";
+        } else {
+            disp.style.color = "#ff0055";
+            disp.style.textShadow = "0 0 15px rgba(255, 0, 85, 0.8)";
+        }
         disp.style.opacity = '1';
         disp.style.transform = 'translate(-50%, -50%) scale(1.15)';
         setTimeout(() => { 
             disp.style.opacity = '0'; 
             disp.style.transform = 'translate(-50%, -50%) scale(1.0)';
-        }, 280);
+        }, 320);
     }
 }
 
-let countInTimers = [];
-let audioStartTimer = null;
+function playAllAudio() {
+    Object.keys(audioElements).forEach(key => {
+        audioElements[key].playbackRate = playbackSpeed;
+        audioElements[key].currentTime = 0;
+        audioElements[key].play().catch(() => {});
+    });
+}
+
+function pauseAllAudio() {
+    Object.keys(audioElements).forEach(key => {
+        audioElements[key].pause();
+    });
+}
 
 function clearAllTimers() {
     countInTimers.forEach(t => clearTimeout(t));
     countInTimers = [];
-    if (audioStartTimer) { clearTimeout(audioStartTimer); audioStartTimer = null; }
+    if (audioStartTimer) {
+        clearTimeout(audioStartTimer);
+        audioStartTimer = null;
+    }
 }
 
 function scheduleCountInAndPlay() {
@@ -441,8 +583,8 @@ function scheduleCountInAndPlay() {
 
     [0, 1, 2, 3].forEach(b => {
         const t = setTimeout(() => {
-            if (!isPlaying || isPaused) return;
-            playStickClick(b === 3 ? 1800 : 1300);
+            if (!isPlaying) return;
+            playStickClick(b === 3 ? 1800 : 1200);
             showJudgement(`${b + 1}`);
         }, (b * beatMs) / playbackSpeed);
         countInTimers.push(t);
@@ -452,243 +594,250 @@ function scheduleCountInAndPlay() {
     const playDelay = Math.max(0, totalLeadMs - airGapOffset);
 
     audioStartTimer = setTimeout(() => {
-        if (!isPlaying || isPaused) return;
-        masterAudio.playbackRate = playbackSpeed;
-        masterAudio.currentTime = 0;
-        masterAudio.play().catch(() => {});
+        if (!isPlaying) return;
+        playAllAudio();
     }, playDelay / playbackSpeed);
 }
 
-// 🎯 重新設定：嚴格區分 TEST (全音符校機)、EASY (2拍/4拍)、NORMAL (1拍/2拍)
-function generateChart() {
-    notes = [];
-    particles = [];
-    const beatMs = (60 / bpm) * 1000;      
-    const firstHitTime = beatMs * 4;       
-    let lastLane = 1;
-
-    if (currentMode === 'test') {
-        // 🛠️ TEST 調整場：嚴格 64 粒全音符（每 4 拍一粒）
-        for (let bar = 0; bar < 64; bar++) {
-            const targetTime = firstHitTime + (bar * beatMs * 4); 
-            lastLane = (lastLane + 1) % 4;
-            notes.push({ type: 'tap', lane: lastLane, targetTime: targetTime, hit: false });
-        }
-    } 
-    else if (currentMode === 'easy') {
-        // 🌱 EASY 場：只有全音符(4拍) 同 二分音符(2拍)
-        let currentBeat = 0;
-        while(currentBeat < 500) { 
-            const targetTime = firstHitTime + (currentBeat * beatMs);
-            lastLane = (lastLane + 1) % 4;
-            notes.push({ type: 'tap', lane: lastLane, targetTime: targetTime, hit: false });
-            currentBeat += (Math.random() < 0.5) ? 2 : 4;
-        }
-    } 
-    else {
-        // 🔥 NORMAL 場：四分音符(1拍)、二分音符(2拍) 同 Hold
-        let currentBeat = 0;
-        const holdDuration = beatMs * 1.5;
-        while(currentBeat < 500) {
-            const targetTime = firstHitTime + (currentBeat * beatMs);
-            const roll = Math.random();
-            lastLane = (lastLane + 1) % 4;
-            
-            if (roll < 0.6) {
-                notes.push({ type: 'tap', lane: lastLane, targetTime: targetTime, hit: false });
-                currentBeat += 1; 
-            } else if (roll < 0.85) {
-                notes.push({ type: 'tap', lane: lastLane, targetTime: targetTime, hit: false });
-                currentBeat += 2; 
-            } else {
-                notes.push({ type: 'hold', lane: lastLane, targetTime: targetTime, duration: holdDuration, holding: false, hit: false, lastTick: 0 });
-                currentBeat += 2; 
-            }
-        }
-    }
-    notes.sort((a, b) => a.targetTime - b.targetTime);
-}
-
-function initStars() {
-    stars = [];
-    for (let i = 0; i < 70; i++) {
-        stars.push({
-            x: Math.random() * W,
-            y: Math.random() * H,
-            size: Math.random() * 2 + 1,
-            speed: Math.random() * 1.5 + 0.5,
-            alpha: Math.random()
-        });
+function togglePlay() {
+    initDSP();
+    const playBtn = document.getElementById('mainPlayBtn');
+    if (!isPlaying) {
+        isPlaying = true;
+        score = 0;
+        combo = 0;
+        hp = 100;
+        firstNoteBornTime = null;
+        firstNoteHitTime = null;
+        recordedTravelTime = "--";
+        updateUI();
+        initCelestialJourney();
+        generateChart();
+        startTime = performance.now();
+        scheduleCountInAndPlay();
+        if (playBtn) playBtn.innerText = "⏸ PAUSE";
+        requestAnimationFrame(gameLoop);
+    } else {
+        isPlaying = false;
+        clearAllTimers();
+        pauseAllAudio();
+        if (playBtn) playBtn.innerText = "▶ PLAY";
     }
 }
 
-function createHitParticles(x, y, color) {
-    if (particles.length > 25) particles.splice(0, 8);
-    for (let i = 0; i < 6; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 5 + 2;
-        particles.push({
-            x: x, y: y,
-            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            size: Math.random() * 3 + 2, color: color, alpha: 1.0
-        });
-    }
-}
-
-// 🎯 主渲染循環
 function gameLoop() {
-    if (!isPlaying || isPaused) return;
-    ctx.clearRect(0, 0, W, H);
+    if (!isPlaying) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
+    const currentTimeMs = (performance.now() - startTime) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
-    const hitZoneY = getJudgeLineY();
-    const startY = 30;
 
+    // 🎯 1. 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-        ctx.fillRect(s.x, s.y, s.size, s.size);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+
         s.y += s.speed * (playbackSpeed * 1.5);
-        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+        if (s.y > canvas.height) {
+            s.y = 0;
+            s.x = Math.random() * canvas.width;
+        }
     });
 
-    // 🌍 繪製星球 (輕量版，防 Hang 機)
+    // 🎯 2. 行星事件渲染：支援單星、雙星同現及土星環
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
             const alpha = Math.sin(progress * Math.PI) * 0.40;
+
             evt.planets.forEach(p => {
                 ctx.save();
                 ctx.fillStyle = p.color;
-                const px = W * p.xRatio - (progress * 40);
-                const py = H * p.yRatio + (progress * 30);
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 45;
+
+                const px = canvas.width * p.xRatio - (progress * 40);
+                const py = canvas.height * p.yRatio + (progress * 30);
+
+                // 畫星體本體
                 ctx.beginPath();
                 ctx.arc(px, py, p.radius, 0, Math.PI * 2);
                 ctx.fill();
 
+                // 🪐 如果有土星環，額外畫出光環斜橢圓
                 if (p.hasRing) {
                     ctx.save();
                     ctx.translate(px, py);
                     ctx.rotate(-0.35);
-                    ctx.strokeStyle = "rgba(240, 220, 160, 0.35)"; 
-                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = "rgba(240, 220, 160, 0.55)";
+                    ctx.lineWidth = 6;
                     ctx.beginPath();
                     ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2);
                     ctx.stroke();
                     ctx.restore();
                 }
 
+                // 行星地標文字
                 ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.8})`;
-                ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif";
+                ctx.font = "bold 13px 'M PLUS Rounded 1c', sans-serif";
                 ctx.fillText(p.name, px - 40, py + p.radius + 20);
                 ctx.restore();
             });
         }
     });
 
-    const isLandscape = W > H;
-    const topTrackWidth = isLandscape ? W * 0.42 : W * 0.36;
-    const botTrackWidth = isLandscape ? W * 0.88 : W * 0.94;
-    const topStartX = (W - topTrackWidth) / 2;
-    const botStartX = (W - botTrackWidth) / 2;
-
-    const laneTop = [];
-    const laneBot = [];
-    for (let i = 0; i <= 4; i++) {
-        laneTop.push(topStartX + (topTrackWidth / 4) * i);
-        laneBot.push(botStartX + (botTrackWidth / 4) * i);
-    }
-
-    const bowlDepth = 24;
-
-    // 🎯 繪製四條軌道（連動發光效果）
-    for (let i = 0; i < 4; i++) {
-        if (lanePressed[i]) {
-            ctx.save();
-            ctx.fillStyle = laneColors[i].trackGlow;
-            ctx.beginPath();
-            ctx.moveTo(laneTop[i], startY);
-            ctx.lineTo(laneTop[i+1], startY);
-            const ctrlX_R = (laneTop[i+1] + laneBot[i+1]) / 2 + ((i+1) - 2) * 12;
-            const ctrlY_R = (startY + hitZoneY) * 0.55;
-            ctx.quadraticCurveTo(ctrlX_R, ctrlY_R, laneBot[i+1], H);
-            ctx.lineTo(laneBot[i], H);
-            const ctrlX_L = (laneTop[i] + laneBot[i]) / 2 + (i - 2) * 12;
-            const ctrlY_L = (startY + hitZoneY) * 0.55;
-            ctx.quadraticCurveTo(ctrlX_L, ctrlY_L, laneTop[i], startY);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    for (let i = 0; i <= 4; i++) {
-        ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(0, 255, 204, 0.55)" : "rgba(255, 255, 255, 0.16)";
-        ctx.lineWidth = (i === 0 || i === 4) ? 3.5 : 1.5;
-        ctx.beginPath();
-        ctx.moveTo(laneTop[i], startY);
-        const outwardOffset = (i - 2) * 12;
-        const ctrlX = (laneTop[i] + laneBot[i]) / 2 + outwardOffset;
-        const ctrlY = (startY + hitZoneY) * 0.55;
-        ctx.quadraticCurveTo(ctrlX, ctrlY, laneBot[i], H);
-        ctx.stroke();
-    }
-
-    ctx.save();
-    const zoneGradient = ctx.createLinearGradient(0, hitZoneY - 20, 0, hitZoneY + 20);
-    zoneGradient.addColorStop(0, "rgba(0, 255, 204, 0)");
-    zoneGradient.addColorStop(0.5, "rgba(0, 255, 204, 0.28)");
-    zoneGradient.addColorStop(1, "rgba(0, 255, 204, 0)");
-    ctx.fillStyle = zoneGradient;
-    ctx.fillRect(botStartX - 15, hitZoneY - 20, botTrackWidth + 30, 40);
-
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(botStartX - 8, hitZoneY - 6);
-    ctx.quadraticCurveTo(W / 2, hitZoneY + bowlDepth, botStartX + botTrackWidth + 8, hitZoneY - 6);
-    ctx.stroke();
-    ctx.restore();
-
-    // 🎯 正確全音符下落計算 (4拍時間由頂跌落底)
     const beatMs = (60 / bpm) * 1000;
-    const travelDuration = (beatMs * 4) / scrollSpeedMultiplier;
+    const baseTravelDuration = beatMs * 2; 
+    const travelDuration = baseTravelDuration / scrollSpeedMultiplier;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    
+    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
+    const startY = 20;
+
+    const laneW = W / 4;
+    const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
+    const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
+
+    for (let i = 0; i < 4; i++) {
+        ctx.strokeStyle = laneColors[i].glow;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(topX[i], startY);
+        ctx.lineTo(botX[i], H);
+        ctx.stroke();
+
+        ctx.fillStyle = laneColors[i].main;
+        ctx.shadowColor = laneColors[i].main;
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.arc(botX[i], hitZoneY, 22, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.moveTo(0, hitZoneY);
+    ctx.lineTo(W, hitZoneY);
+    ctx.stroke();
+
+    ctx.fillStyle = "#00ffcc";
+    ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
+    ctx.fillText(`🎯 判定線 [檔位 ${judgeLineLevel + 1}/4]`, 10, hitZoneY - 8);
 
     notes.forEach(note => {
+        const laneIndex = note.lane;
+        const tx = topX[laneIndex];
+        const bx = botX[laneIndex];
+        const colorObj = laneColors[laneIndex];
+
         if (note.hit) return;
-        const i = note.lane;
+
         const timeTillHit = note.targetTime - currentTimeMs;
         const rawProgress = 1.0 - (timeTillHit / travelDuration);
 
-        if (rawProgress > 0 && rawProgress < 1.15) {
-            const curvedP = Math.pow(Math.max(0, rawProgress), 1.55);
-            const laneCenterDist = Math.abs(i - 1.5);
-            const laneArcDrop = (1.5 - laneCenterDist) * (bowlDepth * 0.7);
-            
-            const currentHitTargetY = hitZoneY + laneArcDrop;
-            const curY = startY + (currentHitTargetY - startY) * curvedP;
-
-            const curLeft = laneTop[i] + (laneBot[i] - laneTop[i]) * curvedP;
-            const curRight = laneTop[i+1] + (laneBot[i+1] - laneTop[i+1]) * curvedP;
-
-            const barWidth = curRight - curLeft - 4;
-            const barHeight = 14 + curvedP * 6;
-            const barX = curLeft + 2;
-            const barY = curY - (barHeight / 2);
-
-            ctx.save();
-            ctx.fillStyle = laneColors[i].main;
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(barX + 2, barY + 2, barWidth - 4, 3);
-            ctx.restore();
+        if (note === notes[0] && rawProgress >= 0 && firstNoteBornTime === null) {
+            firstNoteBornTime = currentTimeMs;
         }
 
-        if ((currentTimeMs - note.targetTime) > 220 && !note.hit) {
-            note.hit = true;
-            combo = 0;
-            hp = Math.max(0, hp - 5);
-            showJudgement("MISS");
-            updateUI();
+        if (note.type === 'hold') {
+            const endTime = note.targetTime + note.duration;
+            const timeTillEnd = endTime - currentTimeMs;
+            const endProgress = 1.0 - (timeTillEnd / travelDuration);
+
+            if (note.holding) {
+                if (currentTimeMs - note.lastTick >= 80) {
+                    note.lastTick = currentTimeMs;
+                    score += 100;
+                    combo++;
+                    createHitParticles(bx, hitZoneY, colorObj.main);
+                    updateUI();
+                }
+
+                if (currentTimeMs >= endTime) {
+                    note.hit = true;
+                    note.holding = false;
+                    score += 500;
+                    combo++;
+                    hp = Math.min(100, hp + 3);
+                    showJudgement("PERFECT!");
+                    createHitParticles(bx, hitZoneY, "#ffffff");
+                    updateUI();
+                }
+            }
+
+            if (rawProgress > 0 && endProgress < 1.15) {
+                const headP = Math.min(1.0, Math.max(0, rawProgress));
+                const tailP = Math.min(1.0, Math.max(0, endProgress));
+
+                const hy = startY + (hitZoneY - startY) * headP;
+                const hx = tx + (bx - tx) * headP;
+                const ty = startY + (hitZoneY - startY) * tailP;
+                const txPos = tx + (bx - tx) * tailP;
+
+                ctx.save();
+                ctx.strokeStyle = note.holding ? "#ffffff" : colorObj.glow;
+                ctx.lineWidth = note.holding ? 30 : 22;
+                ctx.lineCap = "round";
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = note.holding ? 25 : 12;
+                ctx.beginPath();
+                ctx.moveTo(hx, hy);
+                ctx.lineTo(txPos, ty);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.fillStyle = colorObj.main;
+                ctx.beginPath();
+                ctx.arc(hx, hy, 24, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (rawProgress > 1.15 && !note.holding && !note.hit) {
+                note.hit = true;
+                combo = 0;
+                hp = Math.max(0, hp - 5);
+                showJudgement("MISS");
+                updateUI();
+            }
+
+        } else {
+            if (rawProgress > 0 && rawProgress < 1.15) {
+                const currentX = tx + (bx - tx) * rawProgress;
+                const currentY = startY + (hitZoneY - startY) * rawProgress;
+
+                ctx.fillStyle = colorObj.main;
+                ctx.shadowColor = colorObj.main;
+                ctx.shadowBlur = 20 * rawProgress;
+                ctx.beginPath();
+
+                if (currentPerspectiveMode === 1) {
+                    ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
+                } else {
+                    const rx = (10 * (1.0 - rawProgress)) + (52 * rawProgress);
+                    const ry = (32 * (1.0 - rawProgress)) + (14 * rawProgress);
+                    ctx.ellipse(currentX, currentY, rx, ry, 0, 0, Math.PI * 2);
+                }
+                ctx.fill();
+            }
+
+            if (rawProgress > 1.08 && !note.hit) {
+                if (note === notes[0] && firstNoteBornTime !== null && firstNoteHitTime === null) {
+                    firstNoteHitTime = currentTimeMs;
+                    recordedTravelTime = (firstNoteHitTime - firstNoteBornTime).toFixed(1);
+                }
+                note.hit = true;
+                combo = 0;
+                hp = Math.max(0, hp - 5);
+                showJudgement("MISS");
+                updateUI();
+            }
         }
     });
 
@@ -697,26 +846,70 @@ function gameLoop() {
         ctx.save();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
-        p.x += p.vx; p.y += p.vy; p.alpha -= 0.06;
-        if (p.alpha <= 0) particles.splice(i, 1);
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.05;
+
+        if (p.alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+
+    if (currentMode === 'test') {
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(8, 55, 230, 95);
+        ctx.strokeStyle = "#00ffcc";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(8, 55, 230, 95);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px 'M PLUS Rounded 1c', sans-serif";
+        ctx.fillText(`⏱️ 音樂時間: ${currentTimeMs.toFixed(0)} ms`, 15, 75);
+        ctx.fillText(`🚀 出生時間: ${firstNoteBornTime ? firstNoteBornTime.toFixed(0) + ' ms' : '未現身'}`, 15, 95);
+        ctx.fillText(`🎯 撞線時間: ${firstNoteHitTime ? firstNoteHitTime.toFixed(0) + ' ms' : '飛行中...'}`, 15, 115);
+        
+        ctx.fillStyle = "#ccff00";
+        ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
+        ctx.fillText(`📊 實測飛行: ${recordedTravelTime} ms`, 15, 138);
+        ctx.restore();
     }
 
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 待機星空
-initStars();
-(function idleBackground() {
-    if (!isPlaying) {
-        ctx.clearRect(0, 0, W, H);
-        stars.forEach(s => {
-            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-            ctx.fillRect(s.x, s.y, s.size, s.size);
-            s.y += s.speed * 0.5;
-            if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-        });
-        requestAnimationFrame(idleBackground);
+(function bindHeaderControls() {
+    const speedBtn = document.getElementById('speedToggleBtn');
+    if (speedBtn) {
+        speedBtn.onclick = toggleSpeedButton;
+    }
+})();
+
+(function initialDraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width;
+    const H = canvas.height;
+    const hitZoneY = H - judgeLineOffsets[judgeLineLevel];
+    const laneW = W / 4;
+    for (let i = 0; i < 4; i++) {
+        const x = laneW * i + laneW * 0.5;
+        ctx.strokeStyle = laneColors[i].glow;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 20);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+
+        ctx.fillStyle = laneColors[i].main;
+        ctx.beginPath();
+        ctx.arc(x, hitZoneY, 22, 0, Math.PI * 2);
+        ctx.fill();
     }
 })();
