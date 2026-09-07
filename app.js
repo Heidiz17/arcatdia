@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.1 - Part 1 (Anti-Crash Core)
+   🔒 Arcatdia Battle Engine v9.3 - Part 1 (Anti-Crash Core)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -283,7 +283,6 @@ function startVoyage() {
     const r = document.getElementById('readyRoom');
     if (r) r.classList.remove('active');
 
-    // 顯示戰鬥 HUD 與四軌底座
     const hud = document.getElementById('battleHud');
     if (hud) hud.style.display = 'flex';
     const touch = document.getElementById('touchController');
@@ -332,7 +331,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.1 - Part 2 (Anti-Crash Render)
+   🔒 Arcatdia Battle Engine v9.3 - Part 2 (Judgement & Smooth Render)
    ============================================================= */
 
 function pauseGame() {
@@ -374,7 +373,6 @@ function returnToReadyRoom() {
     const drawer = document.getElementById('wallpaperDrawer');
     if (drawer) drawer.classList.remove('open');
 
-    // 隱藏戰鬥 HUD 與底座
     const hud = document.getElementById('battleHud');
     if (hud) hud.style.display = 'none';
     const touch = document.getElementById('touchController');
@@ -578,7 +576,7 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 🎯 主渲染循環（已經剷除 GPU 殺手 ShadowBlur）
+// 🎯 主渲染循環（絕對清空 GPU 殺手 ShadowBlur）
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
@@ -621,7 +619,7 @@ function gameLoop() {
         ctx.stroke();
     }
 
-    // 發光打擊區間 (採用純漸層，無 ShadowBlur)
+    // 發光打擊區間 (純漸層，無 ShadowBlur)
     ctx.save();
     const zoneGradient = ctx.createLinearGradient(0, hitZoneY - 20, 0, hitZoneY + 20);
     zoneGradient.addColorStop(0, "rgba(0, 255, 204, 0)");
@@ -632,7 +630,6 @@ function gameLoop() {
 
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 6;
-    // 🔪 已經斬咗 GPU 殺手 ShadowBlur
     ctx.beginPath();
     ctx.moveTo(botStartX - 8, hitZoneY - 6);
     ctx.quadraticCurveTo(W / 2, hitZoneY + bowlDepth, botStartX + botTrackWidth + 8, hitZoneY - 6);
@@ -666,7 +663,7 @@ function gameLoop() {
 
             ctx.save();
             ctx.fillStyle = laneColors[i].main;
-            // 🔪 已經斬咗 GPU 殺手 ShadowBlur
+            // 🔪 已經徹底斬咗 GPU 殺手 ShadowBlur (包括磚塊呢度)
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
             ctx.fillStyle = "#ffffff";
@@ -697,7 +694,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 開局背景慢速星空
+// 🎯 開局背景慢速星空（退回選單唔會定格）
 initStars();
 (function idleBackground() {
     if (!isPlaying) {
