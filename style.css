@@ -7,11 +7,6 @@
     font-family: 'Zen Maru Gothic', sans-serif !important;
 }
 
-:root {
-    --glass-opacity: 0.65;
-    --battle-frost: 0.50;
-}
-
 body, html {
     width: 100vw;
     height: 100vh;
@@ -25,109 +20,118 @@ body, html {
     position: relative;
     width: 100vw;
     height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(circle at center, #0b0d1a 0%, #020204 100%);
     overflow: hidden;
 }
 
-/* 🌌 動態壁紙全域層 */
-.wallpaper-bg {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-size: cover;
-    background-position: center;
-    z-index: 1;
-    transition: background 0.4s ease;
-}
-
-.theme-nebula { background: radial-gradient(circle at 50% 40%, #17112c 0%, #03040a 100%); }
-.theme-ancient { background: radial-gradient(circle at 50% 40%, #2b1f0c 0%, #080502 100%); }
-.theme-live { background: radial-gradient(circle at 50% 30%, #380826 0%, #09020d 100%); }
-.theme-deepspace { background: radial-gradient(circle at center, #07070a 0%, #000000 100%); }
-
-/* 🛡️ 戰鬥磨砂黑曜石遮罩 */
-.battle-glass-overlay {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 2;
-    pointer-events: none;
-    background: rgba(3, 5, 12, var(--battle-frost));
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    transition: background 0.3s ease;
-}
-
-/* 戰鬥頂部 HUD */
 .hud-overlay {
     position: absolute;
-    top: 0; left: 0;
+    top: 0;
+    left: 0;
     width: 100%;
-    z-index: 15;
+    z-index: 10;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 18px;
-    background: rgba(6, 10, 20, 0.75);
-    backdrop-filter: blur(10px);
+    background: rgba(10, 15, 25, 0.85);
+    padding: 8px 16px;
+    border-bottom: 2px solid rgba(0, 255, 204, 0.4);
+    backdrop-filter: blur(8px);
 }
 
-.brand-mini { font-size: 10px; color: #00ffcc; letter-spacing: 1.5px; font-weight: 900; }
-.track-info { font-size: 14px; font-weight: 900; color: #fff; text-shadow: 0 0 8px rgba(0, 255, 204, 0.7); }
-.score-board { font-size: 17px; color: #ffcc00; font-weight: 900; }
-
-.btn-pause {
-    padding: 6px 14px;
-    background: rgba(255, 0, 119, 0.2);
-    border: 1.5px solid #ff0077;
-    color: #ff0077;
-    font-size: 12px;
+.track-info {
+    font-size: 13px;
     font-weight: 900;
-    border-radius: 8px;
-    cursor: pointer;
+    color: #00ffcc;
+    text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
 }
-.btn-pause:active { transform: scale(0.92); background: #ff0077; color: #fff; }
 
-/* 🎯 街機級肥嘟嘟動態血條 */
-.hp-bar-line {
-    position: absolute;
-    bottom: -7px;
-    left: 0;
-    width: 100%;
-    height: 14px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 7px;
+.hp-bar-container {
+    width: 80px;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #ff0077;
+    border-radius: 6px;
     overflow: hidden;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.8);
 }
 
 .hp-fill {
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, #ff0077 0%, #ffaa00 50%, #00ffcc 100%);
-    box-shadow: 0 0 15px #00ffcc, 0 0 30px rgba(0, 255, 204, 0.6);
-    border-radius: 7px;
-    transition: width 0.15s ease-out;
-    animation: hpGlowPulse 1.5s infinite alternate ease-in-out;
+    background: linear-gradient(90deg, #ff0077, #00ffcc);
+    box-shadow: 0 0 10px #00ffcc;
 }
 
-@keyframes hpGlowPulse {
-    0% { filter: brightness(1.0) drop-shadow(0 0 4px #00ffcc); }
-    50% { filter: brightness(1.35) drop-shadow(0 0 14px #00ffcc); }
-    100% { filter: brightness(1.6) drop-shadow(0 0 22px #ff0077); }
+.hud-buttons { display: flex; gap: 6px; }
+
+.btn-panel {
+    min-width: 56px;
+    height: 28px;
+    background: rgba(0, 255, 204, 0.12);
+    border: 1.5px solid rgba(0, 255, 204, 0.6);
+    color: #00ffcc;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.btn-panel:active { transform: scale(0.94); background: #00ffcc; color: #000; }
+
+.score-board {
+    font-size: 14px;
+    color: #ffcc00;
+    font-weight: 900;
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
 }
 
-/* 🎯 觸控感應底座：加返極淡 3% 白光，防止隱形 */
+#judgementDisplay {
+    position: absolute;
+    top: 36%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 46px;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 0 10px #fff, 0 0 25px #ffd700, 0 0 45px #ffaa00;
+    opacity: 0;
+    z-index: 5;
+    pointer-events: none;
+    letter-spacing: 2px;
+}
+
+#comboDisplay {
+    position: absolute;
+    top: 48%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffaa00;
+    opacity: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+#battleCanvas { width: 100%; height: 100%; display: block; }
+
+/* 橫屏觸控底座 */
 .touch-controller {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 195px;
+    height: 140px;
     display: flex;
     z-index: 8;
-    background: rgba(255, 255, 255, 0.03) !important; 
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-    pointer-events: auto;
+    background: rgba(5, 8, 15, 0.55);
+    backdrop-filter: blur(6px);
+    border-top: 2px solid rgba(0, 255, 204, 0.4);
 }
 
 .touch-lane {
@@ -136,134 +140,63 @@ body, html {
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 20px;
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 900;
-    opacity: 0.35;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    transition: opacity 0.05s ease, background 0.05s ease;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.08s ease;
 }
 
-.touch-lane.pressed {
-    opacity: 1.0;
-    background: linear-gradient(0deg, rgba(255, 255, 255, 0.25) 0%, transparent 100%);
-}
+#lane0 { color: #ff2a6d; background: linear-gradient(180deg, rgba(255, 42, 109, 0.04) 0%, rgba(255, 42, 109, 0.35) 100%); }
+#lane0.pressed { background: rgba(255, 42, 109, 0.65); box-shadow: inset 0 0 35px #ff2a6d; color: #fff; }
 
-#lane0 { color: #ff2a6d; }
-#lane1 { color: #05d9e8; }
-#lane2 { color: #ffb703; }
-#lane3 { color: #b5179e; }
+#lane1 { color: #05d9e8; background: linear-gradient(180deg, rgba(5, 217, 232, 0.04) 0%, rgba(5, 217, 232, 0.35) 100%); }
+#lane1.pressed { background: rgba(5, 217, 232, 0.65); box-shadow: inset 0 0 35px #05d9e8; color: #fff; }
 
-#judgementDisplay {
-    position: absolute;
-    top: 36%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 42px;
-    font-weight: 900;
-    color: #ffffff;
-    opacity: 0;
-    z-index: 6;
-    pointer-events: none;
-    text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
-}
+#lane2 { color: #ffb703; background: linear-gradient(180deg, rgba(255, 183, 3, 0.04) 0%, rgba(255, 183, 3, 0.35) 100%); }
+#lane2.pressed { background: rgba(255, 183, 3, 0.65); box-shadow: inset 0 0 35px #ffb703; color: #fff; }
 
-#comboDisplay {
-    position: absolute;
-    top: 45%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 26px;
-    font-weight: 900;
-    color: #ffaa00;
-    opacity: 0;
-    z-index: 6;
-    pointer-events: none;
-    text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
-}
+#lane3 { color: #b5179e; background: linear-gradient(180deg, rgba(181, 23, 158, 0.04) 0%, rgba(181, 23, 158, 0.35) 100%); }
+#lane3.pressed { background: rgba(181, 23, 158, 0.65); box-shadow: inset 0 0 35px #b5179e; color: #fff; }
 
-#battleCanvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 3;
-    display: block;
-}
-
-/* 磨砂水晶面板 */
+/* 🎯 封面與準備室 Modal */
 .overlay-modal {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
+    background: rgba(4, 5, 12, 0.95);
     z-index: 50;
     display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    backdrop-filter: blur(10px);
 }
 .overlay-modal.active { display: flex; }
 
-.glass-panel {
-    background: rgba(5, 8, 16, var(--glass-opacity));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    transition: background 0.3s ease;
-}
-
-.glass-card {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(0, 255, 204, 0.35);
-    border-radius: 18px;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-.title-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-}
-
 .game-logo {
-    font-size: 46px;
+    font-size: 44px;
     font-weight: 900;
     color: #00ffcc;
-    text-shadow: 0 0 25px rgba(0, 255, 204, 0.8), 0 2px 8px rgba(0, 0, 0, 0.9);
-    letter-spacing: 4px;
+    text-shadow: 0 0 25px rgba(0, 255, 204, 0.8);
+    letter-spacing: 3px;
 }
-.logo-sub { font-size: 15px; color: #ffaa00; margin-top: 6px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+.logo-sub { font-size: 14px; color: #ffaa00; margin-top: 6px; }
 .tap-start-hint {
-    margin-top: 35px;
+    margin-top: 40px;
     font-size: 15px;
-    color: #fff;
-    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    color: #ffffff;
     animation: pulse 1.2s infinite alternate;
 }
-@keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
+@keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
 
-/* 🐾 Production 招牌宣告 */
-.production-footer {
-    position: absolute;
-    bottom: 25px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    pointer-events: none;
-}
-.prod-brand {
-    font-size: 14px;
-    font-weight: 900;
-    color: #00ffcc;
-    letter-spacing: 2px;
-    text-shadow: 0 0 10px rgba(0, 255, 204, 0.5), 0 2px 4px #000;
-}
-.prod-jp { font-size: 11px; color: #ffaa00; letter-spacing: 1.5px; text-shadow: 0 1px 3px #000; }
-.prod-copy { font-size: 9px; color: rgba(255, 255, 255, 0.6); letter-spacing: 1px; text-shadow: 0 1px 2px #000; }
-
-/* 整備室佈局 */
-.room-title { font-size: 22px; color: #00ffcc; margin-bottom: 15px; text-shadow: 0 2px 6px #000; }
+.room-title { font-size: 22px; color: #00ffcc; margin-bottom: 15px; }
 .ready-panel {
-    width: 86%;
-    max-width: 480px;
-    padding: 18px 20px;
+    width: 82%;
+    max-width: 500px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 204, 0.3);
+    border-radius: 16px;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -281,16 +214,11 @@ body, html {
     border-radius: 8px;
     cursor: pointer;
 }
-.opt-btn.active { background: #00ffcc; color: #000; box-shadow: 0 0 12px rgba(0, 255, 204, 0.5); }
-
-.slider-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    color: #ddd;
+.opt-btn.active {
+    background: #00ffcc;
+    color: #000;
+    box-shadow: 0 0 12px rgba(0, 255, 204, 0.5);
 }
-.slider-row input[type="range"] { flex: 1; accent-color: #00ffcc; }
 
 .launch-btn {
     margin-top: 10px;
@@ -302,102 +230,6 @@ body, html {
     border-radius: 12px;
     color: #ffffff;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(255, 0, 119, 0.4);
+    box-shadow: 0 0 20px rgba(255, 0, 119, 0.4);
 }
 .launch-btn:active { transform: scale(0.97); }
-
-/* 🎯 右側壁紙抽屜 */
-.btn-drawer-toggle {
-    position: absolute;
-    top: 16px; right: 16px;
-    padding: 7px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 900;
-    border-radius: 8px;
-    cursor: pointer;
-    backdrop-filter: blur(8px);
-    z-index: 60;
-}
-
-.drawer-modal {
-    position: absolute;
-    top: 0; right: -330px;
-    width: 300px; height: 100%;
-    background: rgba(8, 12, 22, 0.95);
-    backdrop-filter: blur(20px);
-    border-left: 1px solid rgba(0, 255, 204, 0.35);
-    z-index: 100;
-    transition: right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-}
-.drawer-modal.open { right: 0; }
-.drawer-header { display: flex; justify-content: space-between; align-items: center; }
-.btn-close-drawer { background: none; border: none; color: #ff0077; font-size: 22px; cursor: pointer; }
-
-.custom-upload-btn {
-    display: block;
-    padding: 10px;
-    text-align: center;
-    background: linear-gradient(90deg, rgba(0, 255, 204, 0.2), rgba(255, 0, 119, 0.2));
-    border: 1.5px dashed #00ffcc;
-    border-radius: 10px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 900;
-    cursor: pointer;
-}
-.custom-upload-btn:active { background: rgba(0, 255, 204, 0.4); }
-
-.wallpaper-grid { display: flex; flex-direction: column; gap: 8px; }
-.wp-card {
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-.wp-card strong { font-size: 12px; color: #fff; }
-.wp-card span { font-size: 10px; color: #888; }
-.wp-card.active { border-color: #00ffcc; background: rgba(0, 255, 204, 0.15); }
-.wp-card.active strong { color: #00ffcc; }
-
-/* 暫停選單 */
-.pause-card {
-    width: 82%;
-    max-width: 360px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-}
-.pause-card h2 { color: #ff0077; margin-bottom: 6px; }
-.pause-opt-btn {
-    padding: 12px;
-    background: rgba(0, 255, 204, 0.12);
-    border: 1px solid #00ffcc;
-    color: #00ffcc;
-    font-size: 14px;
-    font-weight: 900;
-    border-radius: 10px;
-    cursor: pointer;
-}
-.pause-opt-btn.btn-exit { border-color: #ffaa00; color: #ffaa00; }
-
-/* 橫屏自適應配置 */
-@media (orientation: landscape) {
-    .touch-controller { height: 125px; }
-    .ready-panel { max-width: 580px; flex-direction: row; flex-wrap: wrap; }
-    .setting-group { flex: 1 1 45%; }
-    .launch-btn { width: 100%; }
-}

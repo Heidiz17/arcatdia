@@ -17,13 +17,13 @@
 <body>
 
 <div id="stage-container">
-    <!-- 🌌 動態壁紙全域層（支援自選手機相片與官方預設） -->
+    <!-- 🌌 動態壁紙全域層（三朝形態與自選壁紙） -->
     <div id="bgWallpaper" class="wallpaper-bg theme-nebula"></div>
-    <!-- 🛡️ 三層防花磨砂黑曜石遮罩 -->
+    <!-- 戰鬥專用磨砂防爆玻璃遮罩 -->
     <div id="battleGlassMask" class="battle-glass-overlay"></div>
 
-    <!-- 戰鬥頂部 HUD（戰鬥時才顯示） -->
-    <div class="hud-overlay" id="battleHud" style="display: none;">
+    <!-- 戰鬥頂部 HUD -->
+    <div class="hud-overlay" id="battleHud">
         <div class="hud-left">
             <div class="brand-mini">ARCATDIA</div>
             <div class="track-info" id="hudTrackInfo">最大の愛</div>
@@ -40,8 +40,8 @@
 
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🎯 四軌觸控底座（加厚 195px，戰鬥時才啟用） -->
-    <div class="touch-controller" id="touchController" style="display: none;">
+    <!-- 🎯 四軌加大底座（直橫自適應） -->
+    <div class="touch-controller">
         <div class="touch-lane" id="lane0"><span>L1</span></div>
         <div class="touch-lane" id="lane1"><span>L2</span></div>
         <div class="touch-lane" id="lane2"><span>R1</span></div>
@@ -58,6 +58,7 @@
             <div class="tap-start-hint">✨ 點擊螢幕進入航行整備室 ✨</div>
         </div>
 
+        <!-- 🐾 廠牌與 Production 招牌宣告 -->
         <div class="production-footer">
             <div class="prod-brand">Hei'dizai & P-chan Productions</div>
             <div class="prod-jp">ヘイディザイ ＆ ピーちゃん 企画・制作</div>
@@ -108,26 +109,20 @@
         </div>
     </div>
 
-    <!-- 🎯 隨身抽屜：自選相片＋三朝形態 -->
+    <!-- 🎯 隨身抽屜：壁紙與三朝形態選單 (Wallpaper Drawer) -->
     <div id="wallpaperDrawer" class="drawer-modal">
         <div class="drawer-header">
-            <h3>🎨 自訂壁紙與質感</h3>
+            <h3>🎨 三朝壁紙與磨砂玻璃</h3>
             <button class="btn-close-drawer" onclick="toggleWallpaperDrawer()">✕</button>
         </div>
         <div class="drawer-body">
-            <label>📸 自選手機相片 (Custom)：</label>
-            <label class="custom-upload-btn">
-                📁 從手機相簿選擇相片...
-                <input type="file" id="customImgInput" accept="image/*" onchange="handleCustomWallpaperUpload(event)" style="display:none;">
-            </label>
-
-            <label style="margin-top: 14px;">磨砂玻璃透光度：</label>
+            <label>磨砂玻璃透明度 (Opacity)：</label>
             <div class="slider-row">
                 <input type="range" id="glassOpacitySlider" min="0" max="100" value="65" oninput="updateGlassOpacity(this.value)">
                 <span id="glassOpacityVal">65%</span>
             </div>
 
-            <label style="margin-top: 14px;">或選擇官方大師預設：</label>
+            <label style="margin-top: 16px;">選擇戰鬥世界形態：</label>
             <div class="wallpaper-grid">
                 <div class="wp-card active" id="wp-nebula" onclick="changeWallpaper('nebula')">
                     <strong>🌌 星際航標・深空星雲</strong>
@@ -149,7 +144,7 @@
         </div>
     </div>
 
-    <!-- 🎯 戰鬥暫停選單 -->
+    <!-- 🎯 戰鬥暫停選單 (Pause Menu) -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
