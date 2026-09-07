@@ -1,10 +1,14 @@
+/* =============================================================
+   🔒 Arcatdia Battle Engine - v2 (第1拍正位 + 1943能源Bar版) Part 1
+   ============================================================= */
+
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 
 let W = window.innerWidth;
 let H = window.innerHeight;
 
-// 🌟 所有核心變數喺最頂宣告，保證絕對安全！
+// 🌟 核心參數與狀態
 let bpm = 175;
 let isPlaying = false;
 let isPaused = false;
@@ -51,7 +55,7 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 handleResize(); 
 
-// 📸 三層視覺專用上載邏輯 (Title / Ready / Battle)
+// 📸 三層獨立視覺上載與透明度控制
 let preloadedSlideImages = [];
 
 function handleUpload(event, target) {
@@ -73,12 +77,24 @@ function handleUpload(event, target) {
         const reader = new FileReader();
         reader.onload = function(e) {
             if (target === 'title') {
-                document.getElementById('titleBg').style.backgroundImage = `url(${e.target.result})`;
+                const el = document.getElementById('titleBg');
+                if (el) el.style.backgroundImage = `url(${e.target.result})`;
             } else if (target === 'ready') {
-                document.getElementById('readyBg').style.backgroundImage = `url(${e.target.result})`;
+                const el = document.getElementById('readyBg');
+                if (el) el.style.backgroundImage = `url(${e.target.result})`;
             }
         };
         reader.readAsDataURL(files[0]);
+    }
+}
+
+function updateGlassOpacity(val) {
+    const opacity = val / 100;
+    document.documentElement.style.setProperty('--glass-opacity', opacity);
+    document.documentElement.style.setProperty('--battle-frost', (opacity * 0.65).toFixed(2));
+    const mask = document.getElementById('battleGlassMask');
+    if (mask) {
+        mask.style.backdropFilter = `blur(${Math.round(val * 0.08)}px)`;
     }
 }
 
@@ -87,7 +103,7 @@ function toggleWallpaperDrawer() {
     if (drawer) drawer.classList.toggle('open');
 }
 
-// 音樂引擎 (防死火 Try-Catch)
+// 🎵 音樂載入 (防死火 Try-Catch)
 const songDatabase = [{ id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 }];
 let currentSong = songDatabase[0];
 const masterAudio = new Audio();
@@ -141,23 +157,24 @@ function playStickClick(freq = 1200) {
         osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
-// 🌟 畫面切換邏輯 (控制三層背景)
+/* =============================================================
+   🔒 Arcatdia Battle Engine - v2 (第1拍正位 + 1943能源Bar版) Part 2
+   ============================================================= */
+
 function goToReadyRoom() {
-    document.getElementById('titleScreen').classList.remove('active');
-    document.getElementById('titleBg').classList.remove('active'); // 隱藏封面背景
-    
-    document.getElementById('readyRoom').classList.add('active');
-    document.getElementById('readyBg').classList.add('active');    // 顯示候機室背景
+    const ts = document.getElementById('titleScreen'); if (ts) ts.classList.remove('active');
+    const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
+    const rr = document.getElementById('readyRoom'); if (rr) rr.classList.add('active');
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
     initDSP();
 }
 
 function returnToReadyRoom() {
-    document.getElementById('pauseMenu').classList.remove('active');
-    document.getElementById('battleHud').style.display = 'none';
-    document.getElementById('touchController').style.display = 'none';
-    
-    document.getElementById('readyBg').classList.add('active');    // 重新顯示候機室背景
-    document.getElementById('readyRoom').classList.add('active');
+    const pm = document.getElementById('pauseMenu'); if (pm) pm.classList.remove('active');
+    const hud = document.getElementById('battleHud'); if (hud) hud.style.display = 'none';
+    const tc = document.getElementById('touchController'); if (tc) tc.style.display = 'none';
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
+    const rr = document.getElementById('readyRoom'); if (rr) rr.classList.add('active');
 
     isPaused = false; isPlaying = false;
     masterAudio.pause(); masterAudio.currentTime = 0;
@@ -166,11 +183,10 @@ function returnToReadyRoom() {
 }
 
 function startVoyage() {
-    document.getElementById('readyRoom').classList.remove('active');
-    document.getElementById('readyBg').classList.remove('active'); // 隱藏候機室背景，交畀 Canvas！
-    
-    document.getElementById('battleHud').style.display = 'flex';
-    document.getElementById('touchController').style.display = 'flex';
+    const rr = document.getElementById('readyRoom'); if (rr) rr.classList.remove('active');
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
+    const hud = document.getElementById('battleHud'); if (hud) hud.style.display = 'flex';
+    const tc = document.getElementById('touchController'); if (tc) tc.style.display = 'flex';
 
     score = 0; combo = 0; hp = 100;
     totalPausedDuration = 0;
@@ -188,21 +204,21 @@ function startVoyage() {
 function selectDifficulty(mode) {
     currentMode = mode;
     document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-    if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active');
-    if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active');
-    if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active');
+    if (mode === 'easy') { const b = document.getElementById('btnDiffEasy'); if (b) b.classList.add('active'); }
+    if (mode === 'normal') { const b = document.getElementById('btnDiffNormal'); if (b) b.classList.add('active'); }
+    if (mode === 'test') { const b = document.getElementById('btnDiffTest'); if (b) b.classList.add('active'); }
 }
 
 function pauseGame() {
     if (!isPlaying || isPaused) return;
     isPaused = true; pauseStartTime = performance.now();
     masterAudio.pause(); clearAllTimers();
-    document.getElementById('pauseMenu').classList.add('active');
+    const pm = document.getElementById('pauseMenu'); if (pm) pm.classList.add('active');
 }
 
 function resumeGame() {
     if (!isPaused) return;
-    document.getElementById('pauseMenu').classList.remove('active');
+    const pm = document.getElementById('pauseMenu'); if (pm) pm.classList.remove('active');
     totalPausedDuration += (performance.now() - pauseStartTime);
     isPaused = false;
     masterAudio.play().catch(() => {});
@@ -210,12 +226,11 @@ function resumeGame() {
 }
 
 function restartFromPause() {
-    document.getElementById('pauseMenu').classList.remove('active');
+    const pm = document.getElementById('pauseMenu'); if (pm) pm.classList.remove('active');
     isPaused = false;
     startVoyage();
 }
 
-// 打擊邏輯與圖譜
 function createHitParticles(x, y, color) {
     if (particles.length > 30) particles.splice(0, 10);
     for (let i = 0; i < 8; i++) {
@@ -225,14 +240,25 @@ function createHitParticles(x, y, color) {
     }
 }
 
+// 🎯 核心拍子修復：準確落喺第 1 拍！
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     const barMs = beatMs * 4;
+    
+    // Count-in 有 4 拍，所以「第 1 拍」落點正正喺第 4 拍完結嗰一刻 (4 * beatMs)
+    const firstBeatOffset = 4 * beatMs;
     let lastLane = 1;
+
     for (let bar = 0; bar < 145; bar++) {
         lastLane = (lastLane + 1) % 4;
-        notes.push({ type: 'tap', lane: lastLane, targetTime: barMs + (bar * barMs), hit: false });
+        // 第一粒音準確落喺第一拍，其後每個 Bar 嘅第 1 拍落一粒！
+        notes.push({ 
+            type: 'tap', 
+            lane: lastLane, 
+            targetTime: firstBeatOffset + (bar * barMs), 
+            hit: false 
+        });
     }
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
@@ -261,17 +287,40 @@ function handleTap(laneIndex) {
     }
 }
 
+// 🕹️ 1943 街機復古能源 Bar + 分數加大渲染
 function updateUI() {
-    document.getElementById('scoreVal').innerText = String(score).padStart(6, '0');
-    document.getElementById('hpFill').style.width = `${hp}%`;
+    const scoreVal = document.getElementById('scoreVal');
+    if (scoreVal) {
+        scoreVal.innerText = String(score).padStart(6, '0');
+        // 分數放大醒目 Style
+        scoreVal.style.fontSize = "24px";
+        scoreVal.style.fontWeight = "900";
+        scoreVal.style.letterSpacing = "2px";
+        scoreVal.style.textShadow = "0 0 12px #ffcc00";
+    }
+
+    const hpFill = document.getElementById('hpFill');
+    if (hpFill) {
+        hpFill.style.width = `${hp}%`;
+        // 1943 街機能量條經典格仔紋
+        hpFill.style.background = "repeating-linear-gradient(90deg, #ff0055 0px, #ffaa00 12px, #00ffcc 24px)";
+        hpFill.style.boxShadow = "0 0 12px #00ffcc";
+        hpFill.style.height = "6px";
+    }
+
     const comboDisp = document.getElementById('comboDisplay');
-    if (combo > 1) { comboDisp.innerText = `${combo} COMBO`; comboDisp.style.opacity = '1'; }
+    if (comboDisp && combo > 1) { 
+        comboDisp.innerText = `${combo} COMBO`; 
+        comboDisp.style.opacity = '1'; 
+    }
 }
 
 function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
-    disp.innerText = text; disp.style.opacity = '1';
-    setTimeout(() => { disp.style.opacity = '0'; }, 300);
+    if (disp) {
+        disp.innerText = text; disp.style.opacity = '1';
+        setTimeout(() => { disp.style.opacity = '0'; }, 300);
+    }
 }
 
 let countInTimers = []; let audioStartTimer = null;
@@ -280,32 +329,38 @@ function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countIn
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000;
+    // 預備拍 1-2-3-4
     [0, 1, 2, 3].forEach(b => {
         countInTimers.push(setTimeout(() => {
             if (!isPlaying || isPaused) return;
-            playStickClick(b === 3 ? 1800 : 1200); showJudgement(`${b + 1}`);
+            playStickClick(b === 3 ? 1800 : 1200); 
+            showJudgement(`${b + 1}`);
         }, (b * beatMs) / playbackSpeed));
     });
+
+    // 正好喺第 4 拍完結（即第 1 拍開始時）音樂準時起跑！
     audioStartTimer = setTimeout(() => {
         if (!isPlaying || isPaused) return;
-        masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {});
-    }, (beatMs * 3.5) / playbackSpeed);
+        masterAudio.playbackRate = playbackSpeed; 
+        masterAudio.currentTime = 0; 
+        masterAudio.play().catch(() => {});
+    }, (beatMs * 4) / playbackSpeed);
 }
 
-// 🎯 主循環：Canvas 幻燈片與星際航行
+// 🎯 主循環：Canvas 幻燈片、星空與音符渲染
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 📸 戰鬥幻燈片 (每 5.5 秒輪播)
+    // 📸 戰鬥幻燈片 (每 5.5 秒優雅切換)
     if (preloadedSlideImages.length > 0) {
         const slideIndex = Math.floor(currentSec / 5.5);
         if (slideIndex < preloadedSlideImages.length) {
             const img = preloadedSlideImages[slideIndex];
             if (img.complete && img.naturalWidth !== 0) {
-                ctx.save(); ctx.globalAlpha = 0.35;
+                ctx.save(); ctx.globalAlpha = 0.45;
                 const r = W / H > img.width / img.height;
                 const dW = r ? W : H * (img.width / img.height);
                 const dH = r ? W / (img.width / img.height) : H;
@@ -330,7 +385,7 @@ function gameLoop() {
                 ctx.beginPath(); ctx.arc(px, py, p.radius, 0, Math.PI * 2); ctx.fill();
                 if (p.hasRing) {
                     ctx.save(); ctx.translate(px, py); ctx.rotate(-0.35); ctx.strokeStyle = "rgba(240, 220, 160, 0.55)"; ctx.lineWidth = 6;
-                    ctx.beginPath(); ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+                    ctx.beginPath(); ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
                 }
                 ctx.fillStyle = `rgba(255, 255, 255, ${Math.sin(progress * Math.PI) * 0.72})`;
                 ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif"; ctx.fillText(p.name, px - 40, py + p.radius + 20); ctx.restore();
@@ -345,7 +400,10 @@ function gameLoop() {
         ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
     }
 
-    const tDur = ((60 / bpm) * 2000) / scrollSpeedMultiplier;
+    // 飛行時間對齊 4 拍（剛好跟 Count-in 同步起飛）
+    const beatMs = (60 / bpm) * 1000;
+    const tDur = (beatMs * 4) / scrollSpeedMultiplier;
+
     notes.forEach(n => {
         if (n.hit) return;
         const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
