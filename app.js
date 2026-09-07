@@ -1,23 +1,10 @@
-/* =============================================================
-   🔒 Arcatdia Battle Engine - 最終完美流暢版 Part 1 (預載防死火)
-   ============================================================= */
-
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 
 let W = window.innerWidth;
 let H = window.innerHeight;
 
-function handleResize() {
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.width = W;
-    canvas.height = H;
-    initStars();
-}
-window.addEventListener('resize', handleResize);
-handleResize();
-
+// 🌟 所有核心變數喺最頂宣告，保證絕對安全！
 let bpm = 175;
 let isPlaying = false;
 let isPaused = false;
@@ -26,7 +13,7 @@ let combo = 0;
 let hp = 100;
 let notes = [];
 let particles = [];
-let stars = [];
+let stars = []; 
 let celestialEvents = [];
 let startTime = 0;
 let pauseStartTime = 0;
@@ -47,42 +34,52 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-let currentPerspectiveMode = 1;
-
-// 📸 預載圖片陣列，防爆 RAM、防死機
-let customSlideImages = [];
-let preloadedSlideImages = [];
-
-function handleCustomWallpaperUpload(event) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    customSlideImages = [];
-    preloadedSlideImages = [];
-    
-    for (let i = 0; i < files.length; i++) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            customSlideImages.push(e.target.result);
-            
-            const img = new Image();
-            img.src = e.target.result;
-            preloadedSlideImages.push(img);
-
-            if (i === 0) {
-                const bg = document.getElementById('bgWallpaper');
-                if (bg) { bg.className = 'wallpaper-bg'; bg.style.backgroundImage = `url(${e.target.result})`; }
-            }
-        };
-        reader.readAsDataURL(files[i]);
+function initStars() {
+    stars = [];
+    for (let i = 0; i < 80; i++) {
+        stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() });
     }
 }
 
-function updateGlassOpacity(val) {
-    const opacity = val / 100;
-    document.documentElement.style.setProperty('--glass-opacity', opacity);
-    document.documentElement.style.setProperty('--battle-frost', (opacity * 0.75).toFixed(2));
-    const disp = document.getElementById('glassOpacityVal');
-    if (disp) disp.innerText = `${val}%`;
+function handleResize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    initStars(); 
+}
+window.addEventListener('resize', handleResize);
+handleResize(); 
+
+// 📸 三層視覺專用上載邏輯 (Title / Ready / Battle)
+let preloadedSlideImages = [];
+
+function handleUpload(event, target) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    if (target === 'battle') {
+        preloadedSlideImages = [];
+        for (let i = 0; i < files.length; i++) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                preloadedSlideImages.push(img);
+            };
+            reader.readAsDataURL(files[i]);
+        }
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            if (target === 'title') {
+                document.getElementById('titleBg').style.backgroundImage = `url(${e.target.result})`;
+            } else if (target === 'ready') {
+                document.getElementById('readyBg').style.backgroundImage = `url(${e.target.result})`;
+            }
+        };
+        reader.readAsDataURL(files[0]);
+    }
 }
 
 function toggleWallpaperDrawer() {
@@ -90,11 +87,16 @@ function toggleWallpaperDrawer() {
     if (drawer) drawer.classList.toggle('open');
 }
 
+// 音樂引擎 (防死火 Try-Catch)
 const songDatabase = [{ id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 }];
 let currentSong = songDatabase[0];
 const masterAudio = new Audio();
-masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
-masterAudio.preload = "auto";
+try {
+    masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`);
+    masterAudio.preload = "auto";
+} catch (e) {
+    console.error("Audio error:", e);
+}
 bpm = currentSong.bpm;
 
 function initCelestialJourney() {
@@ -139,34 +141,36 @@ function playStickClick(freq = 1200) {
         osc.stop(dspCtx.currentTime + 0.04);
     } catch (e) {}
 }
-
+// 🌟 畫面切換邏輯 (控制三層背景)
 function goToReadyRoom() {
-    const t = document.getElementById('titleScreen');
-    if (t) t.classList.remove('active');
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.add('active');
+    document.getElementById('titleScreen').classList.remove('active');
+    document.getElementById('titleBg').classList.remove('active'); // 隱藏封面背景
+    
+    document.getElementById('readyRoom').classList.add('active');
+    document.getElementById('readyBg').classList.add('active');    // 顯示候機室背景
     initDSP();
 }
 
-function selectDifficulty(mode) {
-    currentMode = mode;
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-    if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active');
-    if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active');
-    if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active');
-}
+function returnToReadyRoom() {
+    document.getElementById('pauseMenu').classList.remove('active');
+    document.getElementById('battleHud').style.display = 'none';
+    document.getElementById('touchController').style.display = 'none';
+    
+    document.getElementById('readyBg').classList.add('active');    // 重新顯示候機室背景
+    document.getElementById('readyRoom').classList.add('active');
 
-function setSpeed(speedVal) {
-    scrollSpeedMultiplier = speedVal;
+    isPaused = false; isPlaying = false;
+    masterAudio.pause(); masterAudio.currentTime = 0;
+    clearAllTimers();
+    ctx.clearRect(0, 0, W, H);
 }
 
 function startVoyage() {
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.remove('active');
-    const hud = document.getElementById('battleHud');
-    if (hud) hud.style.display = 'flex';
-    const touch = document.getElementById('touchController');
-    if (touch) touch.style.display = 'flex';
+    document.getElementById('readyRoom').classList.remove('active');
+    document.getElementById('readyBg').classList.remove('active'); // 隱藏候機室背景，交畀 Canvas！
+    
+    document.getElementById('battleHud').style.display = 'flex';
+    document.getElementById('touchController').style.display = 'flex';
 
     score = 0; combo = 0; hp = 100;
     totalPausedDuration = 0;
@@ -181,14 +185,37 @@ function startVoyage() {
     requestAnimationFrame(gameLoop);
 }
 
-function initStars() {
-    stars = [];
-    for (let i = 0; i < 80; i++) {
-        stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() });
-    }
+function selectDifficulty(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active');
+    if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active');
+    if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active');
 }
-initStars();
 
+function pauseGame() {
+    if (!isPlaying || isPaused) return;
+    isPaused = true; pauseStartTime = performance.now();
+    masterAudio.pause(); clearAllTimers();
+    document.getElementById('pauseMenu').classList.add('active');
+}
+
+function resumeGame() {
+    if (!isPaused) return;
+    document.getElementById('pauseMenu').classList.remove('active');
+    totalPausedDuration += (performance.now() - pauseStartTime);
+    isPaused = false;
+    masterAudio.play().catch(() => {});
+    requestAnimationFrame(gameLoop);
+}
+
+function restartFromPause() {
+    document.getElementById('pauseMenu').classList.remove('active');
+    isPaused = false;
+    startVoyage();
+}
+
+// 打擊邏輯與圖譜
 function createHitParticles(x, y, color) {
     if (particles.length > 30) particles.splice(0, 10);
     for (let i = 0; i < 8; i++) {
@@ -199,13 +226,11 @@ function createHitParticles(x, y, color) {
 }
 
 function generateChart() {
-    notes = [];
-    particles = [];
+    notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     const barMs = beatMs * 4;
-    const totalBars = 145;
     let lastLane = 1;
-    for (let bar = 0; bar < totalBars; bar++) {
+    for (let bar = 0; bar < 145; bar++) {
         lastLane = (lastLane + 1) % 4;
         notes.push({ type: 'tap', lane: lastLane, targetTime: barMs + (bar * barMs), hit: false });
     }
@@ -217,272 +242,124 @@ for (let i = 0; i < 4; i++) {
     if (laneBtn) {
         const press = (e) => { e.preventDefault(); laneBtn.classList.add('pressed'); lanePressed[i] = true; handleTap(i); };
         const release = (e) => { e.preventDefault(); laneBtn.classList.remove('pressed'); lanePressed[i] = false; };
-        laneBtn.addEventListener('touchstart', press);
-        laneBtn.addEventListener('touchend', release);
-        laneBtn.addEventListener('mousedown', press);
-        laneBtn.addEventListener('mouseup', release);
+        laneBtn.addEventListener('touchstart', press); laneBtn.addEventListener('touchend', release);
+        laneBtn.addEventListener('mousedown', press); laneBtn.addEventListener('mouseup', release);
     }
-}
-/* =============================================================
-   🔒 Arcatdia Battle Engine - 最終完美流暢版 Part 2 (零負擔幻燈片)
-   ============================================================= */
-
-function pauseGame() {
-    if (!isPlaying || isPaused) return;
-    isPaused = true;
-    pauseStartTime = performance.now();
-    masterAudio.pause();
-    clearAllTimers();
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.add('active');
-}
-
-function resumeGame() {
-    if (!isPaused) return;
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-    totalPausedDuration += (performance.now() - pauseStartTime);
-    isPaused = false;
-    masterAudio.play().catch(() => {});
-    requestAnimationFrame(gameLoop);
-}
-
-function restartFromPause() {
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-    isPaused = false;
-    startVoyage();
-}
-
-function returnToReadyRoom() {
-    const p = document.getElementById('pauseMenu');
-    if (p) p.classList.remove('active');
-    const drawer = document.getElementById('wallpaperDrawer');
-    if (drawer) drawer.classList.remove('open');
-    const hud = document.getElementById('battleHud');
-    if (hud) hud.style.display = 'none';
-    const touch = document.getElementById('touchController');
-    if (touch) touch.style.display = 'none';
-    isPaused = false; isPlaying = false;
-    masterAudio.pause(); masterAudio.currentTime = 0;
-    clearAllTimers();
-    ctx.clearRect(0, 0, W, H);
-    const r = document.getElementById('readyRoom');
-    if (r) r.classList.add('active');
 }
 
 function handleTap(laneIndex) {
     if (!isPlaying || isPaused) return;
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
-    const laneW = W / 4;
-    const currentHitY = H - 185;
-    const targetX = laneW * laneIndex + (laneW / 2);
+    const targetX = (W / 4) * laneIndex + (W / 8);
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
 
-    if (targetNote) {
-        const timeDiff = Math.abs(currentTimeMs - targetNote.targetTime);
-        if (timeDiff < 200) {
-            targetNote.hit = true;
-            score += 1000; combo++; hp = Math.min(100, hp + 2);
-            showJudgement("PERFECT!");
-            createHitParticles(targetX, currentHitY, "#ffffff");
-            updateUI();
-        }
+    if (targetNote && Math.abs(currentTimeMs - targetNote.targetTime) < 200) {
+        targetNote.hit = true; score += 1000; combo++; hp = Math.min(100, hp + 2);
+        showJudgement("PERFECT!");
+        createHitParticles(targetX, H - 185, "#ffffff");
+        updateUI();
     }
 }
 
 function updateUI() {
-    const scoreElem = document.getElementById('scoreVal');
-    if (scoreElem) scoreElem.innerText = String(score).padStart(6, '0');
-    const hpFill = document.getElementById('hpFill');
-    if (hpFill) hpFill.style.width = `${hp}%`;
+    document.getElementById('scoreVal').innerText = String(score).padStart(6, '0');
+    document.getElementById('hpFill').style.width = `${hp}%`;
     const comboDisp = document.getElementById('comboDisplay');
-    if (comboDisp && combo > 1) { comboDisp.innerText = `${combo} COMBO`; comboDisp.style.opacity = '1'; }
+    if (combo > 1) { comboDisp.innerText = `${combo} COMBO`; comboDisp.style.opacity = '1'; }
 }
 
 function showJudgement(text) {
     const disp = document.getElementById('judgementDisplay');
-    if (disp) {
-        disp.innerText = text;
-        disp.style.opacity = '1';
-        setTimeout(() => { disp.style.opacity = '0'; }, 300);
-    }
+    disp.innerText = text; disp.style.opacity = '1';
+    setTimeout(() => { disp.style.opacity = '0'; }, 300);
 }
 
-let countInTimers = [];
-let audioStartTimer = null;
-
-function clearAllTimers() {
-    countInTimers.forEach(t => clearTimeout(t));
-    countInTimers = [];
-    if (audioStartTimer) { clearTimeout(audioStartTimer); audioStartTimer = null; }
-}
+let countInTimers = []; let audioStartTimer = null;
+function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countInTimers = []; if (audioStartTimer) { clearTimeout(audioStartTimer); audioStartTimer = null; } }
 
 function scheduleCountInAndPlay() {
     clearAllTimers();
     const beatMs = (60 / bpm) * 1000;
     [0, 1, 2, 3].forEach(b => {
-        const t = setTimeout(() => {
+        countInTimers.push(setTimeout(() => {
             if (!isPlaying || isPaused) return;
-            playStickClick(b === 3 ? 1800 : 1200);
-            showJudgement(`${b + 1}`);
-        }, (b * beatMs) / playbackSpeed);
-        countInTimers.push(t);
+            playStickClick(b === 3 ? 1800 : 1200); showJudgement(`${b + 1}`);
+        }, (b * beatMs) / playbackSpeed));
     });
-
     audioStartTimer = setTimeout(() => {
         if (!isPlaying || isPaused) return;
-        masterAudio.playbackRate = playbackSpeed;
-        masterAudio.currentTime = 0;
-        masterAudio.play().catch(() => {});
+        masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {});
     }, (beatMs * 3.5) / playbackSpeed);
 }
 
+// 🎯 主循環：Canvas 幻燈片與星際航行
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
-
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 📸 1. 預載幻燈片繪製（零卡頓、每 5.5 秒輪播）
+    // 📸 戰鬥幻燈片 (每 5.5 秒輪播)
     if (preloadedSlideImages.length > 0) {
         const slideIndex = Math.floor(currentSec / 5.5);
         if (slideIndex < preloadedSlideImages.length) {
             const img = preloadedSlideImages[slideIndex];
             if (img.complete && img.naturalWidth !== 0) {
-                ctx.save();
-                ctx.globalAlpha = 0.35;
-                const imgRatio = img.width / img.height;
-                const screenRatio = W / H;
-                let drawW = W, drawH = H, drawX = 0, drawY = 0;
-                if (screenRatio > imgRatio) {
-                    drawH = W / imgRatio;
-                    drawY = (H - drawH) / 2;
-                } else {
-                    drawW = H * imgRatio;
-                    drawX = (W - drawW) / 2;
-                }
-                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                ctx.save(); ctx.globalAlpha = 0.35;
+                const r = W / H > img.width / img.height;
+                const dW = r ? W : H * (img.width / img.height);
+                const dH = r ? W / (img.width / img.height) : H;
+                ctx.drawImage(img, (W - dW) / 2, (H - dH) / 2, dW, dH);
                 ctx.restore();
             }
         }
     }
 
-    // 🎯 2. 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fill();
-        s.y += s.speed * 1.5;
-        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+        s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
     });
 
-    // 🎯 3. 太陽系經典星球航行
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
-            const alpha = Math.sin(progress * Math.PI) * 0.40;
             evt.planets.forEach(p => {
-                ctx.save();
-                ctx.fillStyle = p.color;
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = 35;
-                const px = W * p.xRatio - (progress * 40);
-                const py = H * p.yRatio + (progress * 30);
-                ctx.beginPath();
-                ctx.arc(px, py, p.radius, 0, Math.PI * 2);
-                ctx.fill();
-
+                ctx.save(); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 35;
+                const px = W * p.xRatio - (progress * 40), py = H * p.yRatio + (progress * 30);
+                ctx.beginPath(); ctx.arc(px, py, p.radius, 0, Math.PI * 2); ctx.fill();
                 if (p.hasRing) {
-                    ctx.save();
-                    ctx.translate(px, py);
-                    ctx.rotate(-0.35);
-                    ctx.strokeStyle = "rgba(240, 220, 160, 0.55)";
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
+                    ctx.save(); ctx.translate(px, py); ctx.rotate(-0.35); ctx.strokeStyle = "rgba(240, 220, 160, 0.55)"; ctx.lineWidth = 6;
+                    ctx.beginPath(); ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
                 }
-
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.8})`;
-                ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif";
-                ctx.fillText(p.name, px - 40, py + p.radius + 20);
-                ctx.restore();
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.sin(progress * Math.PI) * 0.72})`;
+                ctx.font = "bold 13px 'Zen Maru Gothic', sans-serif"; ctx.fillText(p.name, px - 40, py + p.radius + 20); ctx.restore();
             });
         }
     });
 
-    // 🎯 4. 判定軌道
-    const hitZoneY = H - 185;
-    const laneW = W / 4;
-    const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
-
+    const hitY = H - 185; const botX = [W*0.125, W*0.375, W*0.625, W*0.875];
     for (let i = 0; i < 4; i++) {
-        ctx.strokeStyle = laneColors[i].glow;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(botX[i], 20);
-        ctx.lineTo(botX[i], H);
-        ctx.stroke();
-
-        ctx.fillStyle = laneColors[i].main;
-        ctx.beginPath();
-        ctx.arc(botX[i], hitZoneY, 22, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(botX[i], 20); ctx.lineTo(botX[i], H); ctx.stroke();
+        ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 🎯 5. 音符渲染
-    const beatMs = (60 / bpm) * 1000;
-    const travelDuration = (beatMs * 2) / scrollSpeedMultiplier;
-
-    notes.forEach(note => {
-        if (note.hit) return;
-        const timeTillHit = note.targetTime - currentTimeMs;
-        const rawProgress = 1.0 - (timeTillHit / travelDuration);
-
-        if (rawProgress > 0 && rawProgress < 1.15) {
-            const currentX = botX[note.lane];
-            const currentY = 20 + (hitZoneY - 20) * rawProgress;
-
-            ctx.fillStyle = laneColors[note.lane].main;
-            ctx.shadowColor = laneColors[note.lane].main;
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.ellipse(currentX, currentY, 26, 32, 0, 0, Math.PI * 2);
-            ctx.fill();
+    const tDur = ((60 / bpm) * 2000) / scrollSpeedMultiplier;
+    notes.forEach(n => {
+        if (n.hit) return;
+        const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
+        if (p > 0 && p < 1.15) {
+            ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 15;
+            ctx.beginPath(); ctx.ellipse(botX[n.lane], 20 + (hitY - 20) * p, 26, 32, 0, 0, Math.PI * 2); ctx.fill();
         }
-
-        if (rawProgress > 1.08 && !note.hit) {
-            note.hit = true;
-            combo = 0;
-            hp = Math.max(0, hp - 5);
-            showJudgement("MISS");
-            updateUI();
-        }
+        if (p > 1.08 && !n.hit) { n.hit = true; combo = 0; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
     });
 
     for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        p.x += p.vx;
-        p.y += p.vy;
-        p.alpha -= 0.05;
-        if (p.alpha <= 0) particles.splice(i, 1);
+        const p = particles[i]; ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        p.x += p.vx; p.y += p.vy; p.alpha -= 0.05; if (p.alpha <= 0) particles.splice(i, 1);
     }
-
     requestAnimationFrame(gameLoop);
 }
