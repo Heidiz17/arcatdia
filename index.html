@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - 三層視覺版</title>
+    <title>Arcatdia Battle Engine - 高清三層版</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -16,14 +16,14 @@
     <!-- 🖼️ 戰鬥最底層：Canvas -->
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🌌 第二層：候機室專屬背景 -->
+    <!-- 🛡️ 戰鬥專用玻璃遮罩 (z-index: 3) -->
+    <div id="battleGlassMask" class="battle-glass-overlay"></div>
+
+    <!-- 🌌 第二層：候機室專屬背景 (z-index: 40, 完全覆蓋玻璃) -->
     <div id="readyBg" class="bg-layer theme-ready"></div>
 
-    <!-- 🚀 第三層：開頭封面專屬背景 -->
+    <!-- 🚀 第三層：開頭封面專屬背景 (z-index: 40, 完全覆蓋玻璃) -->
     <div id="titleBg" class="bg-layer theme-title active"></div>
-
-    <!-- 🛡️ 第四層：戰鬥專用玻璃遮罩 -->
-    <div id="battleGlassMask" class="battle-glass-overlay"></div>
 
     <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
@@ -49,19 +49,22 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- 🎯 畫面一：封面 Title Screen (已移除玻璃層，相片完全顯示) -->
+    <!-- 🎯 畫面一：封面 Title Screen -->
     <div id="titleScreen" class="overlay-modal active">
-        <button class="btn-drawer-toggle" onclick="toggleWallpaperDrawer()">🎨 相簿與設定</button>
-        <div class="title-content" onclick="goToReadyRoom()">
-            <h1 class="game-logo">ARCATDIA</h1>
-            <p class="logo-sub">~ 三層視覺 獨立相簿測試版 ~</p>
-            <div class="tap-start-hint">✨ 點擊螢幕進入航行整備室 ✨</div>
+        <div class="title-content">
+            <h1 class="game-logo" onclick="goToReadyRoom()">ARCATDIA</h1>
+            <p class="logo-sub" onclick="goToReadyRoom()">~ 點擊 Logo 進入航行整備室 ~</p>
+            
+            <!-- 畫面一專屬：載入封面 -->
+            <label class="custom-upload-btn" style="margin-top: 35px; border-color: #00ffcc;">
+                📁 載入高清專屬封面...
+                <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
+            </label>
         </div>
     </div>
 
-    <!-- 🎯 畫面二：出發準備室 (已移除玻璃層，相片完全顯示) -->
+    <!-- 🎯 畫面二：出發準備室 -->
     <div id="readyRoom" class="overlay-modal">
-        <button class="btn-drawer-toggle" onclick="toggleWallpaperDrawer()">🎨 相簿與設定</button>
         <h2 class="room-title" style="text-shadow: 0 0 10px #000;">🚀 航行整備室</h2>
         <div class="ready-panel glass-card">
             <div class="setting-group">
@@ -74,45 +77,30 @@
             </div>
             <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
             <button class="return-btn" onclick="returnToTitle()">🔙 返回開頭封面</button>
-        </div>
-    </div>
-
-    <!-- 🎯 隨身抽屜 -->
-    <div id="wallpaperDrawer" class="drawer-modal">
-        <div class="drawer-header">
-            <h3>🎨 視覺與相簿設定</h3>
-            <button class="btn-close-drawer" onclick="toggleWallpaperDrawer()">✕</button>
-        </div>
-        <div class="drawer-body">
-            <label>1️⃣ 開頭封面 (原相 Fit to Page)：</label>
-            <label class="custom-upload-btn">
-                📁 選擇封面圖...
-                <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
-            </label>
-
-            <label style="margin-top: 10px;">2️⃣ 候機室 (原相 Fit to Page)：</label>
-            <label class="custom-upload-btn" style="border-color:#ccff00;">
-                📁 選擇候機室壁紙...
+            
+            <!-- 畫面二專屬：載入候機室背景 -->
+            <label class="custom-upload-btn" style="margin-top: 15px; border-color: #ccff00;">
+                📁 載入候機室高清相片...
                 <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="display:none;">
             </label>
-
-            <label style="margin-top: 10px;">3️⃣ 戰鬥幻燈片 (多張, 每5.5s輪播)：</label>
-            <label class="custom-upload-btn" style="border-color:#ff0055;">
-                📁 選擇多張樂隊相片...
-                <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
-            </label>
-
-            <label style="margin-top: 15px;">🌗 戰鬥幻燈片透明度 (0 - 100)：</label>
-            <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="45" oninput="updateSlideOpacity(this.value)">
-
-            <button class="save-btn" onclick="saveSettings()">💾 SAVE 設定</button>
         </div>
     </div>
 
-    <!-- 🎯 戰鬥暫停選單 (保留玻璃層) -->
+    <!-- 🎯 戰鬥暫停選單 (畫面三專屬設定) -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
+            
+            <!-- 畫面三專屬：載入戰鬥幻燈片與控制透明度 -->
+            <label class="custom-upload-btn" style="border-color: #ff0077; margin-bottom: 5px;">
+                📁 載入戰鬥幻燈片 (可選多張)...
+                <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
+            </label>
+            <div style="text-align: left; font-size: 12px; color: #aaa;">🌗 戰鬥背景透明度：</div>
+            <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="45" oninput="updateSlideOpacity(this.value)">
+            
+            <button class="pause-opt-btn" style="background: #00ffcc; color: #000; border: none; margin-bottom: 10px;" onclick="saveSettings()">💾 儲存所有相片設定 (SAVE)</button>
+
             <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
             <button class="pause-opt-btn" onclick="restartFromPause()">🔄 重新開始</button>
             <button class="pause-opt-btn btn-exit" onclick="returnToReadyRoom()">🚪 退回航行整備室</button>

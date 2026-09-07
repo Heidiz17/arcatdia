@@ -6,25 +6,27 @@ body, html { width: 100vw; height: 100vh; background-color: #000000; color: #fff
 
 #battleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: block; }
 
-.bg-layer {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background-size: contain; 
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: #03040a;
-    z-index: 2; opacity: 0; pointer-events: none;
-    transition: opacity 0.6s ease-in-out;
-}
-.bg-layer.active { opacity: 1; }
-
-.theme-title { background-image: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
-.theme-ready { background-image: radial-gradient(circle at center, #0b2e25 0%, #03040a 100%); }
-
+/* 🛡️ 戰鬥玻璃，只擋 Canvas (z-index: 3) */
 .battle-glass-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     z-index: 3; pointer-events: none;
     background: rgba(3, 5, 12, var(--battle-frost)); backdrop-filter: blur(8px);
 }
+
+/* 🌟 封面與候機室背景，提昇到 z-index: 40，完全蓋住玻璃，保證高清！ */
+.bg-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-size: cover; 
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #03040a;
+    z-index: 40; opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease-in-out;
+}
+.bg-layer.active { opacity: 1; pointer-events: auto; }
+
+.theme-title { background-image: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
+.theme-ready { background-image: radial-gradient(circle at center, #0b2e25 0%, #03040a 100%); }
 
 .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; z-index: 15; display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: rgba(6, 10, 20, 0.75); backdrop-filter: blur(10px); }
 .brand-mini { font-size: 10px; color: #00ffcc; letter-spacing: 1.5px; font-weight: 900; }
@@ -50,9 +52,8 @@ body, html { width: 100vw; height: 100vh; background-color: #000000; color: #fff
 .overlay-modal.active { display: flex; }
 .glass-panel { background: rgba(5, 8, 16, var(--glass-opacity)); backdrop-filter: blur(14px); }
 
-/* 🌟 強化選單底色，避免 100% 顯示相片時啲字隱形 */
-.glass-card { background: rgba(10, 15, 25, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 18px; }
-.title-content { display: flex; flex-direction: column; align-items: center; cursor: pointer; background: rgba(0, 0, 0, 0.4); padding: 40px; border-radius: 24px; backdrop-filter: blur(5px); }
+.glass-card { background: rgba(10, 15, 25, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 18px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+.title-content { display: flex; flex-direction: column; align-items: center; cursor: pointer; background: rgba(0, 0, 0, 0.65); padding: 40px; border-radius: 24px; backdrop-filter: blur(5px); box-shadow: 0 0 30px rgba(0,0,0,0.8); }
 
 .game-logo { font-size: 46px; font-weight: 900; color: #00ffcc; text-shadow: 0 0 25px rgba(0, 255, 204, 0.8); }
 .logo-sub { font-size: 15px; color: #ffaa00; margin-top: 6px; }
@@ -60,23 +61,15 @@ body, html { width: 100vw; height: 100vh; background-color: #000000; color: #fff
 
 .room-title { font-size: 22px; color: #00ffcc; margin-bottom: 15px; }
 .ready-panel { width: 86%; max-width: 480px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
-.setting-group label { font-size: 12px; color: #aaa; margin-bottom: 4px; display: block; }
+.setting-group label { font-size: 12px; color: #ccc; margin-bottom: 4px; display: block; }
 .option-row { display: flex; gap: 8px; }
 .opt-btn { flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 900; background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.4); color: #fff; border-radius: 8px; cursor: pointer; }
 .opt-btn.active { background: #00ffcc; color: #000; }
 .launch-btn { margin-top: 10px; padding: 14px; font-size: 16px; font-weight: 900; background: linear-gradient(90deg, #ff0077, #ffaa00); border: none; border-radius: 12px; color: #fff; cursor: pointer; }
-
 .return-btn { margin-top: 4px; padding: 12px; font-size: 14px; font-weight: 900; background: transparent; border: 1.5px solid #ffaa00; border-radius: 10px; color: #ffaa00; cursor: pointer; }
 
-.btn-drawer-toggle { position: absolute; top: 16px; right: 16px; padding: 7px 12px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; font-size: 11px; font-weight: 900; border-radius: 8px; cursor: pointer; z-index: 60; backdrop-filter: blur(4px); }
-.drawer-modal { position: absolute; top: 0; right: -330px; width: 300px; height: 100%; background: rgba(8, 12, 22, 0.95); backdrop-filter: blur(20px); border-left: 1px solid rgba(0, 255, 204, 0.35); z-index: 100; transition: right 0.35s ease; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-.drawer-modal.open { right: 0; }
-.drawer-header { display: flex; justify-content: space-between; align-items: center; }
-.btn-close-drawer { background: none; border: none; color: #ff0077; font-size: 22px; cursor: pointer; }
-.custom-upload-btn { display: block; padding: 10px; text-align: center; background: rgba(255,255,255,0.05); border: 1.5px dashed #00ffcc; border-radius: 10px; color: #fff; font-size: 12px; cursor: pointer; }
-
-.custom-slider { width: 100%; accent-color: #00ffcc; margin-bottom: 10px; }
-.save-btn { margin-top: auto; padding: 14px; font-size: 16px; font-weight: 900; background: #00ffcc; border: none; border-radius: 10px; color: #000; cursor: pointer; box-shadow: 0 0 10px rgba(0, 255, 204, 0.5); }
+.custom-upload-btn { display: block; padding: 10px; text-align: center; background: rgba(0,0,0,0.6); border: 1.5px dashed #00ffcc; border-radius: 10px; color: #fff; font-size: 12px; cursor: pointer; }
+.custom-slider { width: 100%; accent-color: #00ffcc; margin-bottom: 15px; margin-top: 5px; }
 
 .pause-card { width: 82%; max-width: 360px; padding: 24px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
 .pause-opt-btn { padding: 12px; background: rgba(0, 255, 204, 0.12); border: 1px solid #00ffcc; color: #00ffcc; font-size: 14px; font-weight: 900; border-radius: 10px; cursor: pointer; }
