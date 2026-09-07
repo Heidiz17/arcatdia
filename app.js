@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.0 - Part 1 (Core, DSP & Inputs)
+   🔒 Arcatdia Battle Engine v9.1 - Part 1 (Anti-Crash Core)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -332,7 +332,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v9.0 - Part 2 (Judgement & Render Loop)
+   🔒 Arcatdia Battle Engine v9.1 - Part 2 (Anti-Crash Render)
    ============================================================= */
 
 function pauseGame() {
@@ -578,7 +578,7 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 🎯 主渲染循環（加厚發光打擊區間 ＋ 弧形碗底）
+// 🎯 主渲染循環（已經剷除 GPU 殺手 ShadowBlur）
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
@@ -621,7 +621,7 @@ function gameLoop() {
         ctx.stroke();
     }
 
-    // 發光打擊區間
+    // 發光打擊區間 (採用純漸層，無 ShadowBlur)
     ctx.save();
     const zoneGradient = ctx.createLinearGradient(0, hitZoneY - 20, 0, hitZoneY + 20);
     zoneGradient.addColorStop(0, "rgba(0, 255, 204, 0)");
@@ -632,8 +632,7 @@ function gameLoop() {
 
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 6;
-    ctx.shadowColor = "#00ffcc";
-    ctx.shadowBlur = 22;
+    // 🔪 已經斬咗 GPU 殺手 ShadowBlur
     ctx.beginPath();
     ctx.moveTo(botStartX - 8, hitZoneY - 6);
     ctx.quadraticCurveTo(W / 2, hitZoneY + bowlDepth, botStartX + botTrackWidth + 8, hitZoneY - 6);
@@ -667,8 +666,7 @@ function gameLoop() {
 
             ctx.save();
             ctx.fillStyle = laneColors[i].main;
-            ctx.shadowColor = laneColors[i].main;
-            ctx.shadowBlur = 12;
+            // 🔪 已經斬咗 GPU 殺手 ShadowBlur
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
             ctx.fillStyle = "#ffffff";
@@ -699,7 +697,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🎯 開局背景慢速星空（未開戰前絕不黑屏定格）
+// 🎯 開局背景慢速星空
 initStars();
 (function idleBackground() {
     if (!isPlaying) {

@@ -44,7 +44,7 @@ body, html {
 .theme-live { background: radial-gradient(circle at 50% 30%, #380826 0%, #09020d 100%); }
 .theme-deepspace { background: radial-gradient(circle at center, #07070a 0%, #000000 100%); }
 
-/* 🛡️ 戰鬥磨砂黑曜石遮罩（確保字同軌道永遠清晰） */
+/* 🛡️ 戰鬥磨砂黑曜石遮罩 */
 .battle-glass-overlay {
     position: absolute;
     top: 0; left: 0;
@@ -87,7 +87,7 @@ body, html {
 }
 .btn-pause:active { transform: scale(0.92); background: #ff0077; color: #fff; }
 
-/* 🎯 街機級肥嘟嘟動態血條（加厚到 14px，自帶呼吸閃爍） */
+/* 🎯 街機級肥嘟嘟動態血條 */
 .hp-bar-line {
     position: absolute;
     bottom: -7px;
@@ -116,7 +116,7 @@ body, html {
     100% { filter: brightness(1.6) drop-shadow(0 0 22px #ff0077); }
 }
 
-/* 🎯 觸控感應底座：加厚 195px，全通透無遮擋 */
+/* 🎯 觸控感應底座：加返極淡 3% 白光，防止隱形 */
 .touch-controller {
     position: absolute;
     bottom: 0;
@@ -125,8 +125,8 @@ body, html {
     height: 195px;
     display: flex;
     z-index: 8;
-    background: transparent !important;
-    border-top: none !important;
+    background: rgba(255, 255, 255, 0.03) !important; 
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
     pointer-events: auto;
 }
 
