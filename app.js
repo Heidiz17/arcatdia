@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine v8.5 - Part 1 (Offset & Fat Glow Bar)
+   🔒 Arcatdia Battle Engine v8.8 - Part 1 (Core & DSP)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -39,7 +39,7 @@ let playbackSpeed = 1.0;
 let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'easy';
 
-// 🎯 核心手感 Offset 變數（手動微調 ms，預設 0ms，自動記住）
+// 🎯 核心手感 Offset 微調變數
 let inputOffsetMs = parseInt(localStorage.getItem('arcatdia_offset_ms') || "0", 10);
 
 function adjustOffset(delta) {
@@ -81,7 +81,7 @@ masterAudio.load();
 bpm = currentSong.bpm;
 
 masterAudio.onerror = function() {
-    alert("❌ 找不到音訊檔案！請檢查路徑:\n" + masterAudio.src);
+    console.warn("未搵到音樂檔案或路徑需確認:", masterAudio.src);
 };
 
 // 雙軌音量推桿 (Mixer)
@@ -157,7 +157,7 @@ function changeWallpaper(theme) {
     if (target) target.classList.add('active');
 }
 
-// 初音晶瑩高音 DSP
+// 初音高頻金屬晶瑩 DSP
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let dspCtx = null;
 let masterDspGain = null;
@@ -306,6 +306,7 @@ for (let i = 0; i < 4; i++) {
             e.preventDefault();
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
+            initDSP();
             playFastHitSound();
             handleTap(i);
         };
@@ -324,7 +325,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine v8.5 - Part 2 (Glow Zone & Game Loop)
+   🔒 Arcatdia Battle Engine v8.8 - Part 2 (Bowl Loop & Wakeup)
    ============================================================= */
 
 function pauseGame() {
@@ -376,10 +377,9 @@ function returnToReadyRoom() {
     if (r) r.classList.add('active');
 }
 
-// 🎯 核心擊打判定（加入 inputOffsetMs 手感補償）
+// 🎯 核心擊打判定
 function handleTap(laneIndex) {
     if (!isPlaying || isPaused) return;
-    // 加入玩家設定的 offset 補償微調
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed + inputOffsetMs;
     const hitZoneY = getJudgeLineY();
     
@@ -406,7 +406,6 @@ function handleTap(laneIndex) {
                 updateUI();
             }
         } else {
-            // 🎯 寬容判定窗口（徹底杜絕冤枉 Miss）
             if (absDiff <= 65) {
                 targetNote.hit = true;
                 score += 1000; combo++;
@@ -542,7 +541,6 @@ function initStars() {
         });
     }
 }
-initStars();
 
 function initCelestialJourney() {
     celestialEvents = [
@@ -576,7 +574,6 @@ function gameLoop() {
     const hitZoneY = getJudgeLineY();
     const startY = 30;
 
-    // 繁星背景
     stars.forEach(s => {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
         ctx.fillRect(s.x, s.y, s.size, s.size);
@@ -597,7 +594,6 @@ function gameLoop() {
         laneBot.push(botStartX + (botTrackWidth / 4) * i);
     }
 
-    // 碗型弧度分割線
     const bowlDepth = 24;
     for (let i = 0; i <= 4; i++) {
         ctx.strokeStyle = (i === 0 || i === 4) ? "rgba(0, 255, 204, 0.55)" : "rgba(255, 255, 255, 0.16)";
@@ -612,9 +608,8 @@ function gameLoop() {
         ctx.stroke();
     }
 
-    // 🎯 核心加厚發光打擊區間（Hit Zone Area）
+    // 發光打擊區間
     ctx.save();
-    // 1. 上下 18px 霓虹漸變色帶光暈（區間感）
     const zoneGradient = ctx.createLinearGradient(0, hitZoneY - 20, 0, hitZoneY + 20);
     zoneGradient.addColorStop(0, "rgba(0, 255, 204, 0)");
     zoneGradient.addColorStop(0.5, "rgba(0, 255, 204, 0.28)");
@@ -622,7 +617,6 @@ function gameLoop() {
     ctx.fillStyle = zoneGradient;
     ctx.fillRect(botStartX - 15, hitZoneY - 20, botTrackWidth + 30, 40);
 
-    // 2. 加厚 6px 核心白光判定線
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 6;
     ctx.shadowColor = "#00ffcc";
@@ -633,7 +627,6 @@ function gameLoop() {
     ctx.stroke();
     ctx.restore();
 
-    // 磚塊下落與判定
     const beatMs = (60 / bpm) * 1000;
     const travelDuration = (beatMs * 2) / scrollSpeedMultiplier;
 
@@ -670,7 +663,6 @@ function gameLoop() {
             ctx.restore();
         }
 
-        // 🎯 寬容 Miss 條件：超過 220ms 跌到底先判 Miss
         if ((currentTimeMs - note.targetTime) > 220 && !note.hit) {
             note.hit = true;
             combo = 0;
@@ -693,3 +685,16 @@ function gameLoop() {
 
     requestAnimationFrame(gameLoop);
 }
+
+// 🎯 開局即戰備用自啟動：防止黑屏定格
+(function initialDraw() {
+    initStars();
+    initCelestialJourney();
+    generateChart();
+    if (!isPlaying) {
+        isPlaying = true;
+        startTime = performance.now();
+        scheduleCountInAndPlay();
+        requestAnimationFrame(gameLoop);
+    }
+})();
