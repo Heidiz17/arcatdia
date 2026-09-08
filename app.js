@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀輕量化壓縮 + 少林寺黃金版 (Part 1)
+   🔒 Arcatdia Battle Engine - 屠龍刀黃金版 (Part 1/3)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -41,24 +41,24 @@ function toggleJudgeLineLevel() { judgeLineLevel = (judgeLineLevel + 1) % judgeL
 function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
 
-// === 📸 輕量化壓縮相片核心 (防止飛天窒機) ===
+// === 📸 輕量化壓縮相片核心 ===
 function compressImage(dataUrl, callback) {
     const img = new Image();
     img.onload = function() {
         const cvs = document.createElement('canvas');
-        const MAX = 1080; // 鎖定最高 1080p，防窒機
+        const MAX = 1080; 
         let w = img.width; let h = img.height;
         if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
         else if (h > MAX) { w *= MAX / h; h = MAX; }
         cvs.width = w; cvs.height = h;
         const cCtx = cvs.getContext('2d');
         cCtx.drawImage(img, 0, 0, w, h);
-        callback(cvs.toDataURL('image/jpeg', 0.6)); // 壓縮為 60% JPEG
+        callback(cvs.toDataURL('image/jpeg', 0.6)); 
     };
     img.src = dataUrl;
 }
 
-// === 📸 相片讀取與上傳 (已對齊 arcatdia_save) ===
+// === 📸 相片讀取與上傳 ===
 function loadSavedImages() {
     try {
         const saved = localStorage.getItem('arcatdia_save');
@@ -157,6 +157,9 @@ function saveSettings() {
 window.addEventListener('DOMContentLoaded', loadSavedImages);
 loadSavedImages();
 
+/* =============================================================
+   🔒 Arcatdia Battle Engine - 屠龍刀黃金版 (Part 2/3)
+   ============================================================= */
 
 // === Web Audio 引擎 ===
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -216,11 +219,54 @@ function generateChart() {
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 88, duration: 11, planets: [ { name: "🧊 天王星", color: "rgba(120, 235, 235, 0.32)", radius: 52, xRatio: 0.62, yRatio: 0.20 }, { name: "🌊 海王星", color: "rgba(65, 105, 225, 0.35)", radius: 50, xRatio: 0.80, yRatio: 0.25 } ]}, { timeSec: 122, duration: 9, planets: [{ name: "❄️ 冥王星冰界", color: "rgba(195, 220, 240, 0.28)", radius: 42, xRatio: 0.72, yRatio: 0.22 }] }, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] }, { timeSec: 175, duration: 25, planets: [{ name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }] } ]; }
 
-function goToReadyRoom() { document.getElementById('titleScreen').classList.remove('active'); document.getElementById('titleBg').classList.remove('active'); document.getElementById('readyRoom').classList.add('active'); const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active'); initAudioEngine(); }
-function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active'); }
-function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active'); document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); }
+function goToReadyRoom() { 
+    document.getElementById('titleScreen').classList.remove('active'); 
+    document.getElementById('titleBg').classList.remove('active'); 
+    document.getElementById('readyRoom').classList.add('active'); 
+    const rb = document.getElementById('readyBg'); 
+    if (rb) { rb.classList.add('active'); if(savedData.ready) rb.style.opacity = 1; } 
+    initAudioEngine(); 
+}
 
-function startVoyage() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('readyBg'); document.getElementById('battleHud').style.display = 'flex'; document.getElementById('touchController').style.display = 'flex'; score = 0; combo = 0; hp = 100; totalPausedDuration = 0; hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); scheduleCountInAndPlay(); requestAnimationFrame(gameLoop); }
+function returnToTitle() { 
+    document.getElementById('readyRoom').classList.remove('active'); 
+    document.getElementById('readyBg').classList.remove('active'); 
+    document.getElementById('titleScreen').classList.add('active'); 
+    const tb = document.getElementById('titleBg'); 
+    if (tb) { tb.classList.add('active'); if(savedData.title) tb.style.opacity = 1; } 
+}
+
+// 🛡️ 修正版：退回候機室顯示海景
+function returnToReadyRoom() { 
+    document.getElementById('pauseMenu').classList.remove('active'); 
+    document.getElementById('battleHud').style.display = 'none'; 
+    document.getElementById('touchController').style.display = 'none'; 
+    const rb = document.getElementById('readyBg'); 
+    if (rb) { 
+        rb.classList.add('active'); 
+        if(savedData.ready) rb.style.opacity = 1; 
+    } 
+    document.getElementById('readyRoom').classList.add('active'); 
+    isPaused = false; isPlaying = false; 
+    masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
+}
+
+// 🛡️ 修正版：出發絕對收走候機室圖片
+function startVoyage() { 
+    document.getElementById('readyRoom').classList.remove('active'); 
+    const rb = document.getElementById('readyBg');
+    if (rb) {
+        rb.classList.remove('active'); 
+        rb.style.opacity = 0; 
+    }
+    document.getElementById('battleHud').style.display = 'flex'; 
+    document.getElementById('touchController').style.display = 'flex'; 
+    score = 0; combo = 0; hp = 100; totalPausedDuration = 0; 
+    hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); 
+    isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
+    scheduleCountInAndPlay(); requestAnimationFrame(gameLoop); 
+}
+
 function selectDifficulty(mode) { currentMode = mode; document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active')); if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active'); if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active'); if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active'); }
 function pauseGame() { if (!isPlaying || isPaused) return; isPaused = true; pauseStartTime = performance.now(); masterAudio.pause(); clearAllTimers(); document.getElementById('pauseMenu').classList.add('active'); }
 function resumeGame() { if (!isPaused) return; document.getElementById('pauseMenu').classList.remove('active'); totalPausedDuration += (performance.now() - pauseStartTime); isPaused = false; masterAudio.play().catch(()=>{}); requestAnimationFrame(gameLoop); }
@@ -238,8 +284,9 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mouseup', () => { laneBtn.classList.remove('pressed'); lanePressed[i] = false; handleAction(i, 'up'); });
     }
 }
+
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀輕量化壓縮 + 少林寺黃金版 (Part 2)
+   🔒 Arcatdia Battle Engine - 屠龍刀黃金版 (Part 3/3)
    ============================================================= */
 
 let activeHoldAudioSources = [null, null, null, null];
@@ -286,7 +333,7 @@ function scheduleCountInAndPlay() {
     audioStartTimer = setTimeout(() => { if (!isPlaying || isPaused) return; masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {}); }, (beatMs * 4) / playbackSpeed);
 }
 
-// === 渲染循環 (加入 5.3 激光特效 + 幻燈片) ===
+// === 渲染循環 (5.3 激光特效 + 幻燈片) ===
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
