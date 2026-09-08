@@ -16,8 +16,8 @@
     <canvas id="battleCanvas"></canvas>
 
     <!-- 🌌 封面與候機室背景 -->
-    <div id="readyBg" class="bg-layer theme-ready" style="filter:none; transition:opacity 0.4s;"></div>
-    <div id="titleBg" class="bg-layer theme-title active" style="filter:none; transition:opacity 0.4s;"></div>
+    <div id="readyBg" class="bg-layer theme-ready" style="filter:none; transition:opacity 0.4s; pointer-events:none;"></div>
+    <div id="titleBg" class="bg-layer theme-title active" style="filter:none; transition:opacity 0.4s; pointer-events:none;"></div>
 
     <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
@@ -29,14 +29,12 @@
         <div class="hud-right">
             <button id="pauseBtn" class="btn-pause" onclick="pauseGame()">⏸ 暫停</button>
         </div>
-        <!-- 🕹️ 1943 黑色金屬底槽 ＋ 四段階梯能量條 -->
         <div class="hp-bar-line"><div id="hpFill" class="hp-fill lvl-s"></div></div>
     </div>
 
     <div id="judgementDisplay">PERFECT!</div>
     <div id="comboDisplay">0 COMBO</div>
 
-    <!-- 🎮 四軌觸控底座 -->
     <div class="touch-controller" id="touchController" style="display:none;">
         <div class="touch-lane" id="lane0"><span>L1</span></div>
         <div class="touch-lane" id="lane1"><span>L2</span></div>
@@ -46,23 +44,26 @@
 
     <!-- ================= 畫面一：封面 Title Screen ================= -->
     <div id="titleScreen" class="overlay-modal active">
-        <label style="position:absolute; top:15px; right:15px; font-size:10px; padding:6px; background:rgba(0,0,0,0.6); border:1px solid #00ffcc; border-radius:6px; color:#fff; cursor:pointer; z-index:100;">
-            📁 封面圖
-            <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
-        </label>
+        <!-- 🎯 物理破解入相掣 1 -->
+        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #00ffcc; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
+            <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 封面圖</div>
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+        </div>
+
         <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none;">
             <h1 class="game-logo" onclick="goToReadyRoom()">ARCATDIA</h1>
-            <!-- ✨ 呼吸閃爍文字 -->
             <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 16px; margin-top: 15px; color: #ffcc00; text-shadow: 0 0 10px rgba(255,170,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
         </div>
     </div>
 
     <!-- ================= 畫面二：出發準備室 ================= -->
     <div id="readyRoom" class="overlay-modal">
-        <label style="position:absolute; top:15px; right:15px; font-size:10px; padding:6px; background:rgba(0,0,0,0.6); border:1px solid #ccff00; border-radius:6px; color:#fff; cursor:pointer; z-index:100;">
-            📁 候機室
-            <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="display:none;">
-        </label>
+        <!-- 🎯 物理破解入相掣 2 -->
+        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
+            <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 候機室</div>
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+        </div>
+
         <h2 class="room-title">🚀 航行整備室</h2>
         <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
             <div class="setting-group">
@@ -78,33 +79,27 @@
         </div>
     </div>
 
-    <!-- ================= 畫面三：戰鬥暫停選單（含雙音軌推桿） ================= -->
+    <!-- ================= 畫面三：戰鬥暫停選單 ================= -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
 
-            <!-- 🎛️ 雙推桿音軌平衡控制 -->
             <div class="slider-group">
-                <div class="slider-label-row">
-                    <span>🎵 BGM 歌曲音量</span>
-                    <span id="valBgm">100%</span>
-                </div>
+                <div class="slider-label-row"><span>🎵 BGM 歌曲音量</span><span id="valBgm">100%</span></div>
                 <input type="range" id="bgmSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateBgmVolume(this.value)">
             </div>
-
             <div class="slider-group">
-                <div class="slider-label-row">
-                    <span>🥁 SFX 打擊音量</span>
-                    <span id="valSfx">100%</span>
-                </div>
+                <div class="slider-label-row"><span>🥁 SFX 打擊音量</span><span id="valSfx">100%</span></div>
                 <input type="range" id="sfxSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateSfxVolume(this.value)">
             </div>
 
             <div style="background:rgba(0,0,0,0.5); padding:8px; border-radius:8px; border:1px dashed #ff0077;">
-                <label style="display:block; font-size:10px; padding:5px; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; color:#fff; cursor:pointer; margin-bottom:8px;">
-                    📁 戰鬥幻燈片 (可選多張)
-                    <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
-                </label>
+                <!-- 🎯 物理破解入相掣 3 -->
+                <div style="position:relative; overflow:hidden; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; margin-bottom:8px;">
+                    <div style="padding:6px; font-size:10px; color:#fff; pointer-events:none;">📁 戰鬥幻燈片 (可選多張)</div>
+                    <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                </div>
+
                 <div style="text-align: left; font-size: 10px; color: #aaa; margin-bottom:3px;">🌗 戰鬥圖亮度控制：</div>
                 <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="100" oninput="updateSlideOpacity(this.value)">
                 <button onclick="saveSettings()" style="width:100%; font-size:11px; padding:6px; background:#00ffcc; color:#000; border:none; border-radius:5px; font-weight:900; cursor:pointer; margin-top:6px;">
@@ -113,8 +108,8 @@
             </div>
             
             <div style="display: flex; gap: 6px;">
-                <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D 切換</button>
-                <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線高低</button>
+                <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D</button>
+                <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線</button>
             </div>
 
             <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
