@@ -34,6 +34,7 @@ body, html {
     display: block; 
 }
 
+/* 🌌 封面與候機室背景層 (永遠設為 none，嚴禁阻擋點擊上傳) */
 .bg-layer {
     position: absolute; 
     top: 0; 
@@ -44,25 +45,26 @@ body, html {
     background-repeat: no-repeat;
     background-position: center;
     background-color: #03040a;
-    z-index: 40; 
+    z-index: 2; 
     opacity: 0; 
-    pointer-events: none;
+    pointer-events: none !important; 
     transition: opacity 0.4s ease-in-out;
 }
 .bg-layer.active { 
     opacity: 1; 
-    pointer-events: auto; 
+    pointer-events: none !important; 
 }
 
 .theme-title { background-image: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
 .theme-ready { background-image: radial-gradient(circle at center, #0b2e25 0%, #03040a 100%); }
 
+/* 戰鬥頂部 HUD */
 .hud-overlay { 
     position: absolute; 
     top: 0; 
     left: 0; 
     width: 100%; 
-    z-index: 15; 
+    z-index: 25; 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
@@ -117,7 +119,7 @@ body, html {
     font-weight: 900; 
     color: #ffffff; 
     opacity: 0; 
-    z-index: 6; 
+    z-index: 10; 
     pointer-events: none; 
     text-shadow: 0 0 15px rgba(255, 255, 255, 0.9); 
 }
@@ -131,11 +133,12 @@ body, html {
     font-weight: 900; 
     color: #ffaa00; 
     opacity: 0; 
-    z-index: 6; 
+    z-index: 10; 
     pointer-events: none; 
     text-shadow: 2px 2px 8px #000; 
 }
 
+/* 🎮 四軌觸控底座 (Stage Tap 肥版手感) */
 .touch-controller { 
     position: absolute; 
     bottom: 0; 
@@ -143,7 +146,7 @@ body, html {
     width: 100%; 
     height: 195px; 
     display: flex; 
-    z-index: 8; 
+    z-index: 15; 
     background: rgba(4, 7, 15, 0.45); 
     backdrop-filter: blur(6px); 
 }
@@ -168,6 +171,7 @@ body, html {
 #lane3 { color: #aa00ff; background: rgba(170, 0, 255, 0.15); } 
 #lane3.pressed { background: rgba(170, 0, 255, 0.55); color: #fff; }
 
+/* 彈窗遮罩層 */
 .overlay-modal { 
     position: absolute; 
     top: 0; left: 0; width: 100%; height: 100%; 
@@ -175,6 +179,13 @@ body, html {
     flex-direction: column; justify-content: center; align-items: center; 
 }
 .overlay-modal.active { display: flex; }
+
+/* 📁 上傳相片標籤專用防護（保證能點擊穿透打開相簿） */
+.overlay-modal label {
+    pointer-events: auto !important;
+    cursor: pointer;
+}
+
 .glass-panel { background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(14px); }
 .glass-card { background: rgba(10, 15, 25, 0.85); border: 1px solid rgba(0, 255, 204, 0.35); border-radius: 18px; box-shadow: 0 0 25px rgba(0,0,0,0.9); }
 

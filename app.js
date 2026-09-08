@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀真動作少林寺黃金版 (Part 1)
+   🔒 Arcatdia Battle Engine - 屠龍刀少林寺相片全通版 (Part 1)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -17,6 +17,8 @@ let currentMode = 'test';
 
 let battleBgOpacity = 1.0;
 let preloadedSlideImages = [];
+let currentSlideIndex = 0;
+let lastSlideChangeTime = 0;
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 let currentPerspectiveMode = 2; // 預設 3D 消失點
@@ -45,6 +47,98 @@ function toggleJudgeLineLevel() {
 
 function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
+
+// === 📸 相片讀取、上傳與 LocalStorage 存檔模組 ===
+function loadSavedImages() {
+    try {
+        const saved = localStorage.getItem('arcatdia_slides_data');
+        if (saved) {
+            savedData = JSON.parse(saved);
+            if (savedData.title) {
+                const tb = document.getElementById('titleBg');
+                if (tb) tb.style.backgroundImage = `url(${savedData.title})`;
+            }
+            if (savedData.ready) {
+                const rb = document.getElementById('readyBg');
+                if (rb) rb.style.backgroundImage = `url(${savedData.ready})`;
+            }
+            if (savedData.battle && savedData.battle.length > 0) {
+                preloadBattleSlides();
+            }
+            if (savedData.opacity !== undefined) {
+                battleBgOpacity = savedData.opacity / 100;
+                const sl = document.getElementById('opacitySlider');
+                if (sl) sl.value = savedData.opacity;
+            }
+        }
+    } catch(e) {}
+}
+
+function preloadBattleSlides() {
+    preloadedSlideImages = [];
+    savedData.battle.forEach(src => {
+        const img = new Image();
+        img.src = src;
+        preloadedSlideImages.push(img);
+    });
+}
+
+function handleUpload(event, type) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    if (type === 'title') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            savedData.title = e.target.result;
+            const tb = document.getElementById('titleBg');
+            if (tb) tb.style.backgroundImage = `url(${e.target.result})`;
+            showJudgement("封面相片已換！");
+        };
+        reader.readAsDataURL(files[0]);
+    } else if (type === 'ready') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            savedData.ready = e.target.result;
+            const rb = document.getElementById('readyBg');
+            if (rb) rb.style.backgroundImage = `url(${e.target.result})`;
+            showJudgement("候機室已換！");
+        };
+        reader.readAsDataURL(files[0]);
+    } else if (type === 'battle') {
+        savedData.battle = [];
+        let loadedCount = 0;
+        Array.from(files).forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                savedData.battle.push(e.target.result);
+                loadedCount++;
+                if (loadedCount === files.length) {
+                    preloadBattleSlides();
+                    showJudgement(`已讀入 ${loadedCount} 張幻燈片！`);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+function updateSlideOpacity(val) {
+    battleBgOpacity = parseFloat(val) / 100;
+}
+
+function saveSettings() {
+    try {
+        savedData.opacity = Math.round(battleBgOpacity * 100);
+        localStorage.setItem('arcatdia_slides_data', JSON.stringify(savedData));
+        showJudgement("💾 存檔成功！");
+    } catch(e) {
+        showJudgement("⚠️ 相片過大，存檔受限");
+    }
+}
+
+window.addEventListener('DOMContentLoaded', loadSavedImages);
+loadSavedImages();
 
 // === Web Audio 引擎 ===
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -139,7 +233,7 @@ function playStickClick(freq = 1200) {
     } catch (e) {}
 }
 
-// === 譜面生成：少林寺節奏鐵律（EASY 2~4拍 / NORMAL 1~2拍 + 3拍長Hold避讓） ===
+// === 少林寺排譜 ===
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
@@ -162,7 +256,6 @@ function generateChart() {
         for (let i = 0; i < 200; i++) {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             const r = Math.random();
-
             if (r < 0.65) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
                 currentTime += (beatMs * (Math.random() < 0.5 ? 2 : 4));
@@ -180,7 +273,6 @@ function generateChart() {
         for (let i = 0; i < 300; i++) {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             const r = Math.random();
-
             if (r < 0.60) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
                 currentTime += (beatMs * (Math.random() < 0.6 ? 1 : 2));
@@ -241,13 +333,14 @@ function returnToReadyRoom() {
 
 function startVoyage() {
     document.getElementById('readyRoom').classList.remove('active');
-    document.getElementById('readyBg').classList.remove('active');
+    document.getElementById('readyBg').classList.remove('readyBg');
     document.getElementById('battleHud').style.display = 'flex';
     document.getElementById('touchController').style.display = 'flex';
     score = 0; combo = 0; hp = 100; totalPausedDuration = 0;
     hookMasterAudioNode();
     updateUI(); initStars(); initCelestialJourney(); generateChart();
     isPlaying = true; isPaused = false; startTime = performance.now();
+    lastSlideChangeTime = performance.now();
     scheduleCountInAndPlay(); requestAnimationFrame(gameLoop);
 }
 
@@ -270,7 +363,7 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 觸控監聽：四條軌道支援真 Tap / 真 Flick / 真 Hold
+// 觸控監聽
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
@@ -311,7 +404,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀真動作少林寺黃金版 (Part 2)
+   🔒 Arcatdia Battle Engine - 屠龍刀少林寺相片全通版 (Part 2)
    ============================================================= */
 
 let activeHoldAudioSources = [null, null, null, null];
@@ -339,7 +432,6 @@ function handleAction(laneIndex, actionType) {
                 showJudgement("FLICK UP!");
             }
         } else {
-            // Stage 空打
             playSFX('stage');
             createHitParticles(targetX, currentHitY, "rgba(0, 255, 204, 0.45)");
         }
@@ -413,19 +505,46 @@ function scheduleCountInAndPlay() {
     }, (beatMs * 4) / playbackSpeed);
 }
 
-// === 主渲染遊戲循環（5.3 激光判定線 + 動態 Shadow + Hold 光劍） ===
+// === 主渲染遊戲循環（戰鬥幻燈片背景 ＋ 5.3 激光判定線） ===
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
-    const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
+    const now = performance.now();
+    const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
+    // 📸 戰鬥背景幻燈片渲染（每 8 秒自動換下一張）
+    if (preloadedSlideImages.length > 0) {
+        if (now - lastSlideChangeTime > 8000) {
+            currentSlideIndex = (currentSlideIndex + 1) % preloadedSlideImages.length;
+            lastSlideChangeTime = now;
+        }
+        const curImg = preloadedSlideImages[currentSlideIndex];
+        if (curImg && curImg.complete) {
+            ctx.save();
+            ctx.globalAlpha = battleBgOpacity;
+            // 保持比例置中填滿
+            const imgRatio = curImg.width / curImg.height;
+            const screenRatio = W / H;
+            let dw, dh, dx, dy;
+            if (screenRatio > imgRatio) {
+                dw = W; dh = W / imgRatio; dx = 0; dy = (H - dh) / 2;
+            } else {
+                dh = H; dw = H * imgRatio; dx = (W - dw) / 2; dy = 0;
+            }
+            ctx.drawImage(curImg, dx, dy, dw, dh);
+            ctx.restore();
+        }
+    }
+
+    // 繁星背景
     stars.forEach(s => { 
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; ctx.beginPath(); 
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); 
         s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } 
     });
 
+    // 史詩行星事件
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
