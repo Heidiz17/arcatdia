@@ -24,17 +24,18 @@ body, html {
     background: #000; 
 }
 
+/* 戰鬥 Canvas：拉上第 10 層，絕不被底圖遮擋！ */
 #battleCanvas { 
     position: absolute; 
     top: 0; 
     left: 0; 
     width: 100%; 
     height: 100%; 
-    z-index: 1; 
+    z-index: 10 !important; 
     display: block; 
 }
 
-/* 🌌 封面與候機室背景層 (永遠設為 none，嚴禁阻擋點擊上傳) */
+/* 封面與候機室背景層：固定在底層，平時 0 透明度隱形 */
 .bg-layer {
     position: absolute; 
     top: 0; 
@@ -45,14 +46,13 @@ body, html {
     background-repeat: no-repeat;
     background-position: center;
     background-color: #03040a;
-    z-index: 2; 
-    opacity: 0; 
+    z-index: 0 !important; 
+    opacity: 0 !important; 
     pointer-events: none !important; 
     transition: opacity 0.4s ease-in-out;
 }
 .bg-layer.active { 
-    opacity: 1; 
-    pointer-events: none !important; 
+    opacity: 1 !important; 
 }
 
 .theme-title { background-image: radial-gradient(circle at center, #17112c 0%, #03040a 100%); }
@@ -88,7 +88,7 @@ body, html {
     cursor: pointer; 
 }
 
-/* 🕹️ 1943 街機黑色金屬底槽 ＋ 四段階梯血條 */
+/* 1943 街機黑色金屬底槽 ＋ 四段階梯血條 */
 .hp-bar-line { 
     position: absolute; 
     bottom: 0; 
@@ -104,11 +104,10 @@ body, html {
     width: 100%; 
     transition: width 0.15s ease-out, background 0.3s ease; 
 }
-/* 1943 四階動態色階 */
-.hp-fill.lvl-c { background: #ff0044; box-shadow: 0 0 12px #ff0044; } /* 0~25%: 危急深紅 */
-.hp-fill.lvl-b { background: #ff8800; box-shadow: 0 0 12px #ff8800; } /* 25~60%: 警示動能橙 */
-.hp-fill.lvl-a { background: #00d4ff; box-shadow: 0 0 12px #00d4ff; } /* 60~85%: 穩定高能藍 */
-.hp-fill.lvl-s { background: #d000ff; box-shadow: 0 0 16px #d000ff; } /* 85~100%: 滿載超頻紫 */
+.hp-fill.lvl-c { background: #ff0044; box-shadow: 0 0 12px #ff0044; }
+.hp-fill.lvl-b { background: #ff8800; box-shadow: 0 0 12px #ff8800; }
+.hp-fill.lvl-a { background: #00d4ff; box-shadow: 0 0 12px #00d4ff; }
+.hp-fill.lvl-s { background: #d000ff; box-shadow: 0 0 16px #d000ff; }
 
 #judgementDisplay { 
     position: absolute; 
@@ -138,7 +137,7 @@ body, html {
     text-shadow: 2px 2px 8px #000; 
 }
 
-/* 🎮 四軌觸控底座 (Stage Tap 肥版手感) */
+/* 四軌觸控底座 */
 .touch-controller { 
     position: absolute; 
     bottom: 0; 
@@ -171,19 +170,26 @@ body, html {
 #lane3 { color: #aa00ff; background: rgba(170, 0, 255, 0.15); } 
 #lane3.pressed { background: rgba(170, 0, 255, 0.55); color: #fff; }
 
-/* 彈窗遮罩層 */
+/* 彈窗遮罩層：非 active 徹底 display:none，絕不阻擋點擊！ */
 .overlay-modal { 
     position: absolute; 
     top: 0; left: 0; width: 100%; height: 100%; 
-    z-index: 50; display: none; 
+    z-index: 50; 
+    display: none !important; 
+    pointer-events: none !important;
     flex-direction: column; justify-content: center; align-items: center; 
 }
-.overlay-modal.active { display: flex; }
-
-/* 📁 上傳相片標籤專用防護（保證能點擊穿透打開相簿） */
-.overlay-modal label {
+.overlay-modal.active { 
+    display: flex !important; 
     pointer-events: auto !important;
-    cursor: pointer;
+}
+
+/* 入相掣永遠釘在頂層 9999，保證 100% 撳得到 */
+.overlay-modal input[type="file"],
+.overlay-modal label,
+.overlay-modal div[style*="border"] {
+    z-index: 9999 !important;
+    pointer-events: auto !important;
 }
 
 .glass-panel { background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(14px); }
@@ -207,7 +213,6 @@ body, html {
 .launch-btn { margin-top: 10px; padding: 14px; font-size: 16px; font-weight: 900; background: linear-gradient(90deg, #ff0077, #ffaa00); border: none; border-radius: 12px; color: #fff; cursor: pointer; }
 .return-btn { margin-top: 4px; padding: 12px; font-size: 14px; font-weight: 900; background: transparent; border: 1.5px solid #ffaa00; border-radius: 10px; color: #ffaa00; cursor: pointer; }
 
-/* 暫停面板與雙推桿 */
 .pause-card { width: 85%; max-width: 380px; padding: 20px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
 .slider-group { background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 8px; border: 1px solid #1a273e; text-align: left; }
 .slider-label-row { display: flex; justify-content: space-between; font-size: 11px; color: #8fa0b5; margin-bottom: 4px; }

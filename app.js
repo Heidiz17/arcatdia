@@ -58,7 +58,7 @@ function compressImage(dataUrl, callback) {
     img.src = dataUrl;
 }
 
-// === 📸 相片讀取與上傳 ===
+// === 📸 相片讀取與上傳 (已移除鎖死 opacity，交由 CSS 控制) ===
 function loadSavedImages() {
     try {
         const saved = localStorage.getItem('arcatdia_save');
@@ -66,7 +66,7 @@ function loadSavedImages() {
             savedData = JSON.parse(saved);
             if (savedData.title) {
                 const tb = document.getElementById('titleBg');
-                if (tb) { tb.style.backgroundImage = `url(${savedData.title})`; tb.style.opacity = 1; }
+                if (tb) { tb.style.backgroundImage = `url(${savedData.title})`; }
             }
             if (savedData.ready) {
                 const rb = document.getElementById('readyBg');
@@ -103,7 +103,7 @@ function handleUpload(event, type) {
             compressImage(e.target.result, (compressed) => {
                 savedData.title = compressed;
                 const tb = document.getElementById('titleBg');
-                if (tb) { tb.style.backgroundImage = `url(${compressed})`; tb.style.opacity = 1; }
+                if (tb) { tb.style.backgroundImage = `url(${compressed})`; }
                 showJudgement("封面已換！");
             });
         };
@@ -114,7 +114,7 @@ function handleUpload(event, type) {
             compressImage(e.target.result, (compressed) => {
                 savedData.ready = compressed;
                 const rb = document.getElementById('readyBg');
-                if (rb) rb.style.backgroundImage = `url(${compressed})`;
+                if (rb) { rb.style.backgroundImage = `url(${compressed})`; }
                 showJudgement("候機室已換！");
             });
         };
@@ -156,7 +156,6 @@ function saveSettings() {
 
 window.addEventListener('DOMContentLoaded', loadSavedImages);
 loadSavedImages();
-
 /* =============================================================
    🔒 Arcatdia Battle Engine - 屠龍刀黃金版 (Part 2/3)
    ============================================================= */
@@ -224,7 +223,7 @@ function goToReadyRoom() {
     document.getElementById('titleBg').classList.remove('active'); 
     document.getElementById('readyRoom').classList.add('active'); 
     const rb = document.getElementById('readyBg'); 
-    if (rb) { rb.classList.add('active'); if(savedData.ready) rb.style.opacity = 1; } 
+    if (rb) { rb.classList.add('active'); } 
     initAudioEngine(); 
 }
 
@@ -233,32 +232,28 @@ function returnToTitle() {
     document.getElementById('readyBg').classList.remove('active'); 
     document.getElementById('titleScreen').classList.add('active'); 
     const tb = document.getElementById('titleBg'); 
-    if (tb) { tb.classList.add('active'); if(savedData.title) tb.style.opacity = 1; } 
+    if (tb) { tb.classList.add('active'); } 
 }
 
-// 🛡️ 修正版：退回候機室顯示海景
 function returnToReadyRoom() { 
     document.getElementById('pauseMenu').classList.remove('active'); 
     document.getElementById('battleHud').style.display = 'none'; 
     document.getElementById('touchController').style.display = 'none'; 
     const rb = document.getElementById('readyBg'); 
-    if (rb) { 
-        rb.classList.add('active'); 
-        if(savedData.ready) rb.style.opacity = 1; 
-    } 
+    if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
     isPaused = false; isPlaying = false; 
     masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
-// 🛡️ 修正版：出發絕對收走候機室圖片
+// 🛡️ 徹底隱藏封面及候機室底圖，保證戰鬥 Canvas 獨立無阻
 function startVoyage() { 
     document.getElementById('readyRoom').classList.remove('active'); 
     const rb = document.getElementById('readyBg');
-    if (rb) {
-        rb.classList.remove('active'); 
-        rb.style.opacity = 0; 
-    }
+    if (rb) { rb.classList.remove('active'); }
+    const tb = document.getElementById('titleBg');
+    if (tb) { tb.classList.remove('active'); }
+
     document.getElementById('battleHud').style.display = 'flex'; 
     document.getElementById('touchController').style.display = 'flex'; 
     score = 0; combo = 0; hp = 100; totalPausedDuration = 0; 
@@ -284,7 +279,6 @@ for (let i = 0; i < 4; i++) {
         laneBtn.addEventListener('mouseup', () => { laneBtn.classList.remove('pressed'); lanePressed[i] = false; handleAction(i, 'up'); });
     }
 }
-
 /* =============================================================
    🔒 Arcatdia Battle Engine - 屠龍刀黃金版 (Part 3/3)
    ============================================================= */
