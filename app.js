@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 3D 消失點 + 史詩宇宙 (Part 1)
+   🔒 Arcatdia Battle Engine - 絕對對拍咬死第1拍版
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -13,7 +13,7 @@ let notes = []; let particles = []; let stars = [];
 let celestialEvents = [];
 let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
-let currentMode = 'easy';
+let currentMode = 'test'; // 預設開 TEST 畀你直接對準 L1 第 1 拍！
 
 // === UI 與圖層控制 ===
 let battleBgOpacity = 1.0;
@@ -108,18 +108,23 @@ function playStickClick(freq = 1200) {
     try { const osc = dspCtx.createOscillator(); const gain = dspCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, dspCtx.currentTime); gain.gain.setValueAtTime(0.8, dspCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04); osc.connect(gain); gain.connect(dspCtx.destination); osc.start(); osc.stop(dspCtx.currentTime + 0.04); } catch (e) {}
 }
 
-// === 嚴謹樂理生成譜面 ===
+// === 🎯 嚴謹樂理對拍生成 (鎖定第 1 拍 Downbeat) ===
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    let currentTime = 4 * beatMs; // 開場前奏
+    
+    // 🎯 核心鎖定：
+    // 棒聲在 0, 1, 2, 3 拍響起（即 1, 2, 3, 4 預備拍）
+    // 音樂在第 4 拍結束瞬間開播
+    // 第一粒音準確在【第 5 拍】（即數完 4 之後嘅正節奏「第 1 拍」大重音）剛好落地撞線！
+    let currentTime = 5 * beatMs;
     let lastLane = 1;
 
     if (currentMode === 'test') {
-        // Test: 全四分音符 (1拍)，全落 L1 (lane 0) 作為校準場
-        for (let i = 0; i < 600; i++) {
+        // Test: 100% 集中 L1 (lane 0)，4 拍一粒全音符（每小節第 1 拍重音打擊）
+        for (let i = 0; i < 150; i++) {
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
-            currentTime += beatMs;
+            currentTime += (beatMs * 4); // 嚴格每小節第 1 拍
         }
     } else if (currentMode === 'easy') {
         // Easy: 全音符(4拍) 與 二分音符(2拍)
@@ -158,28 +163,25 @@ function initCelestialJourney() {
         { timeSec: 175, duration: 25, planets: [{ name: "🐾 抵達：阿卡迪亞貓星", color: "rgba(255, 105, 180, 0.42)", radius: 115, xRatio: 0.68, yRatio: 0.18 }] }
     ];
 }
-/* =============================================================
-   🔒 Arcatdia Battle Engine - (Part 2 渲染與控制)
-   ============================================================= */
 
 function goToReadyRoom() {
     document.getElementById('titleScreen').classList.remove('active');
     document.getElementById('titleBg').classList.remove('active');
     document.getElementById('readyRoom').classList.add('active');
-    document.getElementById('readyBg').classList.add('active');
+    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); }
     initDSP();
 }
 function returnToTitle() {
     document.getElementById('readyRoom').classList.remove('active');
     document.getElementById('readyBg').classList.remove('active');
     document.getElementById('titleScreen').classList.add('active');
-    document.getElementById('titleBg').classList.add('active');
+    const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); }
 }
 function returnToReadyRoom() {
     document.getElementById('pauseMenu').classList.remove('active');
     document.getElementById('battleHud').style.display = 'none';
     document.getElementById('touchController').style.display = 'none';
-    document.getElementById('readyBg').classList.add('active');
+    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); }
     document.getElementById('readyRoom').classList.add('active');
     isPaused = false; isPlaying = false;
     masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H);
@@ -228,14 +230,12 @@ function handleTap(laneIndex) {
     
     const laneW = W / 4;
     const currentHitY = H - judgeLineOffsets[judgeLineLevel];
-    // 根據 2D/3D 計算落點 X
     let targetX;
     if (currentPerspectiveMode === 1) {
         targetX = laneW * laneIndex + (laneW / 2);
     } else {
-        const topXArr = [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
         const botXArr = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
-        targetX = botXArr[laneIndex]; // 撞線時喺底部
+        targetX = botXArr[laneIndex];
     }
 
     const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
@@ -258,10 +258,27 @@ function showJudgement(text) { const disp = document.getElementById('judgementDi
 
 let countInTimers = []; let audioStartTimer = null;
 function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countInTimers = []; if (audioStartTimer) { clearTimeout(audioStartTimer); audioStartTimer = null; } }
+
 function scheduleCountInAndPlay() {
-    clearAllTimers(); const beatMs = (60 / bpm) * 1000;
-    [0, 1, 2, 3].forEach(b => { countInTimers.push(setTimeout(() => { if (!isPlaying || isPaused) return; playStickClick(b === 3 ? 1800 : 1200); showJudgement(`${b + 1}`); }, (b * beatMs) / playbackSpeed)); });
-    audioStartTimer = setTimeout(() => { if (!isPlaying || isPaused) return; masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {}); }, (beatMs * 4) / playbackSpeed);
+    clearAllTimers(); 
+    const beatMs = (60 / bpm) * 1000;
+
+    // 1, 2, 3, 4 棒聲倒數（在 0, 1, 2, 3 拍響起）
+    [0, 1, 2, 3].forEach(b => { 
+        countInTimers.push(setTimeout(() => { 
+            if (!isPlaying || isPaused) return; 
+            playStickClick(b === 3 ? 1800 : 1200); 
+            showJudgement(`${b + 1}`); 
+        }, (b * beatMs) / playbackSpeed)); 
+    });
+
+    // 數到第 4 拍完結（即 4 * beatMs），音樂開播
+    audioStartTimer = setTimeout(() => { 
+        if (!isPlaying || isPaused) return; 
+        masterAudio.playbackRate = playbackSpeed; 
+        masterAudio.currentTime = 0; 
+        masterAudio.play().catch(() => {}); 
+    }, (beatMs * 4) / playbackSpeed);
 }
 
 function gameLoop() {
@@ -270,20 +287,19 @@ function gameLoop() {
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 🎨 戰鬥幻燈片：2秒淡入 -> 4秒展示 -> 2秒淡出 (總週期 21秒)
+    // 🎨 戰鬥幻燈片：2秒淡入 -> 4秒展示 -> 2秒淡出 (21秒一輪)
     if (preloadedSlideImages.length > 0 && battleBgOpacity > 0.01) {
         const cycleLength = 21;
         const localTime = currentSec % cycleLength;
         const slideIndex = Math.floor(currentSec / cycleLength) % preloadedSlideImages.length;
         
         let slideAlpha = 0;
-        if (localTime < 2) slideAlpha = localTime / 2; // 淡入
-        else if (localTime < 6) slideAlpha = 1.0;      // 停留
-        else if (localTime < 8) slideAlpha = 1.0 - ((localTime - 6) / 2); // 淡出
-        else slideAlpha = 0; // 星空留白
+        if (localTime < 2) slideAlpha = localTime / 2;
+        else if (localTime < 6) slideAlpha = 1.0;
+        else if (localTime < 8) slideAlpha = 1.0 - ((localTime - 6) / 2);
+        else slideAlpha = 0;
         
         const finalAlpha = slideAlpha * battleBgOpacity;
-        
         if (finalAlpha > 0.01) {
             const img = preloadedSlideImages[slideIndex];
             if (img && img.complete && img.naturalWidth !== 0) {
@@ -299,10 +315,10 @@ function gameLoop() {
         }
     }
 
-    // 🎯 星空
+    // 🎯 繁星背景
     stars.forEach(s => { ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } });
 
-    // 🎯 行星事件 (含 5.3 土星環)
+    // 🎯 史詩行星事件
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -333,6 +349,7 @@ function gameLoop() {
         ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
     }
 
+    // 🎯 核心運算：4 拍飛行時間
     const beatMs = (60 / bpm) * 1000;
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
@@ -344,8 +361,13 @@ function gameLoop() {
             const cy = startY + (hitY - startY) * p;
             ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 15;
             ctx.beginPath();
-            if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
-            else { const rx = (10 * (1.0 - p)) + (26 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); }
+            if (currentPerspectiveMode === 1) { 
+                ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
+            } else { 
+                const rx = (10 * (1.0 - p)) + (26 * p); 
+                const ry = (32 * (1.0 - p)) + (14 * p); 
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+            }
             ctx.fill();
         }
         if (p > 1.08 && !n.hit) { n.hit = true; combo = 0; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
