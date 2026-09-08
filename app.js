@@ -71,7 +71,7 @@ function handleUpload(event, target) {
         reader.onload = function(e) {
             compressImage(e.target.result, (compressed) => {
                 const el = document.getElementById(target + 'Bg');
-                if (el) { el.style.backgroundImage = `url('${compressed}')`; el.style.opacity = 1; }
+                if (el) { el.style.backgroundImage = `url('${compressed}')`;}
                 savedData[target] = compressed;
             });
         }; reader.readAsDataURL(files[0]);
@@ -89,8 +89,7 @@ window.onload = function() {
         try {
             savedData = JSON.parse(saved);
             ['title', 'ready'].forEach(t => {
-                if (savedData[t]) { const el = document.getElementById(t + 'Bg'); if(el) { el.style.backgroundImage = `url('${savedData[t]}')`; el.style.opacity = 1; } }
-            });
+                if (savedData[t]) { const el = document.getElementById(t + 'Bg'); if(el) { el.style.backgroundImage = `url('${savedData[t]}')`;}}});
             if (savedData.battle) { savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); }); }
             if (savedData.opacity !== undefined) { battleBgOpacity = savedData.opacity / 100; const slider = document.getElementById('opacitySlider'); if (slider) slider.value = savedData.opacity; }
         } catch(e) {}

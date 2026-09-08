@@ -15,22 +15,20 @@
 <div id="stage-container">
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🌌 封面與候機室背景 (確保無遮擋) -->
+    <!-- 🌌 封面與候機室背景 (已解封，交畀 active 自由控制) -->
     <div id="readyBg" class="bg-layer theme-ready" style="filter:none; transition:opacity 0.4s;"></div>
     <div id="titleBg" class="bg-layer theme-title active" style="filter:none; transition:opacity 0.4s;"></div>
 
-    <!-- 戰鬥頂部 HUD (極限肥大化) -->
+    <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
         <div class="hud-left">
             <div class="brand-mini">ARCATDIA</div>
             <div class="track-info" id="hudTrackInfo" style="text-shadow: 2px 2px 5px #000, 0 0 10px rgba(0, 255, 204, 0.9);">最大の愛</div>
         </div>
-        <!-- 💯 分數放大 -->
         <div class="score-board"><span id="scoreVal" style="font-size: 40px; text-shadow: 2px 2px 5px #000;">000000</span></div>
         <div class="hud-right">
             <button id="pauseBtn" class="btn-pause" onclick="pauseGame()">⏸ 暫停</button>
         </div>
-        <!-- ❤️ 血條加粗 -->
         <div class="hp-bar-line" style="height: 25px;"><div id="hpFill" class="hp-fill"></div></div>
     </div>
 
@@ -52,7 +50,8 @@
         </label>
         <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none;">
             <h1 class="game-logo" onclick="goToReadyRoom()" style="text-shadow: 2px 2px 4px #000, 0 0 15px rgba(0, 255, 204, 0.9);">ARCATDIA</h1>
-            <p class="logo-sub" onclick="goToReadyRoom()" style="text-shadow: 2px 2px 4px #000;">~ 點擊 Logo 進入航行整備室 ~</p>
+            <!-- ✨ 閃爍字眼 -->
+            <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="text-shadow: 2px 2px 4px #000, 0 0 10px rgba(255,170,0,0.9); font-size: 16px; margin-top: 15px; color: #ffcc00;">進入：阿卡迪亞 ~貓星宇宙🪐</p>
         </div>
     </div>
 
@@ -93,7 +92,6 @@
                 </button>
             </div>
             
-            <!-- 視角與判定線切換 -->
             <div style="display: flex; gap: 6px; margin-bottom: 10px;">
                 <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D 切換</button>
                 <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線高低</button>
