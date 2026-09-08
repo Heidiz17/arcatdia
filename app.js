@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀真動作黃金實裝版 (Part 1)
+   🔒 Arcatdia Battle Engine - 屠龍刀真動作少林寺黃金版 (Part 1)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -90,7 +90,7 @@ async function loadSFXFiles() {
 }
 
 function playSFX(key) {
-    if (!audioCtx || !sfxBuffers[key]) return;
+    if (!audioCtx || !sfxBuffers[key]) return null;
     try {
         const src = audioCtx.createBufferSource();
         src.buffer = sfxBuffers[key];
@@ -139,16 +139,15 @@ function playStickClick(freq = 1200) {
     } catch (e) {}
 }
 
-// === 譜面生成：包含真 Tap、真 Flick、真 Hold ===
+// === 譜面生成：少林寺節奏鐵律（EASY 2~4拍 / NORMAL 1~2拍 + 3拍長Hold避讓） ===
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     let currentTime = 5 * beatMs;
-    let lastLane = 1;
+    let lastLane = 0;
 
     if (currentMode === 'test') {
         for (let i = 0; i < 150; i++) {
-            // Test 模式循環體驗：Tap -> Tap -> Flick -> Hold
             const mod = i % 4;
             if (mod === 0 || mod === 1) {
                 notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
@@ -159,18 +158,40 @@ function generateChart() {
             }
             currentTime += (beatMs * 4);
         }
-    } else {
-        for (let i = 0; i < 350; i++) {
-            lastLane = (lastLane + 1) % 4;
+    } else if (currentMode === 'easy') {
+        for (let i = 0; i < 200; i++) {
+            lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             const r = Math.random();
-            if (r < 0.55) {
+
+            if (r < 0.65) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            } else if (r < 0.8) {
+                currentTime += (beatMs * (Math.random() < 0.5 ? 2 : 4));
+            } else if (r < 0.85) {
                 notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * 2);
             } else {
-                notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
+                const holdBeats = (Math.random() < 0.5) ? 1 : 2;
+                const holdDuration = beatMs * holdBeats;
+                notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: holdDuration, hit: false, holding: false, lastTick: 0 });
+                currentTime += holdDuration + (beatMs * 2);
             }
-            currentTime += (r > 0.5 ? beatMs * 2 : beatMs);
+        }
+    } else {
+        for (let i = 0; i < 300; i++) {
+            lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
+            const r = Math.random();
+
+            if (r < 0.60) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * (Math.random() < 0.6 ? 1 : 2));
+            } else if (r < 0.80) {
+                notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * 2);
+            } else {
+                const holdDuration = beatMs * 3;
+                notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: holdDuration, hit: false, holding: false, lastTick: 0 });
+                currentTime += holdDuration + beatMs;
+            }
         }
     }
     notes.sort((a, b) => a.targetTime - b.targetTime);
@@ -264,7 +285,6 @@ for (let i = 0; i < 4; i++) {
 
         laneBtn.addEventListener('touchmove', (e) => {
             const currentY = e.touches[0].clientY;
-            // 向上滑動超過 18px 即視為真 Flick 甩手
             if (!laneTouchFlicked[i] && (laneTouchStartY[i] - currentY > 18)) {
                 laneTouchFlicked[i] = true;
                 handleAction(i, 'flick');
@@ -278,7 +298,6 @@ for (let i = 0; i < 4; i++) {
             handleAction(i, 'up');
         }, { passive: false });
 
-        // 電腦滑鼠支援
         laneBtn.addEventListener('mousedown', (e) => {
             laneBtn.classList.add('pressed');
             lanePressed[i] = true;
@@ -292,7 +311,7 @@ for (let i = 0; i < 4; i++) {
     }
 }
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 屠龍刀真動作黃金實裝版 (Part 2)
+   🔒 Arcatdia Battle Engine - 屠龍刀真動作少林寺黃金版 (Part 2)
    ============================================================= */
 
 let activeHoldAudioSources = [null, null, null, null];
@@ -305,29 +324,26 @@ function handleAction(laneIndex, actionType) {
     const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        // 判定容差箱：正負 200ms
         const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 200);
 
         if (targetNote) {
             if (targetNote.type === 'tap') {
                 targetNote.hit = true; score += 1000; combo++; hp = Math.min(100, hp + 2);
-                playSFX('tap'); // 🎯 統一敲出爽快 Perfect Tap！
+                playSFX('tap');
                 showJudgement("PERFECT!"); createHitParticles(targetX, currentHitY, "#ffffff"); updateUI();
             } else if (targetNote.type === 'hold') {
                 targetNote.holding = true; targetNote.lastTick = currentTimeMs;
-                activeHoldAudioSources[laneIndex] = playSFX('hold'); // 開始長按音
+                activeHoldAudioSources[laneIndex] = playSFX('hold');
                 showJudgement("HOLD!"); createHitParticles(targetX, currentHitY, laneColors[laneIndex].main); updateUI();
             } else if (targetNote.type === 'flick') {
-                // Flick Note 如果只係按下，畀個先行提示，等待甩手
                 showJudgement("FLICK UP!");
             }
         } else {
-            // 🎯 真空打（Stage Tap）：無 Note 嗰陣發出清脆 stage 敲擊聲，零扣血、斷 Combo 懲罰！
+            // Stage 空打
             playSFX('stage');
             createHitParticles(targetX, currentHitY, "rgba(0, 255, 204, 0.45)");
         }
     } else if (actionType === 'flick') {
-        // 🎯 真甩手（Flick）：向上甩手判定，寬容度 260ms
         const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 260);
         if (flickNote) {
             flickNote.hit = true; score += 1200; combo++; hp = Math.min(100, hp + 3);
@@ -335,7 +351,6 @@ function handleAction(laneIndex, actionType) {
             showJudgement("FLICK!!"); createHitParticles(targetX, currentHitY, "#ff0077"); updateUI();
         }
     } else if (actionType === 'up') {
-        // 🎯 手指放開：結束 Hold 長按
         const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
         if (holdingNote) {
             holdingNote.holding = false;
@@ -405,14 +420,12 @@ function gameLoop() {
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 繁星背景
     stars.forEach(s => { 
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; ctx.beginPath(); 
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); 
         s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } 
     });
 
-    // 史詩行星事件
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -437,7 +450,6 @@ function gameLoop() {
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
     const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    // 四條軌道線
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], H); ctx.stroke();
@@ -463,17 +475,14 @@ function gameLoop() {
     const beatMs = (60 / bpm) * 1000;
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 音符渲染與 Hold 連續 Tick 監控
     notes.forEach(n => {
         if (n.hit) return;
         const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
 
-        // 真 Hold 連續 Tick 與放手判定
         if (n.type === 'hold') {
             const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / tDur);
             
             if (n.holding) {
-                // 每過 120ms 敲一下 Tick
                 if (currentTimeMs - n.lastTick >= 120) {
                     n.lastTick = currentTimeMs;
                     playSFX('tick');
@@ -508,7 +517,6 @@ function gameLoop() {
                 showJudgement("MISS"); updateUI();
             }
         } else {
-            // Tap 與 Flick 渲染
             if (p > 0 && p < 1.15) {
                 const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p;
                 const cy = startY + (hitY - startY) * p;
@@ -516,7 +524,7 @@ function gameLoop() {
                 ctx.save();
                 ctx.fillStyle = laneColors[n.lane].main;
                 ctx.shadowColor = laneColors[n.lane].main;
-                ctx.shadowBlur = 22 * p; // 動態充能 Shadow！
+                ctx.shadowBlur = 22 * p;
 
                 ctx.beginPath();
                 if (n.type === 'flick') {
@@ -543,7 +551,6 @@ function gameLoop() {
         }
     });
 
-    // 打擊粒子更新
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]; ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
