@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 高清三層視覺 + SAVE功能版
+   🔒 Arcatdia Battle Engine - 高清三層視覺 + SAVE功能版 (上半部)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -26,9 +26,10 @@ let playbackSpeed = 1.0;
 let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'easy';
 
-let battleBgOpacity = 0.45;
+// 預設戰鬥背景亮度為 100 (全亮)
+let battleBgOpacity = 1.0;
 let preloadedSlideImages = [];
-let savedData = { title: null, ready: null, battle: [], opacity: 45 };
+let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 const lanePressed = [false, false, false, false];
 const laneColors = [
@@ -55,7 +56,7 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 handleResize(); 
 
-// 📸 輕量化壓縮相片，防止塞爆手機
+// 📸 輕量化壓縮相片
 function compressImage(dataUrl, callback) {
     const img = new Image();
     img.onload = function() {
@@ -72,6 +73,7 @@ function compressImage(dataUrl, callback) {
     img.src = dataUrl;
 }
 
+// 處理入相 (三頁圖通用)
 function handleUpload(event, target) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -97,9 +99,11 @@ function handleUpload(event, target) {
             compressImage(e.target.result, (compressed) => {
                 if (target === 'title') {
                     document.getElementById('titleBg').style.backgroundImage = `url('${compressed}')`;
+                    document.getElementById('titleBg').style.opacity = 1;
                     savedData.title = compressed;
                 } else if (target === 'ready') {
                     document.getElementById('readyBg').style.backgroundImage = `url('${compressed}')`;
+                    document.getElementById('readyBg').style.opacity = 1;
                     savedData.ready = compressed;
                 }
             });
@@ -108,34 +112,43 @@ function handleUpload(event, target) {
     }
 }
 
+// 即時推光拉桿
 function updateSlideOpacity(val) {
-    battleBgOpacity = val / 100;
-    savedData.opacity = val;
+    battleBgOpacity = parseFloat(val) / 100;
+    savedData.opacity = parseInt(val, 10);
 }
 
+// 一鍵 Save
 function saveSettings() {
     try {
         localStorage.setItem('arcatdia_save', JSON.stringify(savedData));
-        alert("💾 所有相片及設定已經儲存！下次入 Game 自動 Load！");
+        alert("💾 第一、第二封面、戰鬥圖及透明度已經全部儲存！下次入 Game 自動 Load！");
     } catch (e) {
         alert("相片太多，儲存失敗！請減少戰鬥幻燈片數量。");
     }
 }
 
+// 開 Game 自動載入
 window.onload = function() {
     const saved = localStorage.getItem('arcatdia_save');
     if (saved) {
         try {
             savedData = JSON.parse(saved);
-            if (savedData.title) document.getElementById('titleBg').style.backgroundImage = `url('${savedData.title}')`;
-            if (savedData.ready) document.getElementById('readyBg').style.backgroundImage = `url('${savedData.ready}')`;
+            if (savedData.title) {
+                document.getElementById('titleBg').style.backgroundImage = `url('${savedData.title}')`;
+                document.getElementById('titleBg').style.opacity = 1;
+            }
+            if (savedData.ready) {
+                document.getElementById('readyBg').style.backgroundImage = `url('${savedData.ready}')`;
+            }
             if (savedData.battle && savedData.battle.length > 0) {
                 preloadedSlideImages = [];
                 savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); });
             }
             if (savedData.opacity !== undefined) {
                 battleBgOpacity = savedData.opacity / 100;
-                document.getElementById('opacitySlider').value = savedData.opacity;
+                const slider = document.getElementById('opacitySlider');
+                if (slider) slider.value = savedData.opacity;
             }
         } catch(e) {}
     }
@@ -173,7 +186,8 @@ function goToReadyRoom() {
     const ts = document.getElementById('titleScreen'); if (ts) ts.classList.remove('active');
     const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
     const rr = document.getElementById('readyRoom'); if (rr) rr.classList.add('active');
-    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
+    const rb = document.getElementById('readyBg'); 
+    if (rb) { rb.classList.add('active'); if(savedData.ready) rb.style.opacity = 1; }
     initDSP();
 }
 
@@ -181,19 +195,24 @@ function returnToTitle() {
     const rr = document.getElementById('readyRoom'); if (rr) rr.classList.remove('active');
     const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
     const ts = document.getElementById('titleScreen'); if (ts) ts.classList.add('active');
-    const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active');
+    const tb = document.getElementById('titleBg'); 
+    if (tb) { tb.classList.add('active'); if(savedData.title) tb.style.opacity = 1; }
 }
 
 function returnToReadyRoom() {
     const pm = document.getElementById('pauseMenu'); if (pm) pm.classList.remove('active');
     const hud = document.getElementById('battleHud'); if (hud) hud.style.display = 'none';
     const tc = document.getElementById('touchController'); if (tc) tc.style.display = 'none';
-    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
+    const rb = document.getElementById('readyBg'); 
+    if (rb) { rb.classList.add('active'); if(savedData.ready) rb.style.opacity = 1; }
     const rr = document.getElementById('readyRoom'); if (rr) rr.classList.add('active');
     isPaused = false; isPlaying = false;
     masterAudio.pause(); masterAudio.currentTime = 0;
     clearAllTimers(); ctx.clearRect(0, 0, W, H);
 }
+/* =============================================================
+   🔒 Arcatdia Battle Engine - 下半部 (遊戲核心邏輯)
+   ============================================================= */
 
 function startVoyage() {
     const rr = document.getElementById('readyRoom'); if (rr) rr.classList.remove('active');
@@ -242,29 +261,25 @@ function createHitParticles(x, y, color) {
     }
 }
 
-// 🎯 完美落點與不同難度譜面設定
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    const firstBeatOffset = 4 * beatMs; // 音符準確喺第4拍完結後正中紅心
+    const firstBeatOffset = 4 * beatMs; 
     let currentTime = firstBeatOffset;
     let lastLane = 1;
 
     if (currentMode === 'test') {
-        // TEST：全部 2號軌 (L2)，4 拍一粒全音符
         for (let i = 0; i < 145; i++) {
             notes.push({ type: 'tap', lane: 1, targetTime: currentTime, hit: false });
             currentTime += beatMs * 4;
         }
     } else if (currentMode === 'easy') {
-        // EASY：輪流出，隨機 4 拍 或 2 拍一粒
         for (let i = 0; i < 180; i++) {
             lastLane = (lastLane + 1) % 4;
             notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
             currentTime += Math.random() > 0.5 ? beatMs * 4 : beatMs * 2;
         }
     } else if (currentMode === 'normal') {
-        // NORMAL：跳躍出，隨機 2 拍 或 1 拍一粒
         for (let i = 0; i < 280; i++) {
             lastLane = Math.floor(Math.random() * 4);
             notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
@@ -339,17 +354,22 @@ function gameLoop() {
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    if (preloadedSlideImages.length > 0) {
-        const slideIndex = Math.floor(currentSec / 5.5);
-        if (slideIndex < preloadedSlideImages.length) {
-            const img = preloadedSlideImages[slideIndex];
-            if (img.complete && img.naturalWidth !== 0) {
-                ctx.save(); ctx.globalAlpha = battleBgOpacity; 
-                const r = W / H > img.width / img.height;
-                const dW = r ? W : H * (img.width / img.height);
-                const dH = r ? W / (img.width / img.height) : H;
-                ctx.drawImage(img, (W - dW) / 2, (H - dH) / 2, dW, dH); ctx.restore();
-            }
+    // 🎨 戰鬥幻燈片輕量渲染 (順滑推光防爆 GPU)
+    if (preloadedSlideImages.length > 0 && battleBgOpacity > 0.01) {
+        const slideIndex = Math.floor(currentSec / 5.5) % preloadedSlideImages.length;
+        const img = preloadedSlideImages[slideIndex];
+        if (img && img.complete && img.naturalWidth !== 0) {
+            ctx.save();
+            ctx.globalAlpha = battleBgOpacity; 
+            const imgRatio = img.width / img.height;
+            const screenRatio = W / H;
+            let drawW, drawH;
+            
+            if (screenRatio > imgRatio) { drawW = W; drawH = W / imgRatio; } 
+            else { drawH = H; drawW = H * imgRatio; }
+            
+            ctx.drawImage(img, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+            ctx.restore();
         }
     }
 
@@ -378,7 +398,7 @@ function gameLoop() {
     }
 
     const beatMs = (60 / bpm) * 1000;
-    const tDur = (beatMs * 4) / scrollSpeedMultiplier; // 剛剛好 4 拍跌落判定線！
+    const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
     notes.forEach(n => {
         if (n.hit) return;

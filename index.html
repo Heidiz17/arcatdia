@@ -16,30 +16,29 @@
     <!-- 🖼️ 戰鬥最底層：Canvas -->
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🛡️ 戰鬥專用玻璃遮罩 (z-index: 3) -->
-    <div id="battleGlassMask" class="battle-glass-overlay"></div>
+    <!-- (已移除磨砂玻璃，確保高清) -->
 
-    <!-- 🌌 第二層：候機室專屬背景 (z-index: 40, 完全覆蓋玻璃) -->
-    <div id="readyBg" class="bg-layer theme-ready"></div>
+    <!-- 🌌 第二層：候機室專屬背景 -->
+    <div id="readyBg" class="bg-layer theme-ready" style="filter: none; opacity: 0; transition: opacity 0.4s;"></div>
 
-    <!-- 🚀 第三層：開頭封面專屬背景 (z-index: 40, 完全覆蓋玻璃) -->
-    <div id="titleBg" class="bg-layer theme-title active"></div>
+    <!-- 🚀 第三層：開頭封面專屬背景 -->
+    <div id="titleBg" class="bg-layer theme-title active" style="filter: none; transition: opacity 0.4s;"></div>
 
     <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
         <div class="hud-left">
             <div class="brand-mini">ARCATDIA</div>
-            <div class="track-info" id="hudTrackInfo">最大の愛</div>
+            <div class="track-info" id="hudTrackInfo" style="text-shadow: 2px 2px 5px #000, 0 0 10px rgba(0, 255, 204, 0.9);">最大の愛</div>
         </div>
-        <div class="score-board"><span id="scoreVal">000000</span></div>
+        <div class="score-board"><span id="scoreVal" style="text-shadow: 2px 2px 5px #000;">000000</span></div>
         <div class="hud-right">
             <button id="pauseBtn" class="btn-pause" onclick="pauseGame()">⏸ 暫停</button>
         </div>
         <div class="hp-bar-line"><div id="hpFill" class="hp-fill"></div></div>
     </div>
 
-    <div id="judgementDisplay">PERFECT!</div>
-    <div id="comboDisplay">0 COMBO</div>
+    <div id="judgementDisplay" style="text-shadow: 2px 2px 10px #000, 0 0 15px rgba(255,255,255,0.8);">PERFECT!</div>
+    <div id="comboDisplay" style="text-shadow: 2px 2px 10px #000;">0 COMBO</div>
 
     <!-- 🎯 四軌觸控底座 -->
     <div class="touch-controller" id="touchController" style="display:none;">
@@ -49,26 +48,33 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- 🎯 畫面一：封面 Title Screen -->
+    <!-- ================= 畫面一：封面 Title Screen ================= -->
     <div id="titleScreen" class="overlay-modal active">
-        <div class="title-content">
-            <h1 class="game-logo" onclick="goToReadyRoom()">ARCATDIA</h1>
-            <p class="logo-sub" onclick="goToReadyRoom()">~ 點擊 Logo 進入航行整備室 ~</p>
-            
-            <!-- 畫面一專屬：載入封面 -->
-            <label class="custom-upload-btn" style="margin-top: 35px; border-color: #00ffcc;">
-                📁 載入高清專屬封面...
-                <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
-            </label>
+        <!-- 畫面一極簡入相掣 (右上角) -->
+        <label style="position:absolute; top:15px; right:15px; font-size:10px; padding:6px; background:rgba(0,0,0,0.6); border:1px solid #00ffcc; border-radius:6px; color:#fff; cursor:pointer; z-index:100;">
+            📁 封面圖
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="display:none;">
+        </label>
+
+        <!-- 拎走黑底，加強字體陰影 -->
+        <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none;">
+            <h1 class="game-logo" onclick="goToReadyRoom()" style="text-shadow: 2px 2px 4px #000, 0 0 15px rgba(0, 255, 204, 0.9);">ARCATDIA</h1>
+            <p class="logo-sub" onclick="goToReadyRoom()" style="text-shadow: 2px 2px 4px #000;">~ 點擊 Logo 進入航行整備室 ~</p>
         </div>
     </div>
 
-    <!-- 🎯 畫面二：出發準備室 -->
+    <!-- ================= 畫面二：出發準備室 ================= -->
     <div id="readyRoom" class="overlay-modal">
-        <h2 class="room-title" style="text-shadow: 0 0 10px #000;">🚀 航行整備室</h2>
-        <div class="ready-panel glass-card">
+        <!-- 畫面二極簡入相掣 (右上角) -->
+        <label style="position:absolute; top:15px; right:15px; font-size:10px; padding:6px; background:rgba(0,0,0,0.6); border:1px solid #ccff00; border-radius:6px; color:#fff; cursor:pointer; z-index:100;">
+            📁 候機室
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="display:none;">
+        </label>
+
+        <h2 class="room-title" style="text-shadow: 2px 2px 5px #000;">🚀 航行整備室</h2>
+        <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
             <div class="setting-group">
-                <label>選擇航行難度：</label>
+                <label style="text-shadow: 1px 1px 3px #000;">選擇航行難度：</label>
                 <div class="option-row">
                     <button class="opt-btn diff-btn active" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
                     <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL</button>
@@ -76,31 +82,31 @@
                 </div>
             </div>
             <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
-            <button class="return-btn" onclick="returnToTitle()">🔙 返回開頭封面</button>
-            
-            <!-- 畫面二專屬：載入候機室背景 -->
-            <label class="custom-upload-btn" style="margin-top: 15px; border-color: #ccff00;">
-                📁 載入候機室高清相片...
-                <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="display:none;">
-            </label>
+            <button class="return-btn" onclick="returnToTitle()" style="background:rgba(0,0,0,0.5);">🔙 返回開頭封面</button>
         </div>
     </div>
 
-    <!-- 🎯 戰鬥暫停選單 (畫面三專屬設定) -->
+    <!-- ================= 畫面三：戰鬥暫停選單 ================= -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
             
-            <!-- 畫面三專屬：載入戰鬥幻燈片與控制透明度 -->
-            <label class="custom-upload-btn" style="border-color: #ff0077; margin-bottom: 5px;">
-                📁 載入戰鬥幻燈片 (可選多張)...
-                <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
-            </label>
-            <div style="text-align: left; font-size: 12px; color: #aaa;">🌗 戰鬥背景透明度：</div>
-            <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="45" oninput="updateSlideOpacity(this.value)">
-            
-            <button class="pause-opt-btn" style="background: #00ffcc; color: #000; border: none; margin-bottom: 10px;" onclick="saveSettings()">💾 儲存所有相片設定 (SAVE)</button>
+            <!-- 戰鬥專屬：超迷你上傳、推光與 Save -->
+            <div style="background:rgba(0,0,0,0.5); padding:10px; border-radius:8px; margin-bottom:10px; border:1px dashed #ff0077;">
+                <label style="display:block; font-size:10px; padding:6px; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; color:#fff; cursor:pointer; margin-bottom:10px;">
+                    📁 戰鬥幻燈片 (可選多張)
+                    <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="display:none;">
+                </label>
+                
+                <div style="text-align: left; font-size: 10px; color: #aaa; margin-bottom:4px;">🌗 戰鬥推光透明度：</div>
+                <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="100" oninput="updateSlideOpacity(this.value)" style="margin-bottom:12px; height:2px;">
+                
+                <button onclick="saveSettings()" style="width:100%; font-size:11px; padding:8px; background:#00ffcc; color:#000; border:none; border-radius:5px; font-weight:900; cursor:pointer;">
+                    💾 SAVE (一次過儲存三頁圖+設定)
+                </button>
+            </div>
 
+            <!-- 原本嘅操作按鈕 (冇改過，照舊) -->
             <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
             <button class="pause-opt-btn" onclick="restartFromPause()">🔄 重新開始</button>
             <button class="pause-opt-btn btn-exit" onclick="returnToReadyRoom()">🚪 退回航行整備室</button>
