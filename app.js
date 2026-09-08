@@ -58,18 +58,27 @@ function compressImage(dataUrl, callback) {
     img.src = dataUrl;
 }
 
-// === 📸 相片讀取與上傳 ===
+// === 📸 相片讀取與上傳 (已對齊 arcatdia_save) ===
 function loadSavedImages() {
     try {
-        const saved = localStorage.getItem('arcatdia_slides_data');
+        const saved = localStorage.getItem('arcatdia_save');
         if (saved) {
             savedData = JSON.parse(saved);
-            if (savedData.title) { const tb = document.getElementById('titleBg'); if (tb) tb.style.backgroundImage = `url(${savedData.title})`; }
-            if (savedData.ready) { const rb = document.getElementById('readyBg'); if (rb) rb.style.backgroundImage = `url(${savedData.ready})`; }
-            if (savedData.battle && savedData.battle.length > 0) { preloadBattleSlides(); }
+            if (savedData.title) {
+                const tb = document.getElementById('titleBg');
+                if (tb) { tb.style.backgroundImage = `url(${savedData.title})`; tb.style.opacity = 1; }
+            }
+            if (savedData.ready) {
+                const rb = document.getElementById('readyBg');
+                if (rb) { rb.style.backgroundImage = `url(${savedData.ready})`; }
+            }
+            if (savedData.battle && savedData.battle.length > 0) {
+                preloadBattleSlides();
+            }
             if (savedData.opacity !== undefined) {
                 battleBgOpacity = savedData.opacity / 100;
-                const sl = document.getElementById('opacitySlider'); if (sl) sl.value = savedData.opacity;
+                const sl = document.getElementById('opacitySlider');
+                if (sl) sl.value = savedData.opacity;
             }
         }
     } catch(e) {}
@@ -77,7 +86,11 @@ function loadSavedImages() {
 
 function preloadBattleSlides() {
     preloadedSlideImages = [];
-    savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); });
+    savedData.battle.forEach(src => {
+        const img = new Image();
+        img.src = src;
+        preloadedSlideImages.push(img);
+    });
 }
 
 function handleUpload(event, type) {
@@ -89,7 +102,8 @@ function handleUpload(event, type) {
         reader.onload = (e) => {
             compressImage(e.target.result, (compressed) => {
                 savedData.title = compressed;
-                const tb = document.getElementById('titleBg'); if (tb) tb.style.backgroundImage = `url(${compressed})`;
+                const tb = document.getElementById('titleBg');
+                if (tb) { tb.style.backgroundImage = `url(${compressed})`; tb.style.opacity = 1; }
                 showJudgement("封面已換！");
             });
         };
@@ -99,20 +113,25 @@ function handleUpload(event, type) {
         reader.onload = (e) => {
             compressImage(e.target.result, (compressed) => {
                 savedData.ready = compressed;
-                const rb = document.getElementById('readyBg'); if (rb) rb.style.backgroundImage = `url(${compressed})`;
+                const rb = document.getElementById('readyBg');
+                if (rb) rb.style.backgroundImage = `url(${compressed})`;
                 showJudgement("候機室已換！");
             });
         };
         reader.readAsDataURL(files[0]);
     } else if (type === 'battle') {
-        savedData.battle = []; let loadedCount = 0;
+        savedData.battle = [];
+        let loadedCount = 0;
         Array.from(files).forEach((file) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 compressImage(e.target.result, (compressed) => {
                     savedData.battle.push(compressed);
                     loadedCount++;
-                    if (loadedCount === files.length) { preloadBattleSlides(); showJudgement(`讀入 ${loadedCount} 張！`); }
+                    if (loadedCount === files.length) {
+                        preloadBattleSlides();
+                        showJudgement(`已讀入 ${loadedCount} 張戰鬥圖！`);
+                    }
                 });
             };
             reader.readAsDataURL(file);
@@ -120,15 +139,24 @@ function handleUpload(event, type) {
     }
 }
 
-function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; }
+function updateSlideOpacity(val) {
+    battleBgOpacity = parseFloat(val) / 100;
+    savedData.opacity = parseInt(val, 10);
+}
+
 function saveSettings() {
     try {
         savedData.opacity = Math.round(battleBgOpacity * 100);
-        localStorage.setItem('arcatdia_slides_data', JSON.stringify(savedData));
+        localStorage.setItem('arcatdia_save', JSON.stringify(savedData));
         showJudgement("💾 存檔成功！");
-    } catch(e) { showJudgement("⚠️ 相片過大，存檔受限"); }
+    } catch(e) {
+        showJudgement("⚠️ 相片過大，存檔受限");
+    }
 }
-window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
+
+window.addEventListener('DOMContentLoaded', loadSavedImages);
+loadSavedImages();
+
 
 // === Web Audio 引擎 ===
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
