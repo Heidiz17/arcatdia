@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 絕對對拍咬死第1拍版
+   🔒 Arcatdia Battle Engine - 屠龍刀黃金 Demo 版 (Part 1)
    ============================================================= */
 
 const canvas = document.getElementById('battleCanvas');
@@ -13,19 +13,19 @@ let notes = []; let particles = []; let stars = [];
 let celestialEvents = [];
 let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
-let currentMode = 'test'; // 預設開 TEST 畀你直接對準 L1 第 1 拍！
+let currentMode = 'test';
 
-// === UI 與圖層控制 ===
 let battleBgOpacity = 1.0;
 let preloadedSlideImages = [];
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
-// === 視角與判定線系統 (源自 v5.3) ===
-let currentPerspectiveMode = 1; // 1 = 2D 直軌, 2 = 3D 尖角
+// 🎯 預設 2 = 3D 消失點開局！
+let currentPerspectiveMode = 2; 
 const judgeLineOffsets = [165, 185, 205, 225];
 let judgeLineLevel = 1; 
 
 const lanePressed = [false, false, false, false];
+const laneTouchStartY = [0, 0, 0, 0]; // 用於 Flick 上滑判定
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
     { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
@@ -45,106 +45,132 @@ function toggleJudgeLineLevel() {
 function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
 
-function compressImage(dataUrl, callback) {
-    const img = new Image();
-    img.onload = function() {
-        const cvs = document.createElement('canvas'); const MAX = 1080; 
-        let w = img.width; let h = img.height;
-        if (w > h && w > MAX) { h *= MAX / w; w = MAX; } else if (h > MAX) { w *= MAX / h; h = MAX; }
-        cvs.width = w; cvs.height = h;
-        cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-        callback(cvs.toDataURL('image/jpeg', 0.6));
-    }; img.src = dataUrl;
+// === Web Audio 音軌管理 ===
+const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+let bgmGainNode = null;
+let sfxGainNode = null;
+let sfxBuffers = {};
+
+function initAudioEngine() {
+    if (!audioCtx) {
+        audioCtx = new AudioContextClass();
+        bgmGainNode = audioCtx.createGain();
+        sfxGainNode = audioCtx.createGain();
+        bgmGainNode.connect(audioCtx.destination);
+        sfxGainNode.connect(audioCtx.destination);
+        loadSFXFiles();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-function handleUpload(event, target) {
-    const files = event.target.files; if (!files || files.length === 0) return;
-    if (target === 'battle') {
-        preloadedSlideImages = []; savedData.battle = [];
-        for (let i = 0; i < files.length; i++) {
-            const reader = new FileReader();
-            reader.onload = function(e) { compressImage(e.target.result, (compressed) => { const img = new Image(); img.src = compressed; preloadedSlideImages.push(img); savedData.battle.push(compressed); }); };
-            reader.readAsDataURL(files[i]);
-        }
-    } else {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            compressImage(e.target.result, (compressed) => {
-                const el = document.getElementById(target + 'Bg');
-                if (el) { el.style.backgroundImage = `url('${compressed}')`;}
-                savedData[target] = compressed;
-            });
-        }; reader.readAsDataURL(files[0]);
-    }
-}
-function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; savedData.opacity = parseInt(val, 10); }
-function saveSettings() {
-    try { localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); alert("💾 存檔成功！"); } 
-    catch (e) { alert("相片太大儲存失敗。"); }
-}
-
-window.onload = function() {
-    const saved = localStorage.getItem('arcatdia_save');
-    if (saved) {
-        try {
-            savedData = JSON.parse(saved);
-            ['title', 'ready'].forEach(t => {
-                if (savedData[t]) { const el = document.getElementById(t + 'Bg'); if(el) { el.style.backgroundImage = `url('${savedData[t]}')`;}}});
-            if (savedData.battle) { savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); }); }
-            if (savedData.opacity !== undefined) { battleBgOpacity = savedData.opacity / 100; const slider = document.getElementById('opacitySlider'); if (slider) slider.value = savedData.opacity; }
-        } catch(e) {}
-    }
+// 載入精確 5 粒 WAV
+const soundPaths = {
+    tap: "sounds/arcatdia_perfect_tap.wav",
+    flick: "sounds/arcatdia_perfect_flick.wav",
+    hold: "sounds/arcatdia_hold.wav",
+    tick: "sounds/arcatdia_tick.wav",
+    stage: "sounds/arcatdia_stage_tap.wav"
 };
 
-// === 嚴格限制：單一 Master MP3 ===
+async function loadSFXFiles() {
+    for (let key in soundPaths) {
+        try {
+            const resp = await fetch(soundPaths[key]);
+            const ab = await resp.arrayBuffer();
+            audioCtx.decodeAudioData(ab, (buf) => { sfxBuffers[key] = buf; });
+        } catch(e) {
+            // 若相對路徑 sounds/ 找不到，自動退回根目錄載入
+            try {
+                const resp2 = await fetch(soundPaths[key].replace('sounds/', ''));
+                const ab2 = await resp2.arrayBuffer();
+                audioCtx.decodeAudioData(ab2, (buf) => { sfxBuffers[key] = buf; });
+            } catch(err) {}
+        }
+    }
+}
+
+function playSFX(key) {
+    if (!audioCtx || !sfxBuffers[key]) return;
+    try {
+        const src = audioCtx.createBufferSource();
+        src.buffer = sfxBuffers[key];
+        src.connect(sfxGainNode);
+        src.start(0);
+    } catch(e) {}
+}
+
+function updateBgmVolume(val) {
+    if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val);
+    document.getElementById('valBgm').innerText = Math.round(val * 100) + "%";
+}
+function updateSfxVolume(val) {
+    if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val);
+    document.getElementById('valSfx').innerText = Math.round(val * 100) + "%";
+}
+
+// === Master BGM 音訊 ===
 const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 };
 const masterAudio = new Audio();
 try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
 
-const AudioContextClass = window.AudioContext || window.webkitAudioContext; let dspCtx = null;
-function initDSP() { try { if (!dspCtx) dspCtx = new AudioContextClass(); if (dspCtx.state === 'suspended') dspCtx.resume(); } catch (e) {} }
-function playStickClick(freq = 1200) {
-    if (!dspCtx) return;
-    try { const osc = dspCtx.createOscillator(); const gain = dspCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, dspCtx.currentTime); gain.gain.setValueAtTime(0.8, dspCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, dspCtx.currentTime + 0.04); osc.connect(gain); gain.connect(dspCtx.destination); osc.start(); osc.stop(dspCtx.currentTime + 0.04); } catch (e) {}
+let bgmSourceNode = null;
+function hookMasterAudioNode() {
+    if (audioCtx && !bgmSourceNode) {
+        try {
+            bgmSourceNode = audioCtx.createMediaElementSource(masterAudio);
+            bgmSourceNode.connect(bgmGainNode);
+        } catch(e) {}
+    }
 }
 
-// === 🎯 嚴謹樂理對拍生成 (鎖定第 1 拍 Downbeat) ===
+function playStickClick(freq = 1200) {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(sfxGainNode);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+    } catch (e) {}
+}
+
+// === 生成譜面（加入 Flick 與 Hold 混合） ===
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    
-    // 🎯 核心鎖定：
-    // 棒聲在 0, 1, 2, 3 拍響起（即 1, 2, 3, 4 預備拍）
-    // 音樂在第 4 拍結束瞬間開播
-    // 第一粒音準確在【第 5 拍】（即數完 4 之後嘅正節奏「第 1 拍」大重音）剛好落地撞線！
     let currentTime = 5 * beatMs;
     let lastLane = 1;
 
     if (currentMode === 'test') {
-        // Test: 100% 集中 L1 (lane 0)，4 拍一粒全音符（每小節第 1 拍重音打擊）
         for (let i = 0; i < 150; i++) {
-            notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
-            currentTime += (beatMs * 4); // 嚴格每小節第 1 拍
+            const nType = (i % 4 === 3) ? 'flick' : 'tap';
+            notes.push({ type: nType, lane: 0, targetTime: currentTime, hit: false });
+            currentTime += (beatMs * 4);
         }
-    } else if (currentMode === 'easy') {
-        // Easy: 全音符(4拍) 與 二分音符(2拍)
-        for (let i = 0; i < 200; i++) {
+    } else {
+        for (let i = 0; i < 350; i++) {
             lastLane = (lastLane + 1) % 4;
-            notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            currentTime += Math.random() > 0.5 ? beatMs * 4 : beatMs * 2;
-        }
-    } else if (currentMode === 'normal') {
-        // Normal: 二分音符(2拍) 與 四分音符(1拍)
-        for (let i = 0; i < 400; i++) {
-            lastLane = Math.floor(Math.random() * 4);
-            notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            currentTime += Math.random() > 0.5 ? beatMs * 2 : beatMs;
+            const r = Math.random();
+            if (r < 0.6) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+            } else if (r < 0.85) {
+                notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false });
+            } else {
+                notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
+            }
+            currentTime += (r > 0.5 ? beatMs * 2 : beatMs);
         }
     }
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-// === 宇宙史詩導航 (源自 v5.3) ===
+// === 宇宙史詩導航 ===
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() {
     celestialEvents = [
@@ -168,20 +194,20 @@ function goToReadyRoom() {
     document.getElementById('titleScreen').classList.remove('active');
     document.getElementById('titleBg').classList.remove('active');
     document.getElementById('readyRoom').classList.add('active');
-    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); }
-    initDSP();
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
+    initAudioEngine();
 }
 function returnToTitle() {
     document.getElementById('readyRoom').classList.remove('active');
     document.getElementById('readyBg').classList.remove('active');
     document.getElementById('titleScreen').classList.add('active');
-    const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); }
+    const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active');
 }
 function returnToReadyRoom() {
     document.getElementById('pauseMenu').classList.remove('active');
     document.getElementById('battleHud').style.display = 'none';
     document.getElementById('touchController').style.display = 'none';
-    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); }
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active');
     document.getElementById('readyRoom').classList.add('active');
     isPaused = false; isPlaying = false;
     masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H);
@@ -193,6 +219,7 @@ function startVoyage() {
     document.getElementById('battleHud').style.display = 'flex';
     document.getElementById('touchController').style.display = 'flex';
     score = 0; combo = 0; hp = 100; totalPausedDuration = 0;
+    hookMasterAudioNode();
     updateUI(); initStars(); initCelestialJourney(); generateChart();
     isPlaying = true; isPaused = false; startTime = performance.now();
     scheduleCountInAndPlay(); requestAnimationFrame(gameLoop);
@@ -211,50 +238,121 @@ function restartFromPause() { document.getElementById('pauseMenu').classList.rem
 
 function createHitParticles(x, y, color) {
     if (particles.length > 30) particles.splice(0, 10);
-    for (let i = 0; i < 8; i++) { const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 6 + 2; particles.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: Math.random() * 4 + 2, color: color, alpha: 1.0 }); }
+    for (let i = 0; i < 8; i++) { 
+        const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 6 + 2; 
+        particles.push({ x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: Math.random() * 4 + 2, color: color, alpha: 1.0 }); 
+    }
 }
 
+// === 觸控事件：支援 Tap、Flick 向上劃動、Hold 按住、以及 Stage 空打 ===
 for (let i = 0; i < 4; i++) {
     const laneBtn = document.getElementById(`lane${i}`);
     if (laneBtn) {
-        const press = (e) => { e.preventDefault(); laneBtn.classList.add('pressed'); lanePressed[i] = true; handleTap(i); };
-        const release = (e) => { e.preventDefault(); laneBtn.classList.remove('pressed'); lanePressed[i] = false; };
-        laneBtn.addEventListener('touchstart', press); laneBtn.addEventListener('touchend', release);
-        laneBtn.addEventListener('mousedown', press); laneBtn.addEventListener('mouseup', release);
+        laneBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            laneBtn.classList.add('pressed');
+            lanePressed[i] = true;
+            laneTouchStartY[i] = e.touches[0].clientY;
+            handleAction(i, 'down');
+        }, { passive: false });
+
+        laneBtn.addEventListener('touchmove', (e) => {
+            const currentY = e.touches[0].clientY;
+            if (laneTouchStartY[i] - currentY > 20) {
+                handleAction(i, 'flick');
+                laneTouchStartY[i] = currentY;
+            }
+        });
+
+        laneBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            laneBtn.classList.remove('pressed');
+            lanePressed[i] = false;
+            handleAction(i, 'up');
+        }, { passive: false });
+
+        laneBtn.addEventListener('mousedown', (e) => {
+            laneBtn.classList.add('pressed');
+            lanePressed[i] = true;
+            handleAction(i, 'down');
+        });
+        laneBtn.addEventListener('mouseup', () => {
+            laneBtn.classList.remove('pressed');
+            lanePressed[i] = false;
+            handleAction(i, 'up');
+        });
     }
 }
+/* =============================================================
+   🔒 Arcatdia Battle Engine - 屠龍刀黃金 Demo 版 (Part 2)
+   ============================================================= */
 
-function handleTap(laneIndex) {
+function handleAction(laneIndex, actionType) {
     if (!isPlaying || isPaused) return;
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
-    
-    const laneW = W / 4;
     const currentHitY = H - judgeLineOffsets[judgeLineLevel];
-    let targetX;
-    if (currentPerspectiveMode === 1) {
-        targetX = laneW * laneIndex + (laneW / 2);
-    } else {
-        const botXArr = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
-        targetX = botXArr[laneIndex];
-    }
+    const laneW = W / 4;
+    const targetX = laneW * laneIndex + (laneW / 2);
 
-    const targetNote = notes.find(n => n.lane === laneIndex && !n.hit);
-    if (targetNote && Math.abs(currentTimeMs - targetNote.targetTime) < 200) {
-        targetNote.hit = true; score += 1000; combo++; hp = Math.min(100, hp + 2);
-        showJudgement("PERFECT!"); createHitParticles(targetX, currentHitY, "#ffffff"); updateUI();
+    if (actionType === 'down') {
+        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 220);
+        if (targetNote) {
+            if (targetNote.type === 'tap') {
+                targetNote.hit = true; score += 1000; combo++; hp = Math.min(100, hp + 2);
+                playSFX('tap');
+                showJudgement("PERFECT!"); createHitParticles(targetX, currentHitY, "#ffffff"); updateUI();
+            } else if (targetNote.type === 'hold') {
+                targetNote.holding = true; targetNote.lastTick = currentTimeMs;
+                playSFX('hold');
+                showJudgement("HOLD!"); createHitParticles(targetX, currentHitY, laneColors[laneIndex].main); updateUI();
+            }
+        } else {
+            // 🎯 Stage 空打：冇音符嗰陣發出 stage 敲擊聲，唔扣血！
+            playSFX('stage');
+            createHitParticles(targetX, currentHitY, "rgba(0, 255, 204, 0.4)");
+        }
+    } else if (actionType === 'flick') {
+        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 260);
+        if (flickNote) {
+            flickNote.hit = true; score += 1200; combo++; hp = Math.min(100, hp + 3);
+            playSFX('flick');
+            showJudgement("FLICK!!"); createHitParticles(targetX, currentHitY, "#ff0077"); updateUI();
+        }
+    } else if (actionType === 'up') {
+        const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
+        if (holdingNote) {
+            holdingNote.holding = false; holdingNote.hit = true;
+            score += 500; updateUI();
+        }
     }
 }
 
+// === 1943 街機能量條四階切換 ===
 function updateUI() {
     const scoreVal = document.getElementById('scoreVal');
     if (scoreVal) scoreVal.innerText = String(score).padStart(6, '0');
+    
     const hpFill = document.getElementById('hpFill');
-    if (hpFill) hpFill.style.width = `${hp}%`;
+    if (hpFill) {
+        hpFill.style.width = `${hp}%`;
+        hpFill.className = 'hp-fill';
+        if (hp <= 25) hpFill.classList.add('lvl-c');
+        else if (hp <= 60) hpFill.classList.add('lvl-b');
+        else if (hp <= 85) hpFill.classList.add('lvl-a');
+        else hpFill.classList.add('lvl-s');
+    }
+    
     const comboDisp = document.getElementById('comboDisplay');
     if (comboDisp && combo > 1) { comboDisp.innerText = `${combo} COMBO`; comboDisp.style.opacity = '1'; }
 }
 
-function showJudgement(text) { const disp = document.getElementById('judgementDisplay'); if (disp) { disp.innerText = text; disp.style.opacity = '1'; setTimeout(() => { disp.style.opacity = '0'; }, 300); } }
+function showJudgement(text) { 
+    const disp = document.getElementById('judgementDisplay'); 
+    if (disp) { 
+        disp.innerText = text; disp.style.opacity = '1'; 
+        setTimeout(() => { disp.style.opacity = '0'; }, 280); 
+    } 
+}
 
 let countInTimers = []; let audioStartTimer = null;
 function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countInTimers = []; if (audioStartTimer) { clearTimeout(audioStartTimer); audioStartTimer = null; } }
@@ -262,8 +360,6 @@ function clearAllTimers() { countInTimers.forEach(t => clearTimeout(t)); countIn
 function scheduleCountInAndPlay() {
     clearAllTimers(); 
     const beatMs = (60 / bpm) * 1000;
-
-    // 1, 2, 3, 4 棒聲倒數（在 0, 1, 2, 3 拍響起）
     [0, 1, 2, 3].forEach(b => { 
         countInTimers.push(setTimeout(() => { 
             if (!isPlaying || isPaused) return; 
@@ -272,7 +368,6 @@ function scheduleCountInAndPlay() {
         }, (b * beatMs) / playbackSpeed)); 
     });
 
-    // 數到第 4 拍完結（即 4 * beatMs），音樂開播
     audioStartTimer = setTimeout(() => { 
         if (!isPlaying || isPaused) return; 
         masterAudio.playbackRate = playbackSpeed; 
@@ -281,44 +376,21 @@ function scheduleCountInAndPlay() {
     }, (beatMs * 4) / playbackSpeed);
 }
 
+// === 主渲染遊戲循環（補回 5.3 激光判定線與動態 Shadow） ===
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
     const currentSec = currentTimeMs / 1000;
 
-    // 🎨 戰鬥幻燈片：2秒淡入 -> 4秒展示 -> 2秒淡出 (21秒一輪)
-    if (preloadedSlideImages.length > 0 && battleBgOpacity > 0.01) {
-        const cycleLength = 21;
-        const localTime = currentSec % cycleLength;
-        const slideIndex = Math.floor(currentSec / cycleLength) % preloadedSlideImages.length;
-        
-        let slideAlpha = 0;
-        if (localTime < 2) slideAlpha = localTime / 2;
-        else if (localTime < 6) slideAlpha = 1.0;
-        else if (localTime < 8) slideAlpha = 1.0 - ((localTime - 6) / 2);
-        else slideAlpha = 0;
-        
-        const finalAlpha = slideAlpha * battleBgOpacity;
-        if (finalAlpha > 0.01) {
-            const img = preloadedSlideImages[slideIndex];
-            if (img && img.complete && img.naturalWidth !== 0) {
-                ctx.save();
-                ctx.globalAlpha = finalAlpha; 
-                const imgRatio = img.width / img.height;
-                const screenRatio = W / H;
-                let drawW = W, drawH = W / imgRatio;
-                if (screenRatio <= imgRatio) { drawH = H; drawW = H * imgRatio; }
-                ctx.drawImage(img, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
-                ctx.restore();
-            }
-        }
-    }
+    // 繁星背景
+    stars.forEach(s => { 
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; ctx.beginPath(); 
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); 
+        s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } 
+    });
 
-    // 🎯 繁星背景
-    stars.forEach(s => { ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); s.y += s.speed * 1.5; if (s.y > H) { s.y = 0; s.x = Math.random() * W; } });
-
-    // 🎯 史詩行星事件
+    // 史詩行星事件
     celestialEvents.forEach(evt => {
         if (currentSec >= evt.timeSec && currentSec <= evt.timeSec + evt.duration) {
             const progress = (currentSec - evt.timeSec) / evt.duration;
@@ -341,38 +413,75 @@ function gameLoop() {
     const startY = 20;
     const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5];
+    // 消失點聚攏頂部
     const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
+    // 4 條主軌道
     for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], H); ctx.stroke();
-        ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 🎯 核心運算：4 拍飛行時間
+    // 🌟 補回 5.3 靈魂：橫跨全螢幕的青色激光判定線 + 強烈 Shadow 光暈！
+    ctx.save();
+    ctx.strokeStyle = "rgba(0, 255, 204, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, hitY);
+    ctx.lineTo(W, hitY);
+    ctx.stroke();
+    ctx.restore();
+
+    for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = laneColors[i].main; 
+        ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 音符渲染
     const beatMs = (60 / bpm) * 1000;
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
     notes.forEach(n => {
         if (n.hit) return;
         const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
+
+        // 🌟 補回 5.3 靈魂：Note 隨距離充能爆光的動態 Shadow！
         if (p > 0 && p < 1.15) {
             const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p;
             const cy = startY + (hitY - startY) * p;
-            ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 15;
+
+            ctx.save();
+            ctx.fillStyle = laneColors[n.lane].main;
+            ctx.shadowColor = laneColors[n.lane].main;
+            ctx.shadowBlur = 22 * p; // 越接近判定線越光！
+
             ctx.beginPath();
-            if (currentPerspectiveMode === 1) { 
+            if (n.type === 'flick') {
+                ctx.fillStyle = "#ff0077";
+                ctx.shadowColor = "#ff0077";
+                ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (currentPerspectiveMode === 1) { 
                 ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
+                ctx.fill();
             } else { 
-                const rx = (10 * (1.0 - p)) + (26 * p); 
+                const rx = (10 * (1.0 - p)) + (28 * p); 
                 const ry = (32 * (1.0 - p)) + (14 * p); 
                 ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+                ctx.fill();
             }
-            ctx.fill();
+            ctx.restore();
         }
-        if (p > 1.08 && !n.hit) { n.hit = true; combo = 0; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
+
+        if (p > 1.08 && !n.hit) { 
+            n.hit = true; combo = 0; hp = Math.max(0, hp - 5); 
+            showJudgement("MISS"); updateUI(); 
+        }
     });
 
+    // 打擊粒子更新
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]; ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
