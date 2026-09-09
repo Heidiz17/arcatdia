@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - 3D 消失點版</title>
+    <title>Arcatdia Battle Engine - 屠龍刀黃金版</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -16,8 +16,8 @@
     <canvas id="battleCanvas"></canvas>
 
     <!-- 🌌 封面與候機室背景 -->
-    <div id="readyBg" class="bg-layer theme-ready" style="filter:none; transition:opacity 0.4s; pointer-events:none;"></div>
-    <div id="titleBg" class="bg-layer theme-title active" style="filter:none; transition:opacity 0.4s; pointer-events:none;"></div>
+    <div id="readyBg" class="bg-layer theme-ready" style="transition:opacity 0.4s; pointer-events:none;"></div>
+    <div id="titleBg" class="bg-layer theme-title active" style="transition:opacity 0.4s; pointer-events:none;"></div>
 
     <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
@@ -42,28 +42,24 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- ================= 畫面一：封面 Title Screen ================= -->
+    <!-- 畫面一：封面 Title Screen -->
     <div id="titleScreen" class="overlay-modal active">
-        <!-- 🎯 物理破解入相掣 1 -->
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #00ffcc; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 封面圖</div>
             <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
         </div>
-
         <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none;">
             <h1 class="game-logo" onclick="goToReadyRoom()">ARCATDIA</h1>
             <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 16px; margin-top: 15px; color: #ffcc00; text-shadow: 0 0 10px rgba(255,170,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
         </div>
     </div>
 
-    <!-- ================= 畫面二：出發準備室 ================= -->
+    <!-- 畫面二：出發準備室 -->
     <div id="readyRoom" class="overlay-modal">
-        <!-- 🎯 物理破解入相掣 2 -->
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 候機室</div>
             <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
         </div>
-
         <h2 class="room-title">🚀 航行整備室</h2>
         <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
             <div class="setting-group">
@@ -71,7 +67,7 @@
                 <div class="option-row">
                     <button class="opt-btn diff-btn active" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
                     <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL</button>
-                    <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST (L1單軌)</button>
+                    <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
                 </div>
             </div>
             <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
@@ -79,11 +75,10 @@
         </div>
     </div>
 
-    <!-- ================= 畫面三：戰鬥暫停選單 ================= -->
+    <!-- 畫面三：戰鬥暫停選單 -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
-
             <div class="slider-group">
                 <div class="slider-label-row"><span>🎵 BGM 歌曲音量</span><span id="valBgm">100%</span></div>
                 <input type="range" id="bgmSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateBgmVolume(this.value)">
@@ -92,29 +87,70 @@
                 <div class="slider-label-row"><span>🥁 SFX 打擊音量</span><span id="valSfx">100%</span></div>
                 <input type="range" id="sfxSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateSfxVolume(this.value)">
             </div>
-
             <div style="background:rgba(0,0,0,0.5); padding:8px; border-radius:8px; border:1px dashed #ff0077;">
-                <!-- 🎯 物理破解入相掣 3 -->
                 <div style="position:relative; overflow:hidden; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; margin-bottom:8px;">
                     <div style="padding:6px; font-size:10px; color:#fff; pointer-events:none;">📁 戰鬥幻燈片 (可選多張)</div>
                     <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
                 </div>
-
                 <div style="text-align: left; font-size: 10px; color: #aaa; margin-bottom:3px;">🌗 戰鬥圖亮度控制：</div>
                 <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="100" oninput="updateSlideOpacity(this.value)">
                 <button onclick="saveSettings()" style="width:100%; font-size:11px; padding:6px; background:#00ffcc; color:#000; border:none; border-radius:5px; font-weight:900; cursor:pointer; margin-top:6px;">
                     💾 SAVE (儲存所有相片及設定)
                 </button>
             </div>
-            
             <div style="display: flex; gap: 6px;">
                 <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D</button>
                 <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線</button>
             </div>
-
             <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
             <button class="pause-opt-btn" onclick="restartFromPause()">🔄 重新開始</button>
             <button class="pause-opt-btn btn-exit" onclick="returnToReadyRoom()">🚪 退回航行整備室</button>
+        </div>
+    </div>
+
+    <!-- ================= 畫面四：曲目介紹儀式 (Ready to Go) ================= -->
+    <div id="introScreen" class="overlay-modal glass-panel" style="background: rgba(3, 4, 10, 0.92); z-index: 60;">
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+            <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
+            <h2 id="introSongTitle" style="font-size: 28px; color: #fff; text-shadow: 0 0 15px #00ffcc; margin-bottom: 6px;">最大の愛</h2>
+            <p style="font-size: 13px; color: #aaa; margin-bottom: 4px;">作曲 / 演奏：明仔 & 團隊</p>
+            <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: NORMAL ★★★★★</p>
+            <div id="introReadyText" class="blink-text" style="font-size: 32px; color: #00ffcc; font-weight: 900; letter-spacing: 4px;">READY...</div>
+        </div>
+    </div>
+
+    <!-- ================= 畫面五：PJSK 結算面板 ================= -->
+    <div id="resultModal" class="overlay-modal glass-panel" style="background: rgba(2, 3, 8, 0.95); z-index: 70;">
+        <div class="glass-card" style="width: 90%; max-width: 440px; padding: 25px; text-align: center; border: 1.5px solid #ff0077; box-shadow: 0 0 40px rgba(255, 0, 119, 0.4);">
+            <div style="font-size: 13px; color: #00ffcc; letter-spacing: 3px; font-weight: 900;">VOYAGE STAGE CLEAR</div>
+            <h2 style="font-size: 24px; margin: 6px 0 15px 0; color: #fff;">最大の愛</h2>
+
+            <div id="rankBadge" style="font-size: 75px; font-weight: 900; margin: 10px 0; text-shadow: 0 0 35px #ffcc00; color: #ffcc00;">SS</div>
+
+            <div style="background: rgba(0,0,0,0.6); padding: 12px 18px; border-radius: 12px; margin: 15px 0; font-size: 14px; text-align: left; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+                    <span style="color:#aaa;">FINAL SCORE</span><span id="resScore" style="color:#ffcc00; font-weight:900; font-size: 18px;">0</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
+                    <span style="color:#aaa;">MAX COMBO</span><span id="resMaxCombo" style="color:#00ffcc; font-weight:900;">0</span>
+                </div>
+                <hr style="border:0; border-top:1px solid #222; margin: 8px 0;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
+                    <div>PERFECT: <span id="resPerfect" style="color:#fff; font-weight:900;">0</span></div>
+                    <div>GREAT: <span id="resGreat" style="color:#00e5ff; font-weight:900;">0</span></div>
+                    <div>GOOD: <span id="resGood" style="color:#76ff03; font-weight:900;">0</span></div>
+                    <div>MISS: <span id="resMiss" style="color:#ff1744; font-weight:900;">0</span></div>
+                </div>
+            </div>
+
+            <div id="stickerBox" style="background: linear-gradient(135deg, rgba(255,0,119,0.2), rgba(0,255,204,0.2)); border: 1.5px dashed #00ffcc; border-radius: 10px; padding: 10px; margin-bottom: 15px;">
+                <div style="font-size: 11px; color: #ffcc00;">✨ 解鎖絕版紀念貼紙：</div>
+                <div style="font-size: 14px; font-weight: 900; color: #fff; margin-top: 3px;">🐾【NO.001 啟程之星·阿卡迪亞貓爪印】</div>
+            </div>
+
+            <button class="launch-btn" id="btnReturnRoomNow" onclick="returnFromResults()" style="width: 100%; margin-top: 5px;">
+                返回航行整備室 (<span id="closeCountdown">3</span>s)
+            </button>
         </div>
     </div>
 </div>
