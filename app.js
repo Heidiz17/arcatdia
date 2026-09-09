@@ -110,7 +110,16 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); document.getElementById('valBgm').innerText = Math.round(val * 100) + "%"; }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); document.getElementById('valSfx').innerText = Math.round(val * 100) + "%"; }
 
-const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 };
+// 🌟 曲目資訊：加入 Hel'dizai & Pちゃん 招牌！
+const currentSong = { 
+    id: "01", 
+    title: "最大の愛", 
+    composer: "Hel'dizai & Pちゃん", 
+    lyricist: "Hel'dizai & Pちゃん", 
+    folder: "songs/01_最大の愛", 
+    fileName: "master.mp3", 
+    bpm: 175 
+};
 const masterAudio = new Audio(); try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
 let bgmSourceNode = null;
 function hookMasterAudioNode() { if (audioCtx && !bgmSourceNode) { try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} } }
@@ -127,13 +136,11 @@ function generateChart() {
     const totalNotesToSpawn = (currentMode === 'test') ? 120 : (currentMode === 'easy' ? 180 : 300);
 
     for (let i = 0; i < totalNotesToSpawn; i++) {
-        if (currentTime >= maxNoteTime) break; // 超過時間即停止生成
+        if (currentTime >= maxNoteTime) break;
 
         if (currentMode === 'test') {
-            const mod = i % 4;
-            if (mod === 0 || mod === 1) notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
-            else if (mod === 2) notes.push({ type: 'flick', lane: 0, targetTime: currentTime, hit: false });
-            else notes.push({ type: 'hold', lane: 0, targetTime: currentTime, duration: beatMs * 2, hit: false, holding: false, lastTick: 0 });
+            // 🎯 TEST 模式：100% 純 Tap，每 4 拍一粒，鎖死第 1 拍大重音！
+            notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
             currentTime += (beatMs * 4);
         } else {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
@@ -153,7 +160,7 @@ function goToReadyRoom() { document.getElementById('titleScreen').classList.remo
 function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
 function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); }
 
-// 🚀 加入 Ready to Go 儀式畫面
+// 🚀 開場介紹與 Ready Go 儀式畫面（曲目介紹延長至 3.5 秒，GO 保持閃一閃）
 function startVoyage() { 
     document.getElementById('readyRoom').classList.remove('active'); 
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.remove('active'); }
@@ -173,13 +180,15 @@ function startVoyage() {
     const readyTxt = document.getElementById('introReadyText');
     if (readyTxt) readyTxt.innerText = "READY...";
 
+    // 🎯 延長到 3500ms（3.5 秒），睇清睇楚《最大の愛》封面同歌名！
     setTimeout(() => {
         if (readyTxt) readyTxt.innerText = "GO!";
+        // ⚡ GO 保持 600ms 閃一閃，俐落進場
         setTimeout(() => {
             intro.classList.remove('active');
             beginRealBattle(); 
         }, 600);
-    }, 1800);
+    }, 3500);
 }
 
 function beginRealBattle() {
@@ -323,7 +332,6 @@ function gameLoop() {
             if (p > 0 && p < 1.15) {
                 const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; const cy = startY + (hitY - startY) * p;
                 
-                // 🌟 雙層粉紅破風 V 翼
                 if (n.type === 'flick') {
                     const scale = (12 * (1.0 - p)) + (26 * p); const wingW = scale * 1.15; const vDepth = scale * 0.75;
                     ctx.save(); ctx.strokeStyle = "#ff007f"; ctx.shadowColor = "#ff00aa"; ctx.shadowBlur = 18 * p; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -354,7 +362,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🏆 完結結算與自動返回邏輯
+// 🏆 完結結算與手動點擊退出邏輯
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
@@ -383,11 +391,23 @@ function triggerSongClear() {
     document.getElementById('resGood').innerText = countGood;
     document.getElementById('resMiss').innerText = countMiss;
 
+    // 🎯 顯示結算畫面，取消自動倒數，由玩家親手點擊確認
     document.getElementById('resultModal').classList.add('active');
 
-    let remainSec = 3; const cdLabel = document.getElementById('closeCountdown'); if (cdLabel) cdLabel.innerText = remainSec;
-    if (autoReturnTimer) clearInterval(autoReturnTimer);
-    autoReturnTimer = setInterval(() => { remainSec--; if (cdLabel) cdLabel.innerText = remainSec; if (remainSec <= 0) { clearInterval(autoReturnTimer); returnFromResults(); } }, 1000);
+    const cdLabel = document.getElementById('closeCountdown');
+    if (cdLabel) cdLabel.innerText = "點擊任意位置繼續";
+
+    if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; }
+
+    const modal = document.getElementById('resultModal');
+    modal.onclick = function() {
+        modal.onclick = null; // 解除綁定防止重複觸發
+        returnFromResults();
+    };
 }
 
-function returnFromResults() { if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; } document.getElementById('resultModal').classList.remove('active'); returnToReadyRoom(); }
+function returnFromResults() { 
+    if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; } 
+    document.getElementById('resultModal').classList.remove('active'); 
+    returnToReadyRoom(); 
+}
