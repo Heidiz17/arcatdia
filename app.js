@@ -125,9 +125,7 @@ function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = 
 let customChartLoaded = false;
 let customAudioLoaded = false;
 
-// 🎯 BPM 決策中心：檔名檢測 -> 自動測速
 async function handleAudioFileForBPM(audioFile) {
-    // 【權限2】檔名檢測：必須痴住 "BPM" 三個字，防止誤讀《詩篇150》
     const match = audioFile.name.match(/(\d{2,3})\s*BPM/i);
     if (match) {
         bpm = parseInt(match[1], 10);
@@ -137,7 +135,6 @@ async function handleAudioFileForBPM(audioFile) {
         return;
     }
 
-    // 【權限3】自動測速 (如果檔名冇寫)
     showJudgement("🔍 自動掃描 BPM 中...");
     try {
         const arrayBuffer = await audioFile.arrayBuffer();
@@ -188,13 +185,10 @@ async function handleAudioFileForBPM(audioFile) {
     if (!customChartLoaded) generateChart();
 }
 
-// 🎯 全曲動態鋪滿
 function generateChart() {
     if (customChartLoaded && notes.length > 0) { notes.forEach(n => { n.hit = false; n.holding = false; }); return; }
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    
-    // 第一粒音在第 4 拍（配合開場閃光）
     let currentTime = 4 * beatMs; 
     let lastLane = 0;
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
@@ -223,7 +217,6 @@ function generateChart() {
    🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 3/4)
    ============================================================= */
 function initReadyRoomDrawer() {
-    // 抽屜開關邏輯
     const toggleBtn = document.getElementById('toggleDrawerBtn');
     const drawer = document.getElementById('readyRoomDrawer');
     if (toggleBtn && drawer) {
@@ -234,7 +227,6 @@ function initReadyRoomDrawer() {
         });
     }
 
-    // 【權限1】終極手動覆寫 BPM！
     const bpmInput = document.getElementById('manualBpmInput');
     if (bpmInput) {
         bpmInput.addEventListener('change', (e) => {
@@ -407,13 +399,14 @@ function handleAction(laneIndex, actionType) {
     const laneW = W / 4; const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 220);
+        // 🎯 50ms (Perfect), 100ms (Great), 150ms (Good) 區間判定
+        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 160);
         if (targetNote) {
             const diff = Math.abs(currentTimeMs - targetNote.targetTime);
             if (targetNote.type === 'tap') { 
                 targetNote.hit = true; 
-                if (diff <= 68) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
-                else if (diff <= 130) { score += 700; countGreat++; showJudgement("GREAT!"); } 
+                if (diff <= 50) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
+                else if (diff <= 100) { score += 700; countGreat++; showJudgement("GREAT!"); } 
                 else { score += 300; countGood++; showJudgement("GOOD"); }
                 combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 2); playSFX('tap'); createHitParticles(targetX, currentHitY, "#ffffff"); updateUI(); 
             } else if (targetNote.type === 'hold') { 
@@ -421,7 +414,7 @@ function handleAction(laneIndex, actionType) {
             } else if (targetNote.type === 'flick') { showJudgement("FLICK UP!"); }
         } else { playSFX('stage'); createHitParticles(targetX, currentHitY, "rgba(0, 255, 204, 0.45)"); }
     } else if (actionType === 'flick') {
-        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 260);
+        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 180);
         if (flickNote) { flickNote.hit = true; score += 1000; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('flick'); showJudgement("FLICK!!"); createHitParticles(targetX, currentHitY, "#ff0077"); updateUI(); }
     } else if (actionType === 'up') {
         const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
@@ -480,16 +473,16 @@ function gameLoop() {
     const hitY = H - judgeLineOffsets[judgeLineLevel]; const startY = 40; const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5]; const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    // 🎯 軌道線嚴格畫到 hitY
+    // 🎯 絕對天花板軌道線
     for (let i = 0; i < 4; i++) { 
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2; 
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
 
-    // 判定發光基準線
+    // 絕對天花板判定線
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
-    // 🎯 製餅浪頂：圓心推低 28px，圓頂剛好貼齊 hitY
+    // 🎯 製餅乖乖喺線底（圓頂貼實 hitY）
     for (let i = 0; i < 4; i++) { 
         ctx.fillStyle = laneColors[i].main; 
         ctx.beginPath(); 
@@ -499,27 +492,22 @@ function gameLoop() {
 
     const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 專屬 TEST 模式：第一拍光波到達製餅頂端那一刻 (4 * beatMs) 堅決爆閃！
-    const firstBeatHitTime = 4 * beatMs;
-    if (currentMode === 'test' && currentTimeMs >= firstBeatHitTime && currentTimeMs <= firstBeatHitTime + 300) {
-        const flashAlpha = 1.0 - ((currentTimeMs - firstBeatHitTime) / 300);
-        ctx.save();
-        ctx.strokeStyle = `rgba(255, 215, 0, ${flashAlpha})`;
-        ctx.lineWidth = 4 + flashAlpha * 10;
-        ctx.shadowColor = "#ffd700";
-        ctx.shadowBlur = 35;
-        ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
-
-        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.95})`;
-        ctx.shadowColor = "#ffffff";
-        ctx.shadowBlur = 25;
-        ctx.beginPath(); ctx.arc(botX[0], hitY + 28, 28 + (1 - flashAlpha) * 15, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    }
-
-    // TEST 模式 BEAT 顯示
+    // 🎯 TEST 模式逢拍必閃：只要接近任何一拍的時間點（誤差 60ms 內），整條判定線與製餅同步高光爆閃！
     if (currentMode === 'test') {
         const playTimeMs = currentTimeMs - (beatMs * 4);
+        if (playTimeMs >= 0) {
+            const currentBeatPhase = playTimeMs % beatMs;
+            if (currentBeatPhase <= 70 || currentBeatPhase >= (beatMs - 70)) {
+                ctx.save();
+                ctx.strokeStyle = "rgba(255, 215, 0, 0.95)";
+                ctx.lineWidth = 5;
+                ctx.shadowColor = "#ffd700";
+                ctx.shadowBlur = 30;
+                ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         const beatFloat = (playTimeMs / beatMs) + 0.001;
         const totalBeats = Math.floor(beatFloat);
         const currentBeatIndex = ((totalBeats % 4) + 4) % 4 + 1;
@@ -557,6 +545,7 @@ function gameLoop() {
             }
             if (p > 1.0 && !n.holding && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         } else {
+            // 🎯 光波一到絕對天花板（p <= 1.0）就判定，絕不穿到底部
             if (p >= 0 && p <= 1.0) {
                 const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; 
                 const cy = startY + (hitY - startY) * p;
@@ -574,7 +563,8 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            if (p > 1.0 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
+            // 超過 150ms 容許誤差未打中則當 Miss
+            if (currentTimeMs - n.targetTime > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
     });
 

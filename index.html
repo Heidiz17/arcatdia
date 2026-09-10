@@ -10,9 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
     
-    <!-- 開源多軌 MIDI 解析套件 -->
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,11 +18,9 @@
 <div id="stage-container">
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🌌 背景層 -->
     <div id="readyBg" class="bg-layer theme-ready" style="transition:opacity 0.4s; pointer-events:none;"></div>
     <div id="titleBg" class="bg-layer theme-title active" style="transition:opacity 0.4s; pointer-events:none;"></div>
 
-    <!-- 戰鬥頂部 HUD -->
     <div class="hud-overlay" id="battleHud" style="display:none;">
         <div class="hud-left">
             <div class="brand-mini">ARCATDIA</div>
@@ -47,19 +43,16 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- 畫面一：封面 Title Screen (大氣黃金字、無遮擋) -->
     <div id="titleScreen" class="overlay-modal active">
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ffd700; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#ffd700; pointer-events:none; font-weight:bold;">📁 換封面圖</div>
             <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
         </div>
         
-        <!-- 字體移低、放大、轉黃金色 -->
         <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none; margin-top: 10vh;">
             <h1 class="game-logo" style="color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); font-size: 55px;" onclick="goToReadyRoom()">ARCATDIA</h1>
             <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 20px; margin-top: 20px; color: #ffcc00; text-shadow: 0 0 15px rgba(255,204,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
             
-            <!-- 🌟 招牌回歸：加大、移低、黃金色 -->
             <div style="margin-top: 60px; text-align: center; font-family: monospace;">
                 <div style="font-size: 15px; letter-spacing: 3px; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); font-weight: 900;">
                     ✦ Hei'Dizai & Pちゃん ✦
@@ -71,7 +64,6 @@
         </div>
     </div>
 
-    <!-- 畫面二：出發準備室 -->
     <div id="readyRoom" class="overlay-modal">
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 換候機圖</div>
@@ -80,7 +72,6 @@
         <h2 class="room-title" style="color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.5);">🚀 航行整備室</h2>
         <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
             
-            <!-- 🧰 暗掣 + 隱藏工具箱櫃桶 -->
             <button id="toggleDrawerBtn" style="background:rgba(0,0,0,0.7); border:1px solid #ffd700; color:#ffd700; padding:6px 16px; border-radius:20px; margin-bottom:12px; cursor:pointer; font-weight:bold; width:100%; box-shadow:0 0 10px rgba(255,215,0,0.2);">
                 ⚙️ 整備工具箱 (入歌/改BPM) ▼
             </button>
@@ -96,7 +87,7 @@
                         <span style="color:#00ffcc; font-size:10px; font-weight:bold;">BPM</span>
                     </div>
                 </div>
-                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">未選音訊 (優先睇檔名BPM > 自動測速)</div>
+                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">未選音訊</div>
 
                 <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
 
@@ -127,7 +118,6 @@
         </div>
     </div>
 
-    <!-- 畫面三：戰鬥暫停選單 -->
     <div id="pauseMenu" class="overlay-modal glass-panel">
         <div class="pause-card glass-card">
             <h2>⏸ 遊戲暫停中</h2>
@@ -160,7 +150,6 @@
         </div>
     </div>
 
-    <!-- 畫面四：曲目介紹儀式 -->
     <div id="introScreen" class="overlay-modal glass-panel" style="background: rgba(3, 4, 10, 0.92); z-index: 60;">
         <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
             <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
@@ -171,7 +160,6 @@
         </div>
     </div>
 
-    <!-- 畫面五：結算面板 -->
     <div id="resultModal" class="overlay-modal glass-panel" style="background: rgba(2, 3, 8, 0.95); z-index: 70;">
         <div class="glass-card" style="width: 90%; max-width: 440px; padding: 25px; text-align: center; border: 1.5px solid #ff0077; box-shadow: 0 0 40px rgba(255, 0, 119, 0.4);">
             <div style="font-size: 13px; color: #00ffcc; letter-spacing: 3px; font-weight: 900;">VOYAGE STAGE CLEAR</div>
