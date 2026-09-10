@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 終極合體版 (Part 1/4)
+   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 1/4)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -24,7 +24,6 @@ let lastSlideChangeTime = 0;
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 let currentPerspectiveMode = 2; // 3D 消失點
-// 🎯 判定線高度：剛好在按鈕上方橫跨
 const judgeLineOffsets = [150, 165, 180, 195];
 let judgeLineLevel = 1; // 預設 165px
 
@@ -96,7 +95,7 @@ function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity *
 window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 終極合體版 (Part 2/4)
+   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 2/4)
    ============================================================= */
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null; let bgmGainNode = null; let sfxGainNode = null; let sfxBuffers = {};
@@ -136,7 +135,7 @@ function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = 
 let customChartLoaded = false;
 let customAudioLoaded = false;
 
-// 🎯 自動偵測 BPM 演算法（Web Audio 離線分析低頻）
+// 🎯 全自動離線分析低頻大鼓，精確測出 BPM
 async function autoDetectAudioBpm(audioFile) {
     showJudgement("🔍 正在全自動掃描 BPM...");
     try {
@@ -200,7 +199,7 @@ async function autoDetectAudioBpm(audioFile) {
     }
 }
 
-// 🎯 全曲動態鋪滿（直到音樂完結前 5 秒收尾）
+// 🎯 全曲動態鋪滿（直到音樂完前 5 秒收尾）
 function generateChart() {
     if (customChartLoaded && notes.length > 0) {
         notes.forEach(n => { n.hit = false; n.holding = false; });
@@ -210,12 +209,12 @@ function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     
-    // 第一粒音在第 4 拍（配合開場判定線一閃彈出）
+    // 第一粒音在第 4 拍（開場第 1 拍一閃提示後頂部滑落）
     let currentTime = 4 * beatMs; 
     let lastLane = 0;
     
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
-    const maxNoteTime = songTotalMs - 5000; // 完結前 5 秒停止生成
+    const maxNoteTime = songTotalMs - 5000; 
 
     while (currentTime < maxNoteTime) {
         if (currentMode === 'test') {
@@ -237,114 +236,77 @@ function generateChart() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 終極合體版 (Part 3/4)
+   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 3/4)
    ============================================================= */
-// 🎯 雙軌導入塢 + MIDI 智慧多軌拆解選擇器
-function injectDualTrackDock() {
-    if (document.getElementById('dualTrackDock')) return;
-    const dock = document.createElement('div');
-    dock.id = 'dualTrackDock';
-    dock.style.cssText = `
-        position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-        z-index: 99999; background: rgba(8, 14, 26, 0.95);
-        border: 1px solid #00f0ff; border-radius: 12px;
-        padding: 6px 14px; display: flex; align-items: center; gap: 10px;
-        box-shadow: 0 0 18px rgba(0, 240, 255, 0.35); font-family: monospace;
-    `;
-    dock.innerHTML = `
-        <label style="color:#00f0ff; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(0,240,255,0.15); padding:4px 8px; border-radius:4px; border:1px solid #00f0ff;">
-            🎵 1. 載入 WAV
-            <input type="file" id="dualWavInput" accept="audio/*" style="display:none;">
-        </label>
-        <span id="wavStatus" style="color:#888; font-size:11px;">未選音訊</span>
+// 🎯 整備室專屬櫃桶綁定（開戰後自動不顯示在 HUD）
+function initReadyRoomDrawer() {
+    const wavIn = document.getElementById('dualWavInput');
+    const midiIn = document.getElementById('dualMidiInput');
 
-        <span style="color:#00ffcc; font-size:11px; font-weight:bold; background:#000; padding:2px 6px; border-radius:4px; border:1px solid #00ffcc;" id="autoBpmVal">
-            ${bpm} BPM
-        </span>
+    if (wavIn) {
+        wavIn.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            masterAudio.src = URL.createObjectURL(file);
+            customAudioLoaded = true;
+            const st = document.getElementById('wavStatus');
+            if (st) { st.innerText = `WAV 就緒: ${file.name}`; st.style.color = "#00ffcc"; }
+            autoDetectAudioBpm(file);
+        });
+    }
 
-        <span style="color:#444;">|</span>
+    if (midiIn) {
+        midiIn.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        <label style="color:#ff0077; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(255,0,119,0.15); padding:4px 8px; border-radius:4px; border:1px solid #ff0077;">
-            📜 2. 載入 MIDI/譜面
-            <input type="file" id="dualMidiInput" accept=".json,.mid,.midi" style="display:none;">
-        </label>
-        <span id="midiStatus" style="color:#888; font-size:11px;">自動鋪譜</span>
-
-        <button id="dualLaunchBtn" style="background:#00ffcc; color:#000; border:none; padding:4px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">開航</button>
-    `;
-    document.body.appendChild(dock);
-
-    // 1. WAV 檔案讀入與自動測速
-    document.getElementById('dualWavInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        masterAudio.src = URL.createObjectURL(file);
-        customAudioLoaded = true;
-        document.getElementById('wavStatus').innerText = "WAV 就緒";
-        document.getElementById('wavStatus').style.color = "#00ffcc";
-        autoDetectAudioBpm(file);
-    });
-
-    // 2. 讀取 MIDI 或 JSON 譜面
-    document.getElementById('dualMidiInput').addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (file.name.endsWith('.json')) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const chartData = JSON.parse(evt.target.result);
-                    notes = chartData.map((item, idx) => ({
-                        id: idx,
-                        type: item.type || 'tap',
-                        lane: item.lane !== undefined ? item.lane : (idx % 4),
-                        targetTime: item.time || item.targetTime,
-                        duration: item.duration || 0,
-                        hit: false,
-                        holding: false,
-                        lastTick: 0
-                    }));
-                    notes.sort((a, b) => a.targetTime - b.targetTime);
-                    customChartLoaded = true;
-                    document.getElementById('midiStatus').innerText = `JSON (${notes.length}音)`;
-                    document.getElementById('midiStatus').style.color = "#ff0077";
-                    showJudgement(`地圖已就緒: ${notes.length} 音符！`);
-                } catch(err) {
-                    showJudgement("⚠️ 譜面格式錯誤");
-                }
-            };
-            reader.readAsText(file);
-            return;
-        }
-
-        // 解析多音軌 MIDI
-        try {
-            showJudgement("🔍 正在拆解 MIDI 多音軌...");
-            const arrayBuffer = await file.arrayBuffer();
-            if (typeof Midi === "undefined") {
-                showJudgement("⚠️ 請先在 HTML 引入 tonejs/midi 庫");
+            if (file.name.endsWith('.json')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    try {
+                        const chartData = JSON.parse(evt.target.result);
+                        notes = chartData.map((item, idx) => ({
+                            id: idx,
+                            type: item.type || 'tap',
+                            lane: item.lane !== undefined ? item.lane : (idx % 4),
+                            targetTime: item.time || item.targetTime,
+                            duration: item.duration || 0,
+                            hit: false,
+                            holding: false,
+                            lastTick: 0
+                        }));
+                        notes.sort((a, b) => a.targetTime - b.targetTime);
+                        customChartLoaded = true;
+                        const st = document.getElementById('midiStatus');
+                        if (st) { st.innerText = `JSON 譜面 (${notes.length}音)`; st.style.color = "#ff0077"; }
+                        showJudgement(`地圖已就緒: ${notes.length} 音符！`);
+                    } catch(err) {
+                        showJudgement("⚠️ 譜面格式錯誤");
+                    }
+                };
+                reader.readAsText(file);
                 return;
             }
-            const midiData = new Midi(arrayBuffer);
-            showTrackSelectorModal(midiData);
-        } catch(err) {
-            showJudgement("⚠️ MIDI 解析失敗");
-        }
-    });
 
-    // 開航按鈕
-    document.getElementById('dualLaunchBtn').onclick = function() {
-        if (!customAudioLoaded && !masterAudio.src) {
-            alert("請先載入 WAV 音檔！");
-            return;
-        }
-        dock.style.display = "none";
-        startVoyage();
-    };
+            // 多音軌 MIDI 解析
+            try {
+                showJudgement("🔍 正在拆解 MIDI 多音軌...");
+                const arrayBuffer = await file.arrayBuffer();
+                if (typeof Midi === "undefined") {
+                    showJudgement("⚠️ 請確認 HTML 已載入 Tonejs/Midi 庫");
+                    return;
+                }
+                const midiData = new Midi(arrayBuffer);
+                showTrackSelectorModal(midiData);
+            } catch(err) {
+                showJudgement("⚠️ MIDI 解析失敗");
+            }
+        });
+    }
 }
+window.addEventListener('DOMContentLoaded', initReadyRoomDrawer);
 
-// 彈出音軌選單
+// 彈出音軌選單 Modal
 function showTrackSelectorModal(midi) {
     let modal = document.getElementById('midiTrackModal');
     if (!modal) {
@@ -402,22 +364,19 @@ function showTrackSelectorModal(midi) {
 
         const midiStatus = document.getElementById('midiStatus');
         if (midiStatus) {
-            midiStatus.innerText = `軌道${trackIndex + 1} (${notes.length}音)`;
+            midiStatus.innerText = `自選音軌 (${notes.length}音)`;
             midiStatus.style.color = "#ff0077";
         }
         showJudgement(`🎯 成功載入！共 ${notes.length} 粒光豆`);
     };
 }
 
-window.addEventListener('DOMContentLoaded', injectDualTrackDock);
-injectDualTrackDock();
-
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
 function goToReadyRoom() { document.getElementById('titleScreen').classList.remove('active'); document.getElementById('titleBg').classList.remove('active'); document.getElementById('readyRoom').classList.add('active'); const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } initAudioEngine(); }
 function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
-function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); const dock = document.getElementById('dualTrackDock'); if (dock) dock.style.display = 'flex'; }
+function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); }
 
 function startVoyage() { 
     document.getElementById('readyRoom').classList.remove('active'); 
@@ -477,7 +436,7 @@ for (let i = 0; i < 4; i++) {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - 終極合體版 (Part 4/4)
+   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 4/4)
    ============================================================= */
 let activeHoldAudioSources = [null, null, null, null];
 
@@ -585,15 +544,24 @@ function gameLoop() {
 
     const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 開場第 1 拍：判定線高光一閃，提示起跑
-    if (currentTimeMs >= 0 && currentTimeMs <= 220) {
-        const flashAlpha = 1.0 - (currentTimeMs / 220);
+    // 🎯 專屬限制：淨係喺 TEST 模式，第 1 拍判定線先至閃一閃！
+    if (currentMode === 'test' && currentTimeMs >= 0 && currentTimeMs <= 300) {
+        const flashAlpha = 1.0 - (currentTimeMs / 300);
         ctx.save();
-        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.9})`;
+        ctx.strokeStyle = `rgba(0, 255, 204, ${flashAlpha})`;
+        ctx.lineWidth = 4 + flashAlpha * 8;
         ctx.shadowColor = "#00ffcc";
-        ctx.shadowBlur = 28;
+        ctx.shadowBlur = 30;
         ctx.beginPath();
-        ctx.arc(botX[0], hitY, 38, 0, Math.PI * 2);
+        ctx.moveTo(0, hitY);
+        ctx.lineTo(W, hitY);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.9})`;
+        ctx.shadowColor = "#ffffff";
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(botX[0], hitY, 30 + (1 - flashAlpha) * 18, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
@@ -629,7 +597,7 @@ function gameLoop() {
                 if (currentTimeMs - n.lastTick >= 120) { n.lastTick = currentTimeMs; playSFX('tick'); score += 150; combo++; updateUI(); createHitParticles(botX[n.lane], hitY, laneColors[n.lane].main); }
                 if (currentTimeMs >= n.targetTime + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
             }
-            // 🎯 限制在判定線內（<= 1.0），絕不向下穿過按鈕
+            // 🎯 鎖死在打擊線（<= 1.0），絕不穿底
             if (p >= 0 && endP <= 1.0) {
                 const headY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, p)); 
                 const tailY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, endP));
@@ -639,7 +607,7 @@ function gameLoop() {
             }
             if (p > 1.0 && !n.holding && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         } else {
-            // 🎯 限制在判定線內（<= 1.0），到線即結算消除
+            // 🎯 鎖死在打擊線（<= 1.0），到線即消
             if (p >= 0 && p <= 1.0) {
                 const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; 
                 const cy = startY + (hitY - startY) * p;
@@ -659,7 +627,6 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            // 抵達判定線判定為 MISS 並立刻抹除
             if (p > 1.0 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
     });

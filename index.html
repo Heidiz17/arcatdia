@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - 屠龍刀黃金版</title>
+    <title>Arcatdia Battle Engine - Hei'Dizai & Pちゃん</title>
     
-    <!-- 引入 Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
     
-    <!-- 核心黑科技：引入開源 MIDI 解析套件 -->
+    <!-- 開源多軌 MIDI 解析套件 -->
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
     
     <link rel="stylesheet" href="style.css">
@@ -21,7 +20,7 @@
 <div id="stage-container">
     <canvas id="battleCanvas"></canvas>
 
-    <!-- 🌌 封面與候機室背景 -->
+    <!-- 🌌 背景層 -->
     <div id="readyBg" class="bg-layer theme-ready" style="transition:opacity 0.4s; pointer-events:none;"></div>
     <div id="titleBg" class="bg-layer theme-title active" style="transition:opacity 0.4s; pointer-events:none;"></div>
 
@@ -48,7 +47,7 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <!-- 畫面一：封面 Title Screen -->
+    <!-- 畫面一：封面 Title Screen (乾淨無櫃桶，純招牌) -->
     <div id="titleScreen" class="overlay-modal active">
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #00ffcc; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 封面圖</div>
@@ -57,10 +56,20 @@
         <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none;">
             <h1 class="game-logo" onclick="goToReadyRoom()">ARCATDIA</h1>
             <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 16px; margin-top: 15px; color: #ffcc00; text-shadow: 0 0 10px rgba(255,170,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
+            
+            <!-- 🌟 招牌回歸與版權宣告 -->
+            <div style="margin-top: 45px; text-align: center; font-family: monospace;">
+                <div style="font-size: 11px; letter-spacing: 2px; color: #00f0ff; text-shadow: 0 0 8px rgba(0, 240, 255, 0.5); font-weight: bold;">
+                    ✦ Hei'Dizai & Pちゃん ✦
+                </div>
+                <div style="font-size: 9px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.35); margin-top: 5px;">
+                    © 2026 ARCATDIA PROJECT. ALL RIGHTS RESERVED.
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 畫面二：出發準備室 -->
+    <!-- 畫面二：出發準備室 (工具箱櫃桶鎖死在此頁) -->
     <div id="readyRoom" class="overlay-modal">
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 候機室</div>
@@ -68,6 +77,29 @@
         </div>
         <h2 class="room-title">🚀 航行整備室</h2>
         <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
+            
+            <!-- 🧰 整備室專屬收納櫃桶 (WAV / MIDI 雙軌導入) -->
+            <div id="readyRoomDrawer" style="background:rgba(8,14,26,0.85); border:1px solid #00f0ff; border-radius:10px; padding:10px; margin-bottom:15px; display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="color:#00f0ff; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(0,240,255,0.15); padding:4px 8px; border-radius:4px; border:1px solid #00f0ff;">
+                        🎵 載入 WAV
+                        <input type="file" id="dualWavInput" accept="audio/*" style="display:none;">
+                    </label>
+                    <span id="autoBpmVal" style="color:#00ffcc; font-size:11px; font-weight:bold; background:#000; padding:2px 6px; border-radius:4px; border:1px solid #00ffcc;">-- BPM</span>
+                </div>
+                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">未選音訊</div>
+
+                <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
+
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="color:#ff0077; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(255,0,119,0.15); padding:4px 8px; border-radius:4px; border:1px solid #ff0077;">
+                        📜 載入 MIDI/譜面
+                        <input type="file" id="dualMidiInput" accept=".json,.mid,.midi" style="display:none;">
+                    </label>
+                    <span id="midiStatus" style="color:#888; font-size:10px;">自動鋪譜</span>
+                </div>
+            </div>
+
             <div class="setting-group">
                 <label style="text-shadow: 1px 1px 3px #000;">選擇航行難度：</label>
                 <div class="option-row">
@@ -76,8 +108,13 @@
                     <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
                 </div>
             </div>
+            
             <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
             <button class="return-btn" onclick="returnToTitle()" style="background:rgba(0,0,0,0.5);">🔙 返回開頭封面</button>
+            
+            <div style="text-align:center; margin-top:12px; font-size:10px; letter-spacing:1px; color:rgba(255,255,255,0.3); font-family:monospace;">
+                PRODUCED BY Hei'Dizai & Pちゃん
+            </div>
         </div>
     </div>
 
@@ -119,7 +156,7 @@
         <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
             <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
             <h2 id="introSongTitle" style="font-size: 28px; color: #fff; text-shadow: 0 0 15px #00ffcc; margin-bottom: 6px;">最大の愛</h2>
-            <p style="font-size: 13px; color: #aaa; margin-bottom: 4px;">作曲 / 演奏：明仔 & 團隊</p>
+            <p style="font-size: 13px; color: #aaa; margin-bottom: 4px;">作曲 / 演奏：Hei'Dizai & Pちゃん</p>
             <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: NORMAL ★★★★★</p>
             <div id="introReadyText" class="blink-text" style="font-size: 32px; color: #00ffcc; font-weight: 900; letter-spacing: 4px;">READY...</div>
         </div>
