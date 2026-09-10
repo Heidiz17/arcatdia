@@ -5,7 +5,7 @@ const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
 let W = window.innerWidth; let H = window.innerHeight;
 
-let bpm = 175;
+let bpm = 150; // 預設以 150 BPM (400ms) 為標準
 let isPlaying = false; let isPaused = false;
 let score = 0; let combo = 0; let hp = 100;
 let notes = []; let particles = []; let stars = []; 
@@ -25,8 +25,9 @@ let lastSlideChangeTime = 0;
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 let currentPerspectiveMode = 2; // 3D 消失點
-const judgeLineOffsets = [165, 185, 205, 225];
-let judgeLineLevel = 1; 
+// 🎯 修正：下沉判定線，令打擊線與底部彩色觸摸圈完美重合 (70px ~ 115px)
+const judgeLineOffsets = [70, 85, 100, 115];
+let judgeLineLevel = 0; 
 
 const lanePressed = [false, false, false, false];
 const laneTouchStartY = [0, 0, 0, 0];
@@ -110,7 +111,7 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); const el = document.getElementById('valBgm'); if (el) el.innerText = Math.round(val * 100) + "%"; }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); const el = document.getElementById('valSfx'); if (el) el.innerText = Math.round(val * 100) + "%"; }
 
-// 🌟 核心旗艦曲目資訊（預設《最大の愛》）
+// 🌟 核心旗艦曲目資訊（預設《最大の愛》/ 亦可載入《紅》）
 const currentSong = { 
     id: "01", 
     title: "最大の愛", 
@@ -118,7 +119,7 @@ const currentSong = {
     lyricist: "Hel'dizai & Pちゃん", 
     folder: "songs/01_最大の愛", 
     fileName: "master.mp3", 
-    bpm: 175 
+    bpm: 150 
 };
 
 const masterAudio = new Audio();
@@ -145,10 +146,14 @@ function handleAudioUpload(event) {
 
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
+// 🎯 核心譜面生成：開局零秒不中彈，首拍準時抵達
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    let currentTime = 4 * beatMs; // 開頭預留 4 拍 Count-in
+    
+    // 開局 Count-in 4 拍（4 * beatMs），第一粒音符在第 4 拍（音樂開聲瞬間）剛好咬死打擊線！
+    let firstHitTime = 4 * beatMs; 
+    let currentTime = firstHitTime;
     let lastLane = 0;
     
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
@@ -159,6 +164,7 @@ function generateChart() {
         if (currentTime >= maxNoteTime) break;
 
         if (currentMode === 'test') {
+            // TEST 模式：每 4 拍落一粒標準重音，準準咬住第 1 拍打擊
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
             currentTime += (beatMs * 4);
         } else if (currentMode === 'easy') {
@@ -252,13 +258,14 @@ function handleAction(laneIndex, actionType) {
     const laneW = W / 4; const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 200);
+        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 220);
         if (targetNote) {
             const diff = Math.abs(currentTimeMs - targetNote.targetTime);
             if (targetNote.type === 'tap') { 
                 targetNote.hit = true; 
-                if (diff < 60) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
-                else if (diff < 120) { score += 700; countGreat++; showJudgement("GREAT!"); } 
+                // 🎯 寬容度微調：放寬 Perfect 至 68ms，大大提升順手度！
+                if (diff <= 68) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
+                else if (diff <= 130) { score += 700; countGreat++; showJudgement("GREAT!"); } 
                 else { score += 300; countGood++; showJudgement("GOOD"); }
                 combo++; if (combo > maxCombo) maxCombo = combo;
                 hp = Math.min(100, hp + 2); playSFX('tap'); createHitParticles(targetX, currentHitY, "#ffffff"); updateUI(); 
@@ -323,18 +330,20 @@ function gameLoop() {
         }
     });
 
-    const hitY = H - judgeLineOffsets[judgeLineLevel]; const startY = 20; const laneW = W / 4;
+    const hitY = H - judgeLineOffsets[judgeLineLevel]; const startY = 40; const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5]; const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
     for (let i = 0; i < 4; i++) { ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], H); ctx.stroke(); }
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
     for (let i = 0; i < 4; i++) { ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], hitY, 22, 0, Math.PI * 2); ctx.fill(); }
 
-    const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
+    const beatMs = (60 / bpm) * 1000; 
+    const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 TEST 模式專屬：判定線上方即時顯示跳動「BEAT: 1-2-3-4」視覺儀器
+    // 🎯 TEST 模式專屬：拍子計算對齊音樂開波點（扣除開頭 4 拍 Count-in）
     if (currentMode === 'test') {
-        const totalBeats = Math.floor(currentTimeMs / beatMs);
+        const playTimeMs = currentTimeMs - (beatMs * 4);
+        const totalBeats = Math.floor(playTimeMs / beatMs);
         const currentBeatIndex = ((totalBeats % 4) + 4) % 4 + 1;
         const beatProgress = ((currentTimeMs % beatMs) + beatMs) % beatMs / beatMs;
         const scale = 1.0 + (1.0 - beatProgress) * 0.35;
@@ -342,7 +351,7 @@ function gameLoop() {
         ctx.save();
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `bold ${Math.round(40 * scale)}px sans-serif`;
+        ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
         
         if (currentBeatIndex === 1) {
             ctx.fillStyle = "#00ffcc";
@@ -353,7 +362,8 @@ function gameLoop() {
             ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
             ctx.shadowBlur = 8;
         }
-        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 65);
+        // 避開判定線，文字放在判定線上方 85px，視野開揚
+        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 85);
         ctx.restore();
     }
 
@@ -361,35 +371,42 @@ function gameLoop() {
         if (n.hit) return;
         const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
 
+        // 🎯 核心視錐剪裁：未到天窗視野（p < 0）絕不提早畫出，徹底杜絕半空怪波與開場中彈！
+        if (p < 0) return;
+
         if (n.type === 'hold') {
             const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / tDur);
             if (n.holding) {
                 if (currentTimeMs - n.lastTick >= 120) { n.lastTick = currentTimeMs; playSFX('tick'); score += 150; combo++; updateUI(); createHitParticles(botX[n.lane], hitY, laneColors[n.lane].main); }
                 if (currentTimeMs >= n.targetTime + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
             }
-            if (p > 0 && endP < 1.15) {
+            if (p >= 0 && endP < 1.15) {
                 const headY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, p)); const tailY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, endP));
                 const hx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * Math.min(1.0, Math.max(0, p)); const tx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * Math.min(1.0, Math.max(0, endP));
                 ctx.save(); ctx.strokeStyle = n.holding ? "#ffffff" : laneColors[n.lane].glow; ctx.lineWidth = n.holding ? 28 : 20; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = n.holding ? 25 : 12; ctx.beginPath(); ctx.moveTo(hx, headY); ctx.lineTo(tx, tailY); ctx.stroke(); ctx.restore();
             }
             if (p > 1.15 && !n.holding && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         } else {
-            if (p > 0 && p < 1.15) {
-                const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; const cy = startY + (hitY - startY) * p;
+            if (p >= 0 && p < 1.15) {
+                const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; 
+                const cy = startY + (hitY - startY) * p;
                 
+                ctx.save();
+                // 探頭羽化：音符剛出天窗（p < 0.08）淡入，動作極順
+                if (p < 0.08) ctx.globalAlpha = p / 0.08;
+
                 if (n.type === 'flick') {
                     const scale = (12 * (1.0 - p)) + (26 * p); const wingW = scale * 1.15; const vDepth = scale * 0.75;
-                    ctx.save(); ctx.strokeStyle = "#ff007f"; ctx.shadowColor = "#ff00aa"; ctx.shadowBlur = 18 * p; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+                    ctx.strokeStyle = "#ff007f"; ctx.shadowColor = "#ff00aa"; ctx.shadowBlur = 18 * p; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
                     ctx.beginPath(); ctx.moveTo(cx - wingW, cy - scale * 0.3); ctx.lineTo(cx, cy - scale * 0.3 + vDepth); ctx.lineTo(cx + wingW, cy - scale * 0.3); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(cx - wingW * 0.8, cy - scale * 0.85); ctx.lineTo(cx, cy - scale * 0.85 + vDepth * 0.8); ctx.lineTo(cx + wingW * 0.8, cy - scale * 0.85); ctx.stroke();
-                    ctx.restore();
                 } else {
-                    ctx.save(); ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
+                    ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
                     ctx.beginPath();
                     if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); ctx.fill(); } 
                     else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
-                    ctx.restore();
                 }
+                ctx.restore();
             }
             if (p > 1.08 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
@@ -452,3 +469,30 @@ function returnFromResults() {
     document.getElementById('resultModal').classList.remove('active'); 
     returnToReadyRoom(); 
 }
+
+// 📂 浮動快捷音訊導航條（確保在所有機型上都能一鍵換 WAV 測試）
+function injectAudioDock() {
+    if (document.getElementById('audioTrackDock')) return;
+    const dock = document.createElement('div');
+    dock.id = 'audioTrackDock';
+    dock.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(12,18,32,0.92);border:1px solid #00f0ff;border-radius:20px;padding:4px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 0 12px rgba(0,240,255,0.4);font-family:sans-serif;';
+    dock.innerHTML = `
+        <label style="color:#00f0ff;font-size:12px;font-weight:bold;cursor:pointer;">
+            🎵 導入 WAV
+            <input type="file" id="quickWavInput" accept="audio/*" style="display:none;">
+        </label>
+        <span id="quickAudioName" style="color:#fff;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">預設曲目</span>
+    `;
+    document.body.appendChild(dock);
+
+    document.getElementById('quickWavInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            masterAudio.src = URL.createObjectURL(file);
+            document.getElementById('quickAudioName').innerText = file.name;
+            showJudgement(`已載入: ${file.name}`);
+        }
+    });
+}
+window.addEventListener('DOMContentLoaded', injectAudioDock);
+injectAudioDock();
