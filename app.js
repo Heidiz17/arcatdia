@@ -107,10 +107,10 @@ function initAudioEngine() {
 const soundPaths = { tap: "sounds/arcatdia_perfect_tap.wav", flick: "sounds/arcatdia_perfect_flick.wav", hold: "sounds/arcatdia_hold.wav", tick: "sounds/arcatdia_tick.wav", stage: "sounds/arcatdia_stage_tap.wav" };
 async function loadSFXFiles() { for (let key in soundPaths) { try { const resp = await fetch(soundPaths[key]); const ab = await resp.arrayBuffer(); audioCtx.decodeAudioData(ab, (buf) => { sfxBuffers[key] = buf; }); } catch(e) { try { const resp2 = await fetch(soundPaths[key].replace('sounds/', '')); const ab2 = await resp2.arrayBuffer(); audioCtx.decodeAudioData(ab2, (buf) => { sfxBuffers[key] = buf; }); } catch(err) {} } } }
 function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { const src = audioCtx.createBufferSource(); src.buffer = sfxBuffers[key]; src.connect(sfxGainNode); src.start(0); return src; } catch(e) { return null; } }
-function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); document.getElementById('valBgm').innerText = Math.round(val * 100) + "%"; }
-function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); document.getElementById('valSfx').innerText = Math.round(val * 100) + "%"; }
+function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); const el = document.getElementById('valBgm'); if (el) el.innerText = Math.round(val * 100) + "%"; }
+function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); const el = document.getElementById('valSfx'); if (el) el.innerText = Math.round(val * 100) + "%"; }
 
-// 🌟 曲目資訊：加入 Hel'dizai & Pちゃん 招牌！
+// 🌟 核心旗艦曲目資訊（預設《最大の愛》）
 const currentSong = { 
     id: "01", 
     title: "最大の愛", 
@@ -120,17 +120,37 @@ const currentSong = {
     fileName: "master.mp3", 
     bpm: 175 
 };
-const masterAudio = new Audio(); try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
+
+const masterAudio = new Audio();
+try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
 let bgmSourceNode = null;
-function hookMasterAudioNode() { if (audioCtx && !bgmSourceNode) { try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} } }
+
+function hookMasterAudioNode() { 
+    if (audioCtx && !bgmSourceNode) { 
+        try { 
+            bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); 
+            bgmSourceNode.connect(bgmGainNode); 
+        } catch(e) {} 
+    } 
+}
+
+// 📂 本地自選 WAV / 音訊導入介面（免改 Code 即可即時換歌測試）
+function handleAudioUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    masterAudio.src = url;
+    showJudgement(`已加載自選音訊: ${file.name}`);
+}
+
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
-    let currentTime = 5 * beatMs; let lastLane = 0;
+    let currentTime = 4 * beatMs; // 開頭預留 4 拍 Count-in
+    let lastLane = 0;
     
-    // 🛑 最後 5 秒煞掣機制
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
     const maxNoteTime = songTotalMs - 5000;
     const totalNotesToSpawn = (currentMode === 'test') ? 120 : (currentMode === 'easy' ? 180 : 300);
@@ -139,9 +159,12 @@ function generateChart() {
         if (currentTime >= maxNoteTime) break;
 
         if (currentMode === 'test') {
-            // 🎯 TEST 模式：100% 純 Tap，每 4 拍一粒，鎖死第 1 拍大重音！
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
             currentTime += (beatMs * 4);
+        } else if (currentMode === 'easy') {
+            lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
+            notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+            currentTime += (beatMs * (Math.random() < 0.6 ? 4 : 2));
         } else {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             const r = Math.random();
@@ -160,7 +183,6 @@ function goToReadyRoom() { document.getElementById('titleScreen').classList.remo
 function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
 function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); }
 
-// 🚀 開場介紹與 Ready Go 儀式畫面（曲目介紹延長至 3.5 秒，GO 保持閃一閃）
 function startVoyage() { 
     document.getElementById('readyRoom').classList.remove('active'); 
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.remove('active'); }
@@ -180,10 +202,8 @@ function startVoyage() {
     const readyTxt = document.getElementById('introReadyText');
     if (readyTxt) readyTxt.innerText = "READY...";
 
-    // 🎯 延長到 3500ms（3.5 秒），睇清睇楚《最大の愛》封面同歌名！
     setTimeout(() => {
         if (readyTxt) readyTxt.innerText = "GO!";
-        // ⚡ GO 保持 600ms 閃一閃，俐落進場
         setTimeout(() => {
             intro.classList.remove('active');
             beginRealBattle(); 
@@ -312,6 +332,31 @@ function gameLoop() {
 
     const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
+    // 🎯 TEST 模式專屬：判定線上方即時顯示跳動「BEAT: 1-2-3-4」視覺儀器
+    if (currentMode === 'test') {
+        const totalBeats = Math.floor(currentTimeMs / beatMs);
+        const currentBeatIndex = ((totalBeats % 4) + 4) % 4 + 1;
+        const beatProgress = ((currentTimeMs % beatMs) + beatMs) % beatMs / beatMs;
+        const scale = 1.0 + (1.0 - beatProgress) * 0.35;
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `bold ${Math.round(40 * scale)}px sans-serif`;
+        
+        if (currentBeatIndex === 1) {
+            ctx.fillStyle = "#00ffcc";
+            ctx.shadowColor = "#00ffcc";
+            ctx.shadowBlur = 22;
+        } else {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
+            ctx.shadowBlur = 8;
+        }
+        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 65);
+        ctx.restore();
+    }
+
     notes.forEach(n => {
         if (n.hit) return;
         const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
@@ -352,7 +397,6 @@ function gameLoop() {
 
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); p.x += p.vx; p.y += p.vy; p.alpha -= 0.05; if (p.alpha <= 0) particles.splice(i, 1); }
     
-    // 🏁 檢查是否完歌並觸發結算
     const allNotesFinished = notes.length > 0 && notes.every(n => n.hit);
     if ((allNotesFinished || masterAudio.ended) && !isSongEnding && currentTimeMs > 5000) {
         isSongEnding = true;
@@ -362,7 +406,6 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// 🏆 完結結算與手動點擊退出邏輯
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
@@ -391,9 +434,7 @@ function triggerSongClear() {
     document.getElementById('resGood').innerText = countGood;
     document.getElementById('resMiss').innerText = countMiss;
 
-    // 🎯 顯示結算畫面，取消自動倒數，由玩家親手點擊確認
     document.getElementById('resultModal').classList.add('active');
-
     const cdLabel = document.getElementById('closeCountdown');
     if (cdLabel) cdLabel.innerText = "點擊任意位置繼續";
 
@@ -401,7 +442,7 @@ function triggerSongClear() {
 
     const modal = document.getElementById('resultModal');
     modal.onclick = function() {
-        modal.onclick = null; // 解除綁定防止重複觸發
+        modal.onclick = null;
         returnFromResults();
     };
 }
