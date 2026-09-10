@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
     <title>Arcatdia Battle Engine - 屠龍刀黃金版</title>
+    
+    <!-- 引入 Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- 核心黑科技：引入開源 MIDI 解析套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -108,7 +114,7 @@
         </div>
     </div>
 
-    <!-- ================= 畫面四：曲目介紹儀式 (Ready to Go) ================= -->
+    <!-- 畫面四：曲目介紹儀式 (Ready to Go) -->
     <div id="introScreen" class="overlay-modal glass-panel" style="background: rgba(3, 4, 10, 0.92); z-index: 60;">
         <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
             <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
@@ -119,7 +125,7 @@
         </div>
     </div>
 
-    <!-- ================= 畫面五：PJSK 結算面板 ================= -->
+    <!-- 畫面五：PJSK 結算面板 -->
     <div id="resultModal" class="overlay-modal glass-panel" style="background: rgba(2, 3, 8, 0.95); z-index: 70;">
         <div class="glass-card" style="width: 90%; max-width: 440px; padding: 25px; text-align: center; border: 1.5px solid #ff0077; box-shadow: 0 0 40px rgba(255, 0, 119, 0.4);">
             <div style="font-size: 13px; color: #00ffcc; letter-spacing: 3px; font-weight: 900;">VOYAGE STAGE CLEAR</div>
