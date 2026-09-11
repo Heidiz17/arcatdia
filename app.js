@@ -14,6 +14,9 @@ let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'test';
 
+// 🎯 判定線出波延遲微調 (預設 15ms，讓頂端開倉稍為留白，視覺更順眼)
+let spawnDelayMs = 15; 
+
 let countPerfect = 0; let countGreat = 0; let countGood = 0; let countMiss = 0;
 let maxCombo = 0; let isSongEnding = false; let autoReturnTimer = null;
 
@@ -80,7 +83,7 @@ function compressImage(dataUrl, callback) {
         const MAX = 1080; 
         let w = img.width; let h = img.height;
         if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
-        else if (h > MAX) { w *= MAX / h; h = MAX; }
+        else if (h > MAX) { h *= MAX / h; h = MAX; }
         cvs.width = w; cvs.height = h;
         const cCtx = cvs.getContext('2d');
         cCtx.drawImage(img, 0, 0, w, h);
@@ -222,6 +225,8 @@ function generateChart() {
     if (customChartLoaded && notes.length > 0) { notes.forEach(n => { n.hit = false; n.holding = false; }); return; }
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
+    
+    // 🎯 判定線命中時間鎖定在第 4 拍
     let currentTime = 4 * beatMs; 
     let lastLane = 0;
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
@@ -395,7 +400,6 @@ function startVoyage() {
     const readyTxt = document.getElementById('introReadyText');
     if (readyTxt) readyTxt.innerText = "READY...";
 
-    // 🎯 精準 2.0 秒乾淨俐落過場
     setTimeout(() => {
         if (readyTxt) readyTxt.innerText = "GO!";
         setTimeout(() => { intro.classList.remove('active'); beginRealBattle(); }, 400);
@@ -577,7 +581,6 @@ function gameLoop() {
     // 🎯 FREEZE 定格校準模式渲染
     if (currentMode === 'freeze') {
         const lane = 0;
-        // p 從 0 (開倉 startY) 到 1.0 (剛好抵達判定線 hitY)
         const p = Math.max(0, Math.min(1.0, freezeManualMs / tDur));
         const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
         const cy = startY + (hitY - startY) * p;
@@ -596,7 +599,6 @@ function gameLoop() {
         }
         ctx.fill();
 
-        // 提示字
         ctx.textAlign = "center";
         ctx.font = "bold 14px monospace";
         ctx.fillStyle = "#00ffcc";
@@ -609,7 +611,7 @@ function gameLoop() {
         return;
     }
 
-    // 🎯 TEST 模式逢拍必閃
+    // 🎯 TEST 模式：逢拍必閃 + 判定線「拍子 1」原點波爆發
     if (currentMode === 'test') {
         const playTimeMs = currentTimeMs - (beatMs * 4);
         if (playTimeMs >= 0) {
@@ -621,6 +623,20 @@ function gameLoop() {
                 ctx.shadowColor = "#ffd700";
                 ctx.shadowBlur = 30;
                 ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
+                ctx.restore();
+            }
+
+            // 🎯 判定線「拍子 1」起點波：第一拍在判定線原地爆出光豆實體
+            const cyclePhaseMs = playTimeMs % (beatMs * 4);
+            if (cyclePhaseMs < 180) {
+                const pulse = 1.0 - (cyclePhaseMs / 180);
+                ctx.save();
+                ctx.fillStyle = `rgba(0, 255, 204, ${pulse * 0.9})`;
+                ctx.shadowColor = "#00ffcc";
+                ctx.shadowBlur = 30 * pulse;
+                ctx.beginPath();
+                ctx.arc(botX[0], hitY, radius * (1.0 + (1.0 - pulse) * 0.4), 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
             }
         }
@@ -641,14 +657,19 @@ function gameLoop() {
         ctx.restore();
     }
 
+    // 🎯 光豆繪製（加入延遲微調 spawnDelayMs）
     notes.forEach(n => {
         if (n.hit) return;
-        const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
 
-        if (p < 0) return;
+        // 計算有效飛行時間，頂部稍為延遲出發
+        const effectiveDur = tDur - spawnDelayMs;
+        const timeRemaining = n.targetTime - currentTimeMs;
+        const p = 1.0 - (timeRemaining / effectiveDur);
+
+        if (p < 0) return; // 延遲期內頂部保持乾淨
 
         if (n.type === 'hold') {
-            const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / tDur);
+            const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / effectiveDur);
             if (n.holding) {
                 if (currentTimeMs - n.lastTick >= 120) { n.lastTick = currentTimeMs; playSFX('tick'); score += 150; combo++; updateUI(); createHitParticles(botX[n.lane], hitY, laneColors[n.lane].main); }
                 if (currentTimeMs >= n.targetTime + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
@@ -668,7 +689,6 @@ function gameLoop() {
                 ctx.save();
                 if (p < 0.08) ctx.globalAlpha = p / 0.08;
 
-                // 🎯 正 V 雙箭頭（向下俯衝、前後兩個獨立實體箭頭）
                 if (n.type === 'flick') {
                     const scale = (14 * (1.0 - p)) + (28 * p);
                     ctx.save();
@@ -676,7 +696,6 @@ function gameLoop() {
                     ctx.lineJoin = "round";
                     ctx.shadowBlur = 22 * p;
 
-                    // 箭頭 1 (前鋒箭頭：純白激光核心，尖端向下指向我哋)
                     const w1 = scale * 0.85; const d1 = scale * 0.65; const y1 = cy + scale * 0.22;
                     ctx.strokeStyle = "#ffffff";
                     ctx.shadowColor = "#ffffff";
@@ -685,7 +704,6 @@ function gameLoop() {
                     ctx.moveTo(cx - w1, y1 - d1); ctx.lineTo(cx, y1); ctx.lineTo(cx + w1, y1 - d1);
                     ctx.stroke();
 
-                    // 箭頭 2 (後衛箭頭：桃紅推進光翼，跟隨喺後面向下衝)
                     const w2 = scale * 1.25; const d2 = scale * 0.75; const y2 = cy - scale * 0.25;
                     ctx.strokeStyle = "#ff0077";
                     ctx.shadowColor = "#ff00aa";
