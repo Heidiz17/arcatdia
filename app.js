@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (核心變數 / 彈弓微調器 / 音訊)
+   🔒 Arcatdia Battle Engine - Part 1/4
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -29,48 +29,22 @@ let currentPerspectiveMode = 2; // 3D 消失點
 const judgeLineAdjusts = [0, 3, 6, -3];
 let judgeLineLevel = 0; // 預設 0px：完美貼實製餅頂部
 
-// 🎯 雙軌彈弓微調器（拍數 / 毫秒 雙向互通）
-let springBeatsOffset = 0.0; // 提前發波拍數 (可為正、負、小數，無界限)
-let springTunerMode = 'beat'; // 'beat' 拍數模式 或 'ms' 毫秒模式
+// 🎯 定格校準尺變數（手動推移 ms，起始為 0ms 開倉口）
+let freezeManualMs = 0;
 
-function updateTunerUI() {
+function updateFreezeUI() {
     const beatMs = (60 / bpm) * 1000;
-    const currentMs = Math.round(springBeatsOffset * beatMs);
-    const disp = document.getElementById('tunerDisplay');
-    const subDisp = document.getElementById('tunerSubDisplay');
-    const modeBtn = document.getElementById('btnTunerMode');
-    if (modeBtn) modeBtn.innerText = springTunerMode === 'beat' ? "模式: 拍數" : "模式: 毫秒";
-
-    const sign = springBeatsOffset >= 0 ? "+" : "";
-    if (disp && subDisp) {
-        if (springTunerMode === 'beat') {
-            disp.innerText = `${sign}${springBeatsOffset.toFixed(2)} 拍`;
-            subDisp.innerText = `(${sign}${currentMs} ms)`;
-        } else {
-            disp.innerText = `${sign}${currentMs} ms`;
-            subDisp.innerText = `(${sign}${springBeatsOffset.toFixed(2)} 拍)`;
-        }
-    }
+    const beats = freezeManualMs / beatMs;
+    const sign = freezeManualMs >= 0 ? "+" : "";
+    const msDisp = document.getElementById('freezeMsDisplay');
+    const beatDisp = document.getElementById('freezeBeatDisplay');
+    if (msDisp) msDisp.innerText = `${sign}${freezeManualMs} ms`;
+    if (beatDisp) beatDisp.innerText = `(${sign}${beats.toFixed(2)} 拍)`;
 }
 
-function toggleTunerMode() {
-    springTunerMode = springTunerMode === 'beat' ? 'ms' : 'beat';
-    updateTunerUI();
-    showJudgement(springTunerMode === 'beat' ? "調校: 拍數模式" : "調校: 毫秒模式");
-}
-
-function stepSpringOffset(delta) {
-    const beatMs = (60 / bpm) * 1000;
-    if (springTunerMode === 'beat') {
-        springBeatsOffset = Math.round((springBeatsOffset + delta) * 100) / 100;
-    } else {
-        // 毫秒模式下，按鈕換算為 50ms / 250ms
-        const msDelta = delta * 500;
-        const currentMs = springBeatsOffset * beatMs;
-        const newMs = currentMs + msDelta;
-        springBeatsOffset = Math.round((newMs / beatMs) * 100) / 100;
-    }
-    updateTunerUI();
+function stepFreezeMs(delta) {
+    freezeManualMs += delta;
+    updateFreezeUI();
 }
 
 const lanePressed = [false, false, false, false];
@@ -150,7 +124,7 @@ function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; save
 function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity * 100); localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); showJudgement("💾 存檔成功！"); } catch(e) { showJudgement("⚠️ 相片過大，存檔受限"); } }
 window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
 
-// --- 音效與 Web Audio API 核心 ---
+// --- 音效與 Web Audio API ---
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null; let bgmGainNode = null; let sfxGainNode = null; let sfxBuffers = {};
 function initAudioEngine() {
@@ -177,7 +151,7 @@ function hookMasterAudioNode() {
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/4 (BPM 偵測 / 譜面生成 / 工具箱)
+   🔒 Arcatdia Battle Engine - Part 2/4
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
@@ -188,7 +162,7 @@ async function handleAudioFileForBPM(audioFile) {
         bpm = parseInt(match[1], 10);
         document.getElementById('manualBpmInput').value = bpm;
         showJudgement(`檔名鎖定: ${bpm} BPM`);
-        updateTunerUI();
+        updateFreezeUI();
         if (!customChartLoaded) generateChart();
         return;
     }
@@ -240,7 +214,7 @@ async function handleAudioFileForBPM(audioFile) {
         bpm = 175;
     }
     document.getElementById('manualBpmInput').value = bpm;
-    updateTunerUI();
+    updateFreezeUI();
     if (!customChartLoaded) generateChart();
 }
 
@@ -254,7 +228,7 @@ function generateChart() {
     const maxNoteTime = songTotalMs - 5000; 
 
     while (currentTime < maxNoteTime) {
-        if (currentMode === 'test') {
+        if (currentMode === 'test' || currentMode === 'freeze') {
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
             currentTime += (beatMs * 4);
         } else if (currentMode === 'easy') {
@@ -290,7 +264,7 @@ function initReadyRoomDrawer() {
             if (val > 0) {
                 bpm = val;
                 showJudgement(`手動強制更改: ${bpm} BPM`);
-                updateTunerUI();
+                updateFreezeUI();
                 if (!customChartLoaded) generateChart();
             }
         });
@@ -386,7 +360,7 @@ function showTrackSelectorModal(midi) {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4 (過場 / 戰鬥啟動 / 觸控打擊)
+   🔒 Arcatdia Battle Engine - Part 3/4
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
@@ -397,7 +371,7 @@ function returnToReadyRoom() {
     document.getElementById('pauseMenu').classList.remove('active'); 
     document.getElementById('battleHud').style.display = 'none'; 
     document.getElementById('touchController').style.display = 'none'; 
-    const tuner = document.getElementById('springTuner'); if (tuner) tuner.style.display = 'none';
+    const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
     isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
@@ -421,31 +395,48 @@ function startVoyage() {
     const readyTxt = document.getElementById('introReadyText');
     if (readyTxt) readyTxt.innerText = "READY...";
 
+    // 🎯 精準 2.0 秒乾淨俐落過場
     setTimeout(() => {
         if (readyTxt) readyTxt.innerText = "GO!";
-        setTimeout(() => { intro.classList.remove('active'); beginRealBattle(); }, 600);
-    }, 3500);
+        setTimeout(() => { intro.classList.remove('active'); beginRealBattle(); }, 400);
+    }, 1600);
 }
 
 function beginRealBattle() {
     document.getElementById('battleHud').style.display = 'flex'; 
     document.getElementById('touchController').style.display = 'flex'; 
-    const tuner = document.getElementById('springTuner'); 
-    if (tuner) { tuner.style.display = 'block'; updateTunerUI(); }
+
+    const tuner = document.getElementById('freezeTuner');
+    if (currentMode === 'freeze') {
+        if (tuner) { tuner.style.display = 'block'; updateFreezeUI(); }
+    } else {
+        if (tuner) tuner.style.display = 'none';
+    }
 
     score = 0; combo = 0; maxCombo = 0; hp = 100; totalPausedDuration = 0; 
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
     hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); 
     isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
-    scheduleCountInAndPlay(); requestAnimationFrame(gameLoop); 
+
+    if (currentMode !== 'freeze') {
+        scheduleCountInAndPlay();
+    }
+    requestAnimationFrame(gameLoop); 
 }
 
-function selectDifficulty(mode) { currentMode = mode; document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active')); if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active'); if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active'); if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active'); }
+function selectDifficulty(mode) { 
+    currentMode = mode; 
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active')); 
+    if (mode === 'easy') document.getElementById('btnDiffEasy').classList.add('active'); 
+    if (mode === 'normal') document.getElementById('btnDiffNormal').classList.add('active'); 
+    if (mode === 'test') document.getElementById('btnDiffTest').classList.add('active'); 
+    if (mode === 'freeze') document.getElementById('btnDiffFreeze').classList.add('active'); 
+}
+
 function pauseGame() { if (!isPlaying || isPaused) return; isPaused = true; pauseStartTime = performance.now(); masterAudio.pause(); clearAllTimers(); document.getElementById('pauseMenu').classList.add('active'); }
-function resumeGame() { if (!isPaused) return; document.getElementById('pauseMenu').classList.remove('active'); totalPausedDuration += (performance.now() - pauseStartTime); isPaused = false; masterAudio.play().catch(()=>{}); requestAnimationFrame(gameLoop); }
+function resumeGame() { if (!isPaused) return; document.getElementById('pauseMenu').classList.remove('active'); totalPausedDuration += (performance.now() - pauseStartTime); isPaused = false; if (currentMode !== 'freeze') masterAudio.play().catch(()=>{}); requestAnimationFrame(gameLoop); }
 function restartFromPause() { document.getElementById('pauseMenu').classList.remove('active'); isPaused = false; startVoyage(); }
 
-// 🎯 打擊火花粒子特效（完美保留）
 function createHitParticles(x, y, color) { 
     if (particles.length > 30) particles.splice(0, 10); 
     for (let i = 0; i < 8; i++) { 
@@ -478,18 +469,15 @@ function getGeometry() {
 }
 
 function handleAction(laneIndex, actionType) {
-    if (!isPlaying || isPaused) return;
+    if (!isPlaying || isPaused || currentMode === 'freeze') return;
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
-    const beatMs = (60 / bpm) * 1000;
-    const springOffsetMs = springBeatsOffset * beatMs; // 🎯 彈弓補償時間
-
     const { hitY } = getGeometry();
     const laneW = W / 4; const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - (n.targetTime - springOffsetMs)) < 160);
+        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 160);
         if (targetNote) {
-            const diff = Math.abs(currentTimeMs - (targetNote.targetTime - springOffsetMs));
+            const diff = Math.abs(currentTimeMs - targetNote.targetTime);
             if (targetNote.type === 'tap') { 
                 targetNote.hit = true; 
                 if (diff <= 50) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
@@ -501,7 +489,7 @@ function handleAction(laneIndex, actionType) {
             } else if (targetNote.type === 'flick') { showJudgement("FLICK UP!"); }
         } else { playSFX('stage'); createHitParticles(targetX, hitY, "rgba(0, 255, 204, 0.45)"); }
     } else if (actionType === 'flick') {
-        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - (n.targetTime - springOffsetMs)) < 180);
+        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 180);
         if (flickNote) { flickNote.hit = true; score += 1000; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('flick'); showJudgement("FLICK!!"); createHitParticles(targetX, hitY, "#ff0077"); updateUI(); }
     } else if (actionType === 'up') {
         const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
@@ -528,7 +516,7 @@ function scheduleCountInAndPlay() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (主循環 / 正V雙箭頭 / 結算)
+   🔒 Arcatdia Battle Engine - Part 4/4
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
@@ -572,7 +560,7 @@ function gameLoop() {
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
 
-    // 🎯 判定線（厚度 3px，底邊剛好貼齊製餅最頂部邊緣）
+    // 🎯 判定線（底邊剛好貼齊製餅最頂部邊緣）
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
     // 🎯 4 粒光餅（頂部與判定線底部無縫貼合）
@@ -585,7 +573,41 @@ function gameLoop() {
 
     const beatMs = (60 / bpm) * 1000; 
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
-    const springOffsetMs = springBeatsOffset * beatMs; // 🎯 彈弓時間偏移
+
+    // 🎯 FREEZE 定格校準模式渲染
+    if (currentMode === 'freeze') {
+        const lane = 0;
+        // p 從 0 (開倉 startY) 到 1.0 (剛好抵達判定線 hitY)
+        const p = Math.max(0, Math.min(1.0, freezeManualMs / tDur));
+        const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
+        const cy = startY + (hitY - startY) * p;
+
+        ctx.save();
+        ctx.fillStyle = laneColors[lane].main;
+        ctx.shadowColor = laneColors[lane].main;
+        ctx.shadowBlur = 24;
+        ctx.beginPath();
+        if (currentPerspectiveMode === 1) { 
+            ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
+        } else { 
+            const rx = (10 * (1.0 - p)) + (28 * p); 
+            const ry = (32 * (1.0 - p)) + (14 * p); 
+            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+        }
+        ctx.fill();
+
+        // 提示字
+        ctx.textAlign = "center";
+        ctx.font = "bold 14px monospace";
+        ctx.fillStyle = "#00ffcc";
+        ctx.fillText("❄️ 定格校準中 (手動推光豆)", W * 0.5, hitY - 110);
+        ctx.fillStyle = "#ffd700";
+        ctx.fillText(`開倉落差: ${freezeManualMs} ms`, W * 0.5, hitY - 88);
+        ctx.restore();
+
+        requestAnimationFrame(gameLoop);
+        return;
+    }
 
     // 🎯 TEST 模式逢拍必閃
     if (currentMode === 'test') {
@@ -621,17 +643,15 @@ function gameLoop() {
 
     notes.forEach(n => {
         if (n.hit) return;
-        // 🎯 核心演算：光豆抵達時間套入彈弓提前量
-        const adjustedTarget = n.targetTime - springOffsetMs;
-        const p = 1.0 - ((adjustedTarget - currentTimeMs) / tDur);
+        const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
 
         if (p < 0) return;
 
         if (n.type === 'hold') {
-            const endP = 1.0 - (((adjustedTarget + n.duration) - currentTimeMs) / tDur);
+            const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / tDur);
             if (n.holding) {
                 if (currentTimeMs - n.lastTick >= 120) { n.lastTick = currentTimeMs; playSFX('tick'); score += 150; combo++; updateUI(); createHitParticles(botX[n.lane], hitY, laneColors[n.lane].main); }
-                if (currentTimeMs >= adjustedTarget + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
+                if (currentTimeMs >= n.targetTime + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
             }
             if (p >= 0 && endP <= 1.0) {
                 const headY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, p)); 
@@ -683,7 +703,7 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            if (currentTimeMs - adjustedTarget > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
+            if (currentTimeMs - n.targetTime > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
     });
 
@@ -702,7 +722,7 @@ function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
     document.getElementById('touchController').style.display = 'none';
-    const tuner = document.getElementById('springTuner'); if (tuner) tuner.style.display = 'none';
+    const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
 
     let rank = "C";
     const totalHits = countPerfect + countGreat + countGood + countMiss;
