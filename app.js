@@ -14,8 +14,21 @@ let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'test';
 
-// 🎯 判定線出波延遲微調 (預設 15ms，讓頂端開倉稍為留白，視覺更順眼)
 let spawnDelayMs = 15; 
+
+// 🎯 FREEZE 閉環連續開關：撳一下 Play，再撳一下 Stop 停返原點
+let isSingleLoopRunning = false;
+let singleLoopStartTime = 0;
+
+window.runSingleLoopTest = function() {
+    isSingleLoopRunning = !isSingleLoopRunning;
+    if (isSingleLoopRunning) {
+        singleLoopStartTime = performance.now();
+        showJudgement("▶ 開始連續閉環放波");
+    } else {
+        showJudgement("⏹ 停止並定格在錨點");
+    }
+};
 
 let countPerfect = 0; let countGreat = 0; let countGood = 0; let countMiss = 0;
 let maxCombo = 0; let isSongEnding = false; let autoReturnTimer = null;
@@ -28,11 +41,11 @@ let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 let currentPerspectiveMode = 2; // 3D 消失點
 
-// 🎯 判定線微調階級（以製餅頂部邊緣為基準，微調 0px, +3px, +6px, -3px）
+// 🎯 判定線微調階級（以製餅頂部邊緣為基準）
 const judgeLineAdjusts = [0, 3, 6, -3];
-let judgeLineLevel = 0; // 預設 0px：完美貼實製餅頂部
+let judgeLineLevel = 0; 
 
-// 🎯 定格校準尺變數（手動推移 ms，起始為 0ms 開倉口）
+// 🎯 定格校準尺變數（手動推移 ms）
 let freezeManualMs = 0;
 
 function updateFreezeUI() {
@@ -226,7 +239,6 @@ function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     
-    // 🎯 判定線命中時間鎖定在第 4 拍
     let currentTime = 4 * beatMs; 
     let lastLane = 0;
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
@@ -379,7 +391,7 @@ function returnToReadyRoom() {
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
-    isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
+    isPaused = false; isPlaying = false; isSingleLoopRunning = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
 function startVoyage() { 
@@ -464,10 +476,9 @@ for (let i = 0; i < 4; i++) {
 let activeHoldAudioSources = [null, null, null, null];
 
 function getGeometry() {
-    const radius = 28; // 製餅半徑
-    const circleCenterY = H - 165; // 製餅圓心固定坐標
-    const circleTopY = circleCenterY - radius; // 製餅最頂部像素
-    // 🎯 判定線底部剛好貼齊製餅最頂部（再加上微調階級）
+    const radius = 28; 
+    const circleCenterY = H - 165; 
+    const circleTopY = circleCenterY - radius; 
     const hitY = circleTopY - 1.5 - judgeLineAdjusts[judgeLineLevel];
     return { radius, circleCenterY, hitY };
 }
@@ -520,7 +531,7 @@ function scheduleCountInAndPlay() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4
+   🔒 Arcatdia Battle Engine - Part 4/4 (連續閉環放波/暫停完整版)
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
@@ -564,10 +575,10 @@ function gameLoop() {
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
 
-    // 🎯 判定線（底邊剛好貼齊製餅最頂部邊緣）
+    // 🎯 底部青綠色判定基準線
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
-    // 🎯 4 粒光餅（頂部與判定線底部無縫貼合）
+    // 🎯 4 粒實體光餅
     for (let i = 0; i < 4; i++) { 
         ctx.fillStyle = laneColors[i].main; 
         ctx.beginPath(); 
@@ -578,42 +589,96 @@ function gameLoop() {
     const beatMs = (60 / bpm) * 1000; 
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 FREEZE 定格校準模式渲染
+    // 🎯 全域判定線「拍子 1 原點波」
+    const playTimeMs = currentTimeMs - (beatMs * 4);
+    if (playTimeMs >= -20) {
+        const cycleMs = (beatMs * 4);
+        const phase = ((playTimeMs % cycleMs) + cycleMs) % cycleMs;
+        if (phase < 120 || phase > (cycleMs - 20)) {
+            const progress = phase < 120 ? (phase / 120) : 0;
+            const alpha = 1.0 - progress;
+            ctx.save();
+            ctx.fillStyle = `rgba(0, 255, 204, ${alpha})`;
+            ctx.shadowColor = "#00ffcc";
+            ctx.shadowBlur = 30 * alpha;
+            ctx.beginPath();
+            ctx.arc(botX[0], hitY, radius * (0.8 + alpha * 0.4), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // 🎯 FREEZE 閉環實驗室：連續放波與定格暫停
     if (currentMode === 'freeze') {
         const lane = 0;
-        const p = Math.max(0, Math.min(1.0, freezeManualMs / tDur));
-        const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
-        const cy = startY + (hitY - startY) * p;
 
-        ctx.save();
-        ctx.fillStyle = laneColors[lane].main;
-        ctx.shadowColor = laneColors[lane].main;
-        ctx.shadowBlur = 24;
-        ctx.beginPath();
-        if (currentPerspectiveMode === 1) { 
-            ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
-        } else { 
-            const rx = (10 * (1.0 - p)) + (28 * p); 
-            const ry = (32 * (1.0 - p)) + (14 * p); 
-            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+        if (isSingleLoopRunning) {
+            // 🚀 連續閉環放波：每 1371ms 無限接力
+            const elapsed = performance.now() - singleLoopStartTime;
+            const continuousPhaseMs = (freezeManualMs + elapsed) % tDur;
+            const p = continuousPhaseMs / tDur;
+
+            const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
+            const cy = startY + (hitY - startY) * p;
+
+            ctx.save();
+            ctx.fillStyle = laneColors[lane].main;
+            ctx.shadowColor = laneColors[lane].main;
+            ctx.shadowBlur = 24;
+            ctx.beginPath();
+            if (currentPerspectiveMode === 1) { 
+                ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
+            } else { 
+                const rx = (10 * (1.0 - p)) + (28 * p); 
+                const ry = (32 * (1.0 - p)) + (14 * p); 
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+            }
+            ctx.fill();
+            ctx.restore();
+        } else {
+            // ❄️ 暫停定格狀態：停在當前手動錨點
+            const p = Math.max(0, Math.min(1.0, freezeManualMs / tDur));
+            const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
+            const cy = startY + (hitY - startY) * p;
+
+            ctx.save();
+            ctx.fillStyle = laneColors[lane].main;
+            ctx.shadowColor = laneColors[lane].main;
+            ctx.shadowBlur = 24;
+            ctx.beginPath();
+            if (currentPerspectiveMode === 1) { 
+                ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
+            } else { 
+                const rx = (10 * (1.0 - p)) + (28 * p); 
+                const ry = (32 * (1.0 - p)) + (14 * p); 
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+            }
+            ctx.fill();
+            ctx.restore();
         }
-        ctx.fill();
+
+        // 🎯 判定線上金色錨點標記
+        ctx.save();
+        ctx.strokeStyle = "#ffd700";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(botX[0], hitY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
 
         ctx.textAlign = "center";
         ctx.font = "bold 14px monospace";
         ctx.fillStyle = "#00ffcc";
-        ctx.fillText("❄️ 定格校準中 (手動推光豆)", W * 0.5, hitY - 110);
+        ctx.fillText(isSingleLoopRunning ? "🚀 連續閉環放波中 (每1371ms一粒)..." : "❄️ 定格校準中 (手動定錨點)", W * 0.5, hitY - 110);
         ctx.fillStyle = "#ffd700";
-        ctx.fillText(`開倉落差: ${freezeManualMs} ms`, W * 0.5, hitY - 88);
-        ctx.restore();
+        ctx.fillText(`當前錨點: ${freezeManualMs} ms`, W * 0.5, hitY - 88);
 
         requestAnimationFrame(gameLoop);
         return;
     }
 
-    // 🎯 TEST 模式：逢拍必閃 + 判定線「拍子 1」原點波爆發
+    // 🎯 TEST 模式
     if (currentMode === 'test') {
-        const playTimeMs = currentTimeMs - (beatMs * 4);
         if (playTimeMs >= 0) {
             const currentBeatPhase = playTimeMs % beatMs;
             if (currentBeatPhase <= 70 || currentBeatPhase >= (beatMs - 70)) {
@@ -623,20 +688,6 @@ function gameLoop() {
                 ctx.shadowColor = "#ffd700";
                 ctx.shadowBlur = 30;
                 ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
-                ctx.restore();
-            }
-
-            // 🎯 判定線「拍子 1」起點波：第一拍在判定線原地爆出光豆實體
-            const cyclePhaseMs = playTimeMs % (beatMs * 4);
-            if (cyclePhaseMs < 180) {
-                const pulse = 1.0 - (cyclePhaseMs / 180);
-                ctx.save();
-                ctx.fillStyle = `rgba(0, 255, 204, ${pulse * 0.9})`;
-                ctx.shadowColor = "#00ffcc";
-                ctx.shadowBlur = 30 * pulse;
-                ctx.beginPath();
-                ctx.arc(botX[0], hitY, radius * (1.0 + (1.0 - pulse) * 0.4), 0, Math.PI * 2);
-                ctx.fill();
                 ctx.restore();
             }
         }
@@ -657,16 +708,14 @@ function gameLoop() {
         ctx.restore();
     }
 
-    // 🎯 光豆繪製（加入延遲微調 spawnDelayMs）
     notes.forEach(n => {
         if (n.hit) return;
 
-        // 計算有效飛行時間，頂部稍為延遲出發
         const effectiveDur = tDur - spawnDelayMs;
         const timeRemaining = n.targetTime - currentTimeMs;
         const p = 1.0 - (timeRemaining / effectiveDur);
 
-        if (p < 0) return; // 延遲期內頂部保持乾淨
+        if (p < 0) return;
 
         if (n.type === 'hold') {
             const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / effectiveDur);
