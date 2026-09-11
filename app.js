@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 1/4)
+   🔒 Arcatdia Battle Engine - Part 1/3 (核心變數 / 判定線 / 音效)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -24,8 +24,10 @@ let lastSlideChangeTime = 0;
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
 
 let currentPerspectiveMode = 2; // 3D 消失點
-const judgeLineOffsets = [150, 165, 180, 195];
-let judgeLineLevel = 1; // 預設 165px
+
+// 🎯 判定線高度微調：貼實 4 粒光餅頂部，甚至高過頂少少
+const judgeLineOffsets = [185, 200, 215, 230];
+let judgeLineLevel = 1; // 預設 200px
 
 const lanePressed = [false, false, false, false];
 const laneTouchStartY = [0, 0, 0, 0];
@@ -38,8 +40,19 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-function togglePerspectiveMode() { currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1; showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); }
-function toggleJudgeLineLevel() { judgeLineLevel = (judgeLineLevel + 1) % judgeLineOffsets.length; showJudgement(`判定線: LV ${judgeLineLevel + 1}`); }
+function togglePerspectiveMode() { 
+    currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1; 
+    showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); 
+}
+
+// 🎯 右上角即時切換判定線高度按鈕邏輯
+function toggleJudgeLineLevel() { 
+    judgeLineLevel = (judgeLineLevel + 1) % judgeLineOffsets.length; 
+    const quickBtn = document.getElementById('btnQuickJudgeLine');
+    if (quickBtn) quickBtn.innerText = `📏 線: LV${judgeLineLevel + 1}`;
+    showJudgement(`判定線: LV ${judgeLineLevel + 1}`); 
+}
+
 function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
 
@@ -74,29 +87,11 @@ function loadSavedImages() {
 
 function preloadBattleSlides() { preloadedSlideImages = []; savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); }); }
 
-function handleUpload(event, type) {
-    const files = event.target.files; if (!files || files.length === 0) return;
-    if (type === 'title') {
-        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.title = compressed; const tb = document.getElementById('titleBg'); if (tb) { tb.style.backgroundImage = `url(${compressed})`; } showJudgement("封面已換！"); }); }; reader.readAsDataURL(files[0]);
-    } else if (type === 'ready') {
-        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.ready = compressed; const rb = document.getElementById('readyBg'); if (rb) { rb.style.backgroundImage = `url(${compressed})`; } showJudgement("候機室已換！"); }); }; reader.readAsDataURL(files[0]);
-    } else if (type === 'battle') {
-        savedData.battle = []; let loadedCount = 0;
-        Array.from(files).forEach((file) => {
-            const reader = new FileReader();
-            reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.battle.push(compressed); loadedCount++; if (loadedCount === files.length) { preloadBattleSlides(); showJudgement(`已讀入 ${loadedCount} 張戰鬥圖！`); } }); };
-            reader.readAsDataURL(file);
-        });
-    }
-}
-
 function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; savedData.opacity = parseInt(val, 10); }
 function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity * 100); localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); showJudgement("💾 存檔成功！"); } catch(e) { showJudgement("⚠️ 相片過大，存檔受限"); } }
 window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
 
-/* =============================================================
-   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 2/4)
-   ============================================================= */
+// --- 音效與 Web Audio API 核心 ---
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null; let bgmGainNode = null; let sfxGainNode = null; let sfxBuffers = {};
 function initAudioEngine() {
@@ -106,8 +101,6 @@ function initAudioEngine() {
 const soundPaths = { tap: "sounds/arcatdia_perfect_tap.wav", flick: "sounds/arcatdia_perfect_flick.wav", hold: "sounds/arcatdia_hold.wav", tick: "sounds/arcatdia_tick.wav", stage: "sounds/arcatdia_stage_tap.wav" };
 async function loadSFXFiles() { for (let key in soundPaths) { try { const resp = await fetch(soundPaths[key]); const ab = await resp.arrayBuffer(); audioCtx.decodeAudioData(ab, (buf) => { sfxBuffers[key] = buf; }); } catch(e) { try { const resp2 = await fetch(soundPaths[key].replace('sounds/', '')); const ab2 = await resp2.arrayBuffer(); audioCtx.decodeAudioData(ab2, (buf) => { sfxBuffers[key] = buf; }); } catch(err) {} } } }
 function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { const src = audioCtx.createBufferSource(); src.buffer = sfxBuffers[key]; src.connect(sfxGainNode); src.start(0); return src; } catch(e) { return null; } }
-function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); const el = document.getElementById('valBgm'); if (el) el.innerText = Math.round(val * 100) + "%"; }
-function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); const el = document.getElementById('valSfx'); if (el) el.innerText = Math.round(val * 100) + "%"; }
 
 const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 };
 const masterAudio = new Audio();
@@ -122,6 +115,9 @@ function hookMasterAudioNode() {
 
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
+/* =============================================================
+   🔒 Arcatdia Battle Engine - Part 2/3 (BPM 偵測 / 譜面生成 / 工具箱)
+   ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
 
@@ -213,9 +209,6 @@ function generateChart() {
     notes.sort((a, b) => a.targetTime - b.targetTime);
 }
 
-/* =============================================================
-   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 3/4)
-   ============================================================= */
 function initReadyRoomDrawer() {
     const toggleBtn = document.getElementById('toggleDrawerBtn');
     const drawer = document.getElementById('readyRoomDrawer');
@@ -328,6 +321,9 @@ function showTrackSelectorModal(midi) {
     };
 }
 
+/* =============================================================
+   🔒 Arcatdia Battle Engine - Part 3A (過場 / 戰鬥啟動 / 觸控打擊)
+   ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
@@ -387,9 +383,6 @@ for (let i = 0; i < 4; i++) {
     }
 }
 
-/* =============================================================
-   🔒 Arcatdia Battle Engine - Hei'Dizai & Pちゃん (Part 4/4)
-   ============================================================= */
 let activeHoldAudioSources = [null, null, null, null];
 
 function handleAction(laneIndex, actionType) {
@@ -399,7 +392,6 @@ function handleAction(laneIndex, actionType) {
     const laneW = W / 4; const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        // 🎯 50ms (Perfect), 100ms (Great), 150ms (Good) 區間判定
         const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 160);
         if (targetNote) {
             const diff = Math.abs(currentTimeMs - targetNote.targetTime);
@@ -440,6 +432,9 @@ function scheduleCountInAndPlay() {
     audioStartTimer = setTimeout(() => { if (!isPlaying || isPaused) return; masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {}); }, (beatMs * 4) / playbackSpeed);
 }
 
+/* =============================================================
+   🔒 Arcatdia Battle Engine - Part 3B (Canvas 循環 / 3V飛翼 / 結算)
+   ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
@@ -473,26 +468,26 @@ function gameLoop() {
     const hitY = H - judgeLineOffsets[judgeLineLevel]; const startY = 40; const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5]; const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    // 🎯 絕對天花板軌道線
+    // 軌道線
     for (let i = 0; i < 4; i++) { 
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2; 
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
 
-    // 絕對天花板判定線
+    // 🎯 判定線（高過製頂少少）
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
-    // 🎯 製餅乖乖喺線底（圓頂貼實 hitY）
+    // 🎯 4 粒光餅（圓心在 hitY + 34，頂部緊貼 hitY）
     for (let i = 0; i < 4; i++) { 
         ctx.fillStyle = laneColors[i].main; 
         ctx.beginPath(); 
-        ctx.arc(botX[i], hitY + 28, 28, 0, Math.PI * 2); 
+        ctx.arc(botX[i], hitY + 34, 28, 0, Math.PI * 2); 
         ctx.fill(); 
     }
 
     const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 TEST 模式逢拍必閃：只要接近任何一拍的時間點（誤差 60ms 內），整條判定線與製餅同步高光爆閃！
+    // 🎯 TEST 模式：逢拍必閃
     if (currentMode === 'test') {
         const playTimeMs = currentTimeMs - (beatMs * 4);
         if (playTimeMs >= 0) {
@@ -545,16 +540,48 @@ function gameLoop() {
             }
             if (p > 1.0 && !n.holding && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         } else {
-            // 🎯 光波一到絕對天花板（p <= 1.0）就判定，絕不穿到底部
             if (p >= 0 && p <= 1.0) {
                 const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; 
                 const cy = startY + (hitY - startY) * p;
                 ctx.save();
                 if (p < 0.08) ctx.globalAlpha = p / 0.08;
+
+                // 🎯 3V 立體飛翼（Flick 音符）
                 if (n.type === 'flick') {
-                    const scale = (12 * (1.0 - p)) + (26 * p); const wingW = scale * 1.15; const vDepth = scale * 0.75;
-                    ctx.strokeStyle = "#ff007f"; ctx.shadowColor = "#ff00aa"; ctx.shadowBlur = 18 * p; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.moveTo(cx - wingW, cy - scale * 0.3); ctx.lineTo(cx, cy - scale * 0.3 + vDepth); ctx.lineTo(cx + wingW, cy - scale * 0.3); ctx.stroke();
+                    const scale = (14 * (1.0 - p)) + (28 * p);
+                    ctx.save();
+                    ctx.lineCap = "round";
+                    ctx.lineJoin = "round";
+                    ctx.shadowBlur = 24 * p;
+
+                    // V1 (底層大翼 - 霓虹粉紫)
+                    const w1 = scale * 1.35; const d1 = scale * 0.65; const y1 = cy + scale * 0.35;
+                    ctx.strokeStyle = "rgba(170, 0, 255, 0.75)";
+                    ctx.shadowColor = "#aa00ff";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - w1, y1); ctx.lineTo(cx, y1 - d1); ctx.lineTo(cx + w1, y1);
+                    ctx.stroke();
+
+                    // V2 (中層主翼 - 戰鬥桃紅)
+                    const w2 = scale * 1.1; const d2 = scale * 0.65; const y2 = cy;
+                    ctx.strokeStyle = "#ff0077";
+                    ctx.shadowColor = "#ff00aa";
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - w2, y2); ctx.lineTo(cx, y2 - d2); ctx.lineTo(cx + w2, y2);
+                    ctx.stroke();
+
+                    // V3 (頂層箭頭 - 核心激光白)
+                    const w3 = scale * 0.75; const d3 = scale * 0.55; const y3 = cy - scale * 0.35;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.shadowColor = "#ffffff";
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - w3, y3); ctx.lineTo(cx, y3 - d3); ctx.lineTo(cx + w3, y3);
+                    ctx.stroke();
+
+                    ctx.restore();
                 } else {
                     ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
                     ctx.beginPath();
@@ -563,7 +590,6 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            // 超過 150ms 容許誤差未打中則當 Miss
             if (currentTimeMs - n.targetTime > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
     });
