@@ -1,359 +1,215 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arcatdia GP & MIDI 雙核心工作站</title>
-  <!-- 1. AlphaTab: 用於解析 GP 檔案及原軌試聽 -->
-  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js"></script>
-  <!-- 2. MidiPlayerJS & Tone.js: 用於生成的純 MIDI 檔案本地實時試聽 -->
-  <script src="https://cdn.jsdelivr.net/npm/midi-player-js@2.0.16/browser/midiplayer.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f0f13;
-      color: #eee;
-      padding: 16px;
-      margin: 0;
-      max-width: 550px;
-      margin: auto;
-    }
-    h2 { color: #00d2ff; text-align: center; margin-bottom: 4px; }
-    p.desc { text-align: center; color: #777; font-size: 12px; margin-top: 0; }
-    .card {
-      background: #191922;
-      border: 1px solid #282836;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-    input[type="file"] {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background: #232330;
-      border: 1px dashed #444;
-      border-radius: 8px;
-      color: #fff;
-    }
-    .track-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 4px;
-      border-bottom: 1px solid #22222e;
-    }
-    .track-row:last-child { border-bottom: none; }
-    .btn {
-      width: 100%;
-      padding: 13px;
-      border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 15px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    .btn-main { background: #00d2ff; color: #000; }
-    .btn-action { background: #333346; color: #00d2ff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-    .btn-midi-play { background: #4ade80; color: #000; font-size: 13px; padding: 8px 16px; font-weight: bold; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#030305">
+    <title>Arcatdia Battle Engine - Hei'Dizai & Pちゃん</title>
     
-    /* 🎯 狀態指示欄與 Error 黑匣子 */
-    #statusBox {
-      background: #050508;
-      border: 1px solid #00d2ff;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-family: monospace;
-      font-size: 12px;
-      margin-top: 10px;
-      line-height: 1.4;
-      word-break: break-all;
-    }
-    .log-info { color: #00d2ff; }
-    .log-success { color: #4ade80; font-weight: bold; }
-    .log-error { color: #ff3366; font-weight: bold; background: rgba(255, 51, 102, 0.1); padding: 4px; border-radius: 4px; }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
     
-    .midi-box {
-      background: #121218;
-      border: 1.5px solid #4ade80;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 14px;
-    }
-  </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h2>🎸 GP 拆軌 & MIDI 雙試聽工作站</h2>
-  <p class="desc">發達煙定・純前端零依賴・手機直跑</p>
+<div id="stage-container">
+    <canvas id="battleCanvas"></canvas>
 
-  <!-- 🎯 即時系統狀態與 Error 視窗 -->
-  <div id="statusBox">
-    <div id="statusText" class="log-info">⚙️ 系統準備就緒，等待樂譜...</div>
-  </div>
+    <div id="readyBg" class="bg-layer theme-ready" style="transition:opacity 0.4s; pointer-events:none;"></div>
+    <div id="titleBg" class="bg-layer theme-title active" style="transition:opacity 0.4s; pointer-events:none;"></div>
 
-  <div class="card" style="margin-top: 12px;">
-    <label style="display:block; font-weight:bold; margin-bottom:8px;">1. 選擇 GP 樂譜 (.gp3, .gp4, .gp5)</label>
-    <input type="file" id="filePicker" accept=".gp3,.gp4,.gp5,.gpx,.gp">
-  </div>
-
-  <div id="gpCard" class="card" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <div>
-        <div id="songTitle" style="font-weight:bold; font-size:16px; color:#fff;"></div>
-        <div id="songTempo" style="font-size:12px; color:#888;"></div>
-      </div>
-      <button class="btn-action" id="gpPlayBtn" style="font-size:13px; padding:8px 12px;">▶ GTP 全曲試聽</button>
+    <div class="hud-overlay" id="battleHud" style="display:none;">
+        <div class="hud-left">
+            <div class="brand-mini">ARCATDIA</div>
+            <div class="track-info" id="hudTrackInfo">最大の愛</div>
+        </div>
+        <div class="score-board"><span id="scoreVal">000000</span></div>
+        <div class="hud-right" style="display: flex; align-items: center; gap: 6px;">
+            <button id="btnQuickJudge" onclick="toggleJudgeLineLevel()" style="background: rgba(0, 255, 204, 0.2); border: 1px solid #00ffcc; color: #00ffcc; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer;">📏 線:LV1</button>
+            <button id="pauseBtn" class="btn-pause" onclick="pauseGame()">⏸ 暫停</button>
+        </div>
+        <div class="hp-bar-line"><div id="hpFill" class="hp-fill lvl-s"></div></div>
     </div>
 
-    <label style="font-weight:bold; font-size:13px; display:block; margin-bottom:6px; color:#00d2ff;">2. 選擇你要合成的多音軌：</label>
-    <div id="trackList"></div>
-
-    <button class="btn btn-main" id="generateMidiBtn">⚡ 提煉所選音軌生成 MIDI</button>
-
-    <!-- MIDI 試聽與下載專屬區域 -->
-    <div id="midiArea" class="midi-box" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:13px; font-weight:bold; color:#4ade80;">🎹 生成的 MIDI 已就緒：</span>
-        <button class="btn-action btn-midi-play" id="midiPlayBtn">▶ 試聽生成 MIDI</button>
-      </div>
-      <button class="btn" id="downloadMidiBtn" style="background:#4ade80; color:#000;">📥 下載此 MIDI 檔案</button>
+    <!-- 🎯 第 4 軌（紫色）定格微調儀表板 -->
+    <div id="freezeTuner" style="display:none; position:absolute; right: 2%; top: 46%; width: 23%; min-width: 86px; z-index: 55; background: rgba(18, 5, 30, 0.88); border: 1.5px solid #00f0ff; border-radius: 8px; padding: 6px 4px; box-shadow: 0 0 15px rgba(0,240,255,0.4); text-align: center; font-family: monospace; user-select: none;">
+        <div style="color: #ff0077; font-size: 10px; font-weight: 900; letter-spacing: 1px; margin-bottom: 2px;">❄️ 定格校準尺</div>
+        <div id="freezeMsDisplay" style="color: #00ffcc; font-size: 14px; font-weight: 900; margin: 2px 0;">+0 ms</div>
+        <div id="freezeBeatDisplay" style="color: #ffd700; font-size: 10px; margin-bottom: 5px;">(+0.00 拍)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <button onclick="stepFreezeMs(-50)" style="background: #222; border: 1px solid #777; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">-50ms</button>
+            <button onclick="stepFreezeMs(50)" style="background: #222; border: 1px solid #777; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">+50ms</button>
+            <button onclick="stepFreezeMs(-10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">-10ms</button>
+            <button onclick="stepFreezeMs(10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">+10ms</button>
+        </div>
     </div>
-  </div>
 
-  <!-- 隱藏的 AlphaTab 引擎掛載點 -->
-  <div id="alphaTabEngine" style="display:none;"></div>
+    <div id="judgementDisplay">PERFECT!</div>
+    <div id="comboDisplay">0 COMBO</div>
 
-  <script>
-    let api = null;
-    let rawScoreBytes = null;
-    let currentScore = null;
-    let isGpPlaying = false;
+    <div class="touch-controller" id="touchController" style="display:none;">
+        <div class="touch-lane" id="lane0"><span>L1</span></div>
+        <div class="touch-lane" id="lane1"><span>L2</span></div>
+        <div class="touch-lane" id="lane2"><span>R1</span></div>
+        <div class="touch-lane" id="lane3"><span>R2</span></div>
+    </div>
 
-    let midiPlayer = null;
-    let synth = null;
-    let currentMidiBytes = null;
-    let isMidiPlaying = false;
-
-    const statusText = document.getElementById('statusText');
-
-    function logStatus(msg, type = 'info') {
-      console.log(`[Status] ${msg}`);
-      if (!statusText) return;
-      statusText.className = type === 'error' ? 'log-error' : (type === 'success' ? 'log-success' : 'log-info');
-      statusText.innerText = msg;
-    }
-
-    // 初始化 AlphaTab
-    window.addEventListener('DOMContentLoaded', () => {
-      try {
-        const container = document.getElementById('alphaTabEngine');
-        api = new alphaTab.AlphaTabApi(container, {
-          player: {
-            enablePlayer: true,
-            soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
-          }
-        });
-
-        api.soundFontLoaded.on(() => {
-          logStatus('✅ 音訊 SoundFont 載入完成，請載入樂譜！', 'success');
-        });
-
-        api.playerStateChanged.on((args) => {
-          isGpPlaying = (args.state === 1);
-          document.getElementById('gpPlayBtn').innerText = isGpPlaying ? '⏹ 停止 GTP' : '▶ GTP 全曲試聽';
-        });
-
-        // 初始化 Tone.js 合成器
-        synth = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: "triangle" },
-          envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
-        }).toDestination();
-
-        midiPlayer = new MidiPlayer.Player((event) => {
-          if (event.name === 'Note on' && event.velocity > 0) {
-            try {
-              const freq = Tone.Frequency(event.noteNumber, "midi");
-              synth.triggerAttackRelease(freq, "8n", undefined, event.velocity / 127);
-            } catch(e) {}
-          }
-        });
-
-        midiPlayer.on('endOfFile', () => {
-          isMidiPlaying = false;
-          document.getElementById('midiPlayBtn').innerText = '▶ 試聽生成 MIDI';
-          logStatus('🏁 MIDI 試聽播放完畢', 'info');
-        });
-      } catch(err) {
-        logStatus(`❌ 引擎初始化失敗: ${err.message}`, 'error');
-      }
-    });
-
-    const filePicker = document.getElementById('filePicker');
-    const gpCard = document.getElementById('gpCard');
-    const trackList = document.getElementById('trackList');
-    const midiArea = document.getElementById('midiArea');
-    const midiPlayBtn = document.getElementById('midiPlayBtn');
-
-    // 載入 GP 樂譜
-    filePicker.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      logStatus(`⏳ 正在讀取樂譜: ${file.name}...`, 'info');
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        rawScoreBytes = new Uint8Array(arrayBuffer);
-
-        currentScore = alphaTab.importer.ScoreLoader.loadScoreFromBytes(rawScoreBytes);
-        api.renderScore(currentScore);
-
-        document.getElementById('songTitle').innerText = currentScore.title || file.name;
-        document.getElementById('songTempo').innerText = `原曲速度: ${currentScore.tempo} BPM`;
-
-        trackList.innerHTML = '';
-        currentScore.tracks.forEach((track, index) => {
-          const row = document.createElement('div');
-          row.className = 'track-row';
-          row.innerHTML = `
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-              <input type="checkbox" class="track-cb" data-index="${index}" checked>
-              <span style="font-size:14px;">${track.name || `軌道 ${index + 1}`}</span>
-            </label>
-            <div>
-              <button class="btn-action" onclick="soloPlayTrack(${index})">獨奏 GTP</button>
+    <div id="titleScreen" class="overlay-modal active">
+        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ffd700; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
+            <div style="padding:6px 10px; font-size:10px; color:#ffd700; pointer-events:none; font-weight:bold;">📁 換封面圖</div>
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+        </div>
+        
+        <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none; margin-top: 10vh;">
+            <h1 class="game-logo" style="color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); font-size: 55px;" onclick="goToReadyRoom()">ARCATDIA</h1>
+            <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 20px; margin-top: 20px; color: #ffcc00; text-shadow: 0 0 15px rgba(255,204,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
+            
+            <div style="margin-top: 60px; text-align: center; font-family: monospace;">
+                <div style="font-size: 15px; letter-spacing: 3px; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); font-weight: 900;">
+                    ✦ Hei'Dizai & Pちゃん ✦
+                </div>
+                <div style="font-size: 10px; letter-spacing: 1px; color: rgba(255, 215, 0, 0.5); margin-top: 8px;">
+                    © 2026 ARCATDIA PROJECT. ALL RIGHTS RESERVED.
+                </div>
             </div>
-          `;
-          trackList.appendChild(row);
-        });
+        </div>
+    </div>
 
-        gpCard.style.display = 'block';
-        midiArea.style.display = 'none';
-        logStatus(`✅ 成功解析樂譜！共拆出 ${currentScore.tracks.length} 條音軌。`, 'success');
-      } catch (err) {
-        logStatus(`❌ 解析 GP 樂譜失敗: ${err.message}`, 'error');
-      }
-    });
+    <div id="readyRoom" class="overlay-modal">
+        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
+            <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 換候機圖</div>
+            <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+        </div>
+        <h2 class="room-title" style="color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.5);">🚀 航行整備室</h2>
+        <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
+            
+            <button id="toggleDrawerBtn" style="background:rgba(0,0,0,0.7); border:1px solid #ffd700; color:#ffd700; padding:6px 16px; border-radius:20px; margin-bottom:12px; cursor:pointer; font-weight:bold; width:100%; box-shadow:0 0 10px rgba(255,215,0,0.2);">
+                ⚙️ 整備工具箱 (入歌/改BPM) ▼
+            </button>
 
-    // 1. GTP 全曲播放
-    document.getElementById('gpPlayBtn').addEventListener('click', () => {
-      if (!api) return;
-      if (isMidiPlaying) stopMidi();
-      api.playPause();
-    });
+            <div id="readyRoomDrawer" style="display:none; background:rgba(8,14,26,0.9); border:1px solid #00f0ff; border-radius:10px; padding:12px; margin-bottom:15px; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="color:#00f0ff; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(0,240,255,0.15); padding:6px 10px; border-radius:6px; border:1px solid #00f0ff;">
+                        🎵 載入 WAV
+                        <input type="file" id="dualWavInput" accept="audio/*" style="display:none;">
+                    </label>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <input type="number" id="manualBpmInput" value="175" style="width:50px; background:#000; color:#00ffcc; border:1px solid #00ffcc; border-radius:4px; padding:4px; font-weight:bold; text-align:center; font-size:12px;">
+                        <span style="color:#00ffcc; font-size:10px; font-weight:bold;">BPM</span>
+                    </div>
+                </div>
+                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">未選音訊</div>
 
-    // 獨奏特定 GTP 軌道
-    window.soloPlayTrack = function(index) {
-      if (!api || !currentScore) return;
-      if (isMidiPlaying) stopMidi();
-      currentScore.tracks.forEach((t, i) => {
-        api.changeTrackMute([t], i !== index);
-      });
-      if (!isGpPlaying) api.play();
-      logStatus(`🎵 正在獨奏軌道: ${currentScore.tracks[index].name || (index + 1)}`, 'info');
-    };
+                <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
 
-    // 2. 提煉音軌生成 MIDI（強化反饋與防錯）
-    document.getElementById('generateMidiBtn').addEventListener('click', () => {
-      logStatus('⚡ 正在提取音軌數據生成 MIDI...', 'info');
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="color:#ff0077; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(255,0,119,0.15); padding:6px 10px; border-radius:6px; border:1px solid #ff0077;">
+                        📜 載入 MIDI/譜面
+                        <input type="file" id="dualMidiInput" accept=".json,.mid,.midi" style="display:none;">
+                    </label>
+                    <span id="midiStatus" style="color:#888; font-size:10px;">自動鋪譜</span>
+                </div>
+            </div>
 
-      if (!rawScoreBytes) {
-        logStatus('❌ 未能找到樂譜數據，請重新載入檔案！', 'error');
-        return;
-      }
+            <div class="setting-group">
+                <label style="text-shadow: 1px 1px 3px #000;">選擇航行難度：</label>
+                <div class="option-row" style="display: flex; gap: 4px;">
+                    <button class="opt-btn diff-btn active" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
+                    <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL</button>
+                    <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
+                    <button class="opt-btn diff-btn" id="btnDiffFreeze" onclick="selectDifficulty('freeze')" style="border-color: #00f0ff; color: #00f0ff;">❄️ FREEZE</button>
+                </div>
+            </div>
+            
+            <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
+            <button class="return-btn" onclick="returnToTitle()" style="background:rgba(0,0,0,0.5);">🔙 返回開頭封面</button>
+            
+            <div style="text-align:center; margin-top:12px; font-size:10px; letter-spacing:1px; color:rgba(255,215,0,0.6); font-family:monospace;">
+                PRODUCED BY Hei'Dizai & Pちゃん
+            </div>
+        </div>
+    </div>
 
-      try {
-        const exportScoreObj = alphaTab.importer.ScoreLoader.loadScoreFromBytes(rawScoreBytes);
-        
-        const checkboxes = document.querySelectorAll('.track-cb');
-        const selectedIndices = [];
-        checkboxes.forEach((cb) => {
-          if (cb.checked) {
-            selectedIndices.push(parseInt(cb.getAttribute('data-index'), 10));
-          }
-        });
+    <div id="pauseMenu" class="overlay-modal glass-panel">
+        <div class="pause-card glass-card">
+            <h2>⏸ 遊戲暫停中</h2>
+            <div class="slider-group">
+                <div class="slider-label-row"><span>🎵 BGM 歌曲音量</span><span id="valBgm">100%</span></div>
+                <input type="range" id="bgmSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateBgmVolume(this.value)">
+            </div>
+            <div class="slider-group">
+                <div class="slider-label-row"><span>🥁 SFX 打擊音量</span><span id="valSfx">100%</span></div>
+                <input type="range" id="sfxSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateSfxVolume(this.value)">
+            </div>
+            <div style="background:rgba(0,0,0,0.5); padding:8px; border-radius:8px; border:1px dashed #ff0077;">
+                <div style="position:relative; overflow:hidden; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; margin-bottom:8px;">
+                    <div style="padding:6px; font-size:10px; color:#fff; pointer-events:none;">📁 戰鬥幻燈片 (可選多張)</div>
+                    <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                </div>
+                <div style="text-align: left; font-size: 10px; color: #aaa; margin-bottom:3px;">🌗 戰鬥圖亮度控制：</div>
+                <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="100" oninput="updateSlideOpacity(this.value)">
+                <button onclick="saveSettings()" style="width:100%; font-size:11px; padding:6px; background:#00ffcc; color:#000; border:none; border-radius:5px; font-weight:900; cursor:pointer; margin-top:6px;">
+                    💾 SAVE (儲存所有相片及設定)
+                </button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D</button>
+                <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線</button>
+            </div>
+            <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
+            <button class="pause-opt-btn" onclick="restartFromPause()">🔄 重新開始</button>
+            <button class="pause-opt-btn btn-exit" onclick="returnToReadyRoom()">🚪 退回航行整備室</button>
+        </div>
+    </div>
 
-        if (selectedIndices.length === 0) {
-          logStatus('⚠️ 請至少勾選一條要合成的音軌！', 'error');
-          return;
-        }
+    <div id="introScreen" class="overlay-modal glass-panel" style="background: rgba(3, 4, 10, 0.92); z-index: 60;">
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+            <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
+            <h2 id="introSongTitle" style="font-size: 28px; color: #ffd700; text-shadow: 0 0 15px #ffcc00; margin-bottom: 6px;">最大の愛</h2>
+            <p style="font-size: 13px; color: #ffd700; margin-bottom: 4px;">作曲 / 演奏：Hei'Dizai & Pちゃん</p>
+            <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: NORMAL ★★★★★</p>
+            <div id="introReadyText" class="blink-text" style="font-size: 32px; color: #00ffcc; font-weight: 900; letter-spacing: 4px;">READY...</div>
+        </div>
+    </div>
 
-        exportScoreObj.tracks = exportScoreObj.tracks.filter((t, idx) => selectedIndices.includes(idx));
+    <div id="resultModal" class="overlay-modal glass-panel" style="background: rgba(2, 3, 8, 0.95); z-index: 70;">
+        <div class="glass-card" style="width: 90%; max-width: 440px; padding: 25px; text-align: center; border: 1.5px solid #ff0077; box-shadow: 0 0 40px rgba(255, 0, 119, 0.4);">
+            <div style="font-size: 13px; color: #00ffcc; letter-spacing: 3px; font-weight: 900;">VOYAGE STAGE CLEAR</div>
+            <h2 style="font-size: 24px; margin: 6px 0 15px 0; color: #fff;">最大の愛</h2>
 
-        // 匯出二進制 MIDI
-        currentMidiBytes = alphaTab.exporter.MidiExport.exportScore(exportScoreObj, null);
-        
-        if (!(currentMidiBytes instanceof Uint8Array)) {
-          currentMidiBytes = new Uint8Array(currentMidiBytes);
-        }
+            <div id="rankBadge" style="font-size: 75px; font-weight: 900; margin: 10px 0; text-shadow: 0 0 35px #ffcc00; color: #ffcc00;">SS</div>
 
-        midiArea.style.display = 'block';
-        logStatus(`🎉 成功提煉 ${selectedIndices.length} 條音軌！大小: ${currentMidiBytes.byteLength} bytes，請試聽或下載。`, 'success');
-      } catch (err) {
-        console.error(err);
-        logStatus(`❌ 生成 MIDI 發生錯誤: ${err.message}`, 'error');
-      }
-    });
+            <div style="background: rgba(0,0,0,0.6); padding: 12px 18px; border-radius: 12px; margin: 15px 0; font-size: 14px; text-align: left; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+                    <span style="color:#aaa;">FINAL SCORE</span><span id="resScore" style="color:#ffcc00; font-weight:900; font-size: 18px;">0</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
+                    <span style="color:#aaa;">MAX COMBO</span><span id="resMaxCombo" style="color:#00ffcc; font-weight:900;">0</span>
+                </div>
+                <hr style="border:0; border-top:1px solid #222; margin: 8px 0;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
+                    <div>PERFECT: <span id="resPerfect" style="color:#fff; font-weight:900;">0</span></div>
+                    <div>GREAT: <span id="resGreat" style="color:#00e5ff; font-weight:900;">0</span></div>
+                    <div>GOOD: <span id="resGood" style="color:#76ff03; font-weight:900;">0</span></div>
+                    <div>MISS: <span id="resMiss" style="color:#ff1744; font-weight:900;">0</span></div>
+                </div>
+            </div>
 
-    // 3. MIDI 試聽播放
-    midiPlayBtn.addEventListener('click', async () => {
-      if (!currentMidiBytes) {
-        logStatus('❌ 尚未生成任何 MIDI 數據！', 'error');
-        return;
-      }
+            <div id="stickerBox" style="background: linear-gradient(135deg, rgba(255,0,119,0.2), rgba(0,255,204,0.2)); border: 1.5px dashed #00ffcc; border-radius: 10px; padding: 10px; margin-bottom: 15px;">
+                <div style="font-size: 11px; color: #ffcc00;">✨ 解鎖絕版紀念貼紙：</div>
+                <div style="font-size: 14px; font-weight: 900; color: #fff; margin-top: 3px;">🐾【NO.001 啟程之星·阿卡迪亞貓爪印】</div>
+            </div>
 
-      if (isGpPlaying) api.pause();
+            <button class="launch-btn" id="btnReturnRoomNow" onclick="returnFromResults()" style="width: 100%; margin-top: 5px;">
+                返回航行整備室 (<span id="closeCountdown">3</span>s)
+            </button>
+        </div>
+    </div>
+</div>
 
-      logStatus('🔊 啟動 Web Audio 音訊環境...', 'info');
-      await Tone.start();
-
-      if (isMidiPlaying) {
-        stopMidi();
-      } else {
-        try {
-          const ab = currentMidiBytes.buffer.slice(currentMidiBytes.byteOffset, currentMidiBytes.byteOffset + currentMidiBytes.byteLength);
-          midiPlayer.loadArrayBuffer(ab);
-          midiPlayer.play();
-          isMidiPlaying = true;
-          midiPlayBtn.innerText = '⏹ 停止 MIDI';
-          logStatus('▶ 正在試聽生成的 MIDI 檔案...', 'success');
-        } catch(err) {
-          logStatus(`❌ MIDI 試聽失敗: ${err.message} (建議直接下載檔案)`, 'error');
-        }
-      }
-    });
-
-    function stopMidi() {
-      if (midiPlayer) midiPlayer.stop();
-      isMidiPlaying = false;
-      midiPlayBtn.innerText = '▶ 試聽生成 MIDI';
-      logStatus('⏹ 已停止試聽', 'info');
-    }
-
-    // 4. 下載生成的 MIDI 檔案
-    document.getElementById('downloadMidiBtn').addEventListener('click', () => {
-      if (!currentMidiBytes) {
-        logStatus('❌ 尚未生成任何 MIDI 數據！', 'error');
-        return;
-      }
-      try {
-        const blob = new Blob([currentMidiBytes], { type: 'audio/midi' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentScore.title || 'extracted'}_custom.mid`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        logStatus('📥 MIDI 檔案已成功觸發下載！', 'success');
-      } catch(err) {
-        logStatus(`❌ 下載失敗: ${err.message}`, 'error');
-      }
-    });
-  </script>
+<script src="app.js"></script>
 </body>
 </html>
