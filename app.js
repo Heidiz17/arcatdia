@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/3
+   🔒 Arcatdia Battle Engine - Part 1/4 (核心變數 / 彈弓微調器 / 音訊)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -29,6 +29,50 @@ let currentPerspectiveMode = 2; // 3D 消失點
 const judgeLineAdjusts = [0, 3, 6, -3];
 let judgeLineLevel = 0; // 預設 0px：完美貼實製餅頂部
 
+// 🎯 雙軌彈弓微調器（拍數 / 毫秒 雙向互通）
+let springBeatsOffset = 0.0; // 提前發波拍數 (可為正、負、小數，無界限)
+let springTunerMode = 'beat'; // 'beat' 拍數模式 或 'ms' 毫秒模式
+
+function updateTunerUI() {
+    const beatMs = (60 / bpm) * 1000;
+    const currentMs = Math.round(springBeatsOffset * beatMs);
+    const disp = document.getElementById('tunerDisplay');
+    const subDisp = document.getElementById('tunerSubDisplay');
+    const modeBtn = document.getElementById('btnTunerMode');
+    if (modeBtn) modeBtn.innerText = springTunerMode === 'beat' ? "模式: 拍數" : "模式: 毫秒";
+
+    const sign = springBeatsOffset >= 0 ? "+" : "";
+    if (disp && subDisp) {
+        if (springTunerMode === 'beat') {
+            disp.innerText = `${sign}${springBeatsOffset.toFixed(2)} 拍`;
+            subDisp.innerText = `(${sign}${currentMs} ms)`;
+        } else {
+            disp.innerText = `${sign}${currentMs} ms`;
+            subDisp.innerText = `(${sign}${springBeatsOffset.toFixed(2)} 拍)`;
+        }
+    }
+}
+
+function toggleTunerMode() {
+    springTunerMode = springTunerMode === 'beat' ? 'ms' : 'beat';
+    updateTunerUI();
+    showJudgement(springTunerMode === 'beat' ? "調校: 拍數模式" : "調校: 毫秒模式");
+}
+
+function stepSpringOffset(delta) {
+    const beatMs = (60 / bpm) * 1000;
+    if (springTunerMode === 'beat') {
+        springBeatsOffset = Math.round((springBeatsOffset + delta) * 100) / 100;
+    } else {
+        // 毫秒模式下，按鈕換算為 50ms / 250ms
+        const msDelta = delta * 500;
+        const currentMs = springBeatsOffset * beatMs;
+        const newMs = currentMs + msDelta;
+        springBeatsOffset = Math.round((newMs / beatMs) * 100) / 100;
+    }
+    updateTunerUI();
+}
+
 const lanePressed = [false, false, false, false];
 const laneTouchStartY = [0, 0, 0, 0];
 const laneTouchFlicked = [false, false, false, false];
@@ -45,7 +89,6 @@ function togglePerspectiveMode() {
     showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); 
 }
 
-// 🎯 右上角與暫停選單共用：即時切換判定線高度
 function toggleJudgeLineLevel() { 
     judgeLineLevel = (judgeLineLevel + 1) % judgeLineAdjusts.length; 
     const qBtn = document.getElementById('btnQuickJudge');
@@ -134,7 +177,7 @@ function hookMasterAudioNode() {
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/3
+   🔒 Arcatdia Battle Engine - Part 2/4 (BPM 偵測 / 譜面生成 / 工具箱)
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
@@ -145,6 +188,7 @@ async function handleAudioFileForBPM(audioFile) {
         bpm = parseInt(match[1], 10);
         document.getElementById('manualBpmInput').value = bpm;
         showJudgement(`檔名鎖定: ${bpm} BPM`);
+        updateTunerUI();
         if (!customChartLoaded) generateChart();
         return;
     }
@@ -196,6 +240,7 @@ async function handleAudioFileForBPM(audioFile) {
         bpm = 175;
     }
     document.getElementById('manualBpmInput').value = bpm;
+    updateTunerUI();
     if (!customChartLoaded) generateChart();
 }
 
@@ -245,6 +290,7 @@ function initReadyRoomDrawer() {
             if (val > 0) {
                 bpm = val;
                 showJudgement(`手動強制更改: ${bpm} BPM`);
+                updateTunerUI();
                 if (!customChartLoaded) generateChart();
             }
         });
@@ -340,14 +386,22 @@ function showTrackSelectorModal(midi) {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3A (過場 / 幾何計算 / 火花打擊)
+   🔒 Arcatdia Battle Engine - Part 3/4 (過場 / 戰鬥啟動 / 觸控打擊)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
 function goToReadyRoom() { document.getElementById('titleScreen').classList.remove('active'); document.getElementById('titleBg').classList.remove('active'); document.getElementById('readyRoom').classList.add('active'); const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } initAudioEngine(); }
 function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
-function returnToReadyRoom() { document.getElementById('pauseMenu').classList.remove('active'); document.getElementById('battleHud').style.display = 'none'; document.getElementById('touchController').style.display = 'none'; const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } document.getElementById('readyRoom').classList.add('active'); isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); }
+function returnToReadyRoom() { 
+    document.getElementById('pauseMenu').classList.remove('active'); 
+    document.getElementById('battleHud').style.display = 'none'; 
+    document.getElementById('touchController').style.display = 'none'; 
+    const tuner = document.getElementById('springTuner'); if (tuner) tuner.style.display = 'none';
+    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
+    document.getElementById('readyRoom').classList.add('active'); 
+    isPaused = false; isPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
+}
 
 function startVoyage() { 
     document.getElementById('readyRoom').classList.remove('active'); 
@@ -376,6 +430,9 @@ function startVoyage() {
 function beginRealBattle() {
     document.getElementById('battleHud').style.display = 'flex'; 
     document.getElementById('touchController').style.display = 'flex'; 
+    const tuner = document.getElementById('springTuner'); 
+    if (tuner) { tuner.style.display = 'block'; updateTunerUI(); }
+
     score = 0; combo = 0; maxCombo = 0; hp = 100; totalPausedDuration = 0; 
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
     hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); 
@@ -415,7 +472,7 @@ function getGeometry() {
     const radius = 28; // 製餅半徑
     const circleCenterY = H - 165; // 製餅圓心固定坐標
     const circleTopY = circleCenterY - radius; // 製餅最頂部像素
-    // 🎯 判定線底部剛好貼齊製餅最頂部（再加上微調數值）
+    // 🎯 判定線底部剛好貼齊製餅最頂部（再加上微調階級）
     const hitY = circleTopY - 1.5 - judgeLineAdjusts[judgeLineLevel];
     return { radius, circleCenterY, hitY };
 }
@@ -423,13 +480,16 @@ function getGeometry() {
 function handleAction(laneIndex, actionType) {
     if (!isPlaying || isPaused) return;
     const currentTimeMs = (performance.now() - startTime - totalPausedDuration) * playbackSpeed;
+    const beatMs = (60 / bpm) * 1000;
+    const springOffsetMs = springBeatsOffset * beatMs; // 🎯 彈弓補償時間
+
     const { hitY } = getGeometry();
     const laneW = W / 4; const targetX = laneW * laneIndex + (laneW / 2);
 
     if (actionType === 'down') {
-        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - n.targetTime) < 160);
+        const targetNote = notes.find(n => n.lane === laneIndex && !n.hit && Math.abs(currentTimeMs - (n.targetTime - springOffsetMs)) < 160);
         if (targetNote) {
-            const diff = Math.abs(currentTimeMs - targetNote.targetTime);
+            const diff = Math.abs(currentTimeMs - (targetNote.targetTime - springOffsetMs));
             if (targetNote.type === 'tap') { 
                 targetNote.hit = true; 
                 if (diff <= 50) { score += 1000; countPerfect++; showJudgement("PERFECT!"); } 
@@ -441,7 +501,7 @@ function handleAction(laneIndex, actionType) {
             } else if (targetNote.type === 'flick') { showJudgement("FLICK UP!"); }
         } else { playSFX('stage'); createHitParticles(targetX, hitY, "rgba(0, 255, 204, 0.45)"); }
     } else if (actionType === 'flick') {
-        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - n.targetTime) < 180);
+        const flickNote = notes.find(n => n.lane === laneIndex && !n.hit && n.type === 'flick' && Math.abs(currentTimeMs - (n.targetTime - springOffsetMs)) < 180);
         if (flickNote) { flickNote.hit = true; score += 1000; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('flick'); showJudgement("FLICK!!"); createHitParticles(targetX, hitY, "#ff0077"); updateUI(); }
     } else if (actionType === 'up') {
         const holdingNote = notes.find(n => n.lane === laneIndex && n.type === 'hold' && n.holding && !n.hit);
@@ -468,12 +528,14 @@ function scheduleCountInAndPlay() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3B (Canvas 繪圖 / 雙V飛翼 / 結算)
+   🔒 Arcatdia Battle Engine - Part 4/4 (主循環 / 正V雙箭頭 / 結算)
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
-    const now = performance.now(); const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed; const currentSec = currentTimeMs / 1000;
+    const now = performance.now(); 
+    const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed; 
+    const currentSec = currentTimeMs / 1000;
 
     if (preloadedSlideImages.length > 0) {
         if (now - lastSlideChangeTime > 8000) { currentSlideIndex = (currentSlideIndex + 1) % preloadedSlideImages.length; lastSlideChangeTime = now; }
@@ -521,9 +583,11 @@ function gameLoop() {
         ctx.fill(); 
     }
 
-    const beatMs = (60 / bpm) * 1000; const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
+    const beatMs = (60 / bpm) * 1000; 
+    const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
+    const springOffsetMs = springBeatsOffset * beatMs; // 🎯 彈弓時間偏移
 
-    // 🎯 TEST 模式逢拍必閃（正拍一到判定線同步高光爆閃）
+    // 🎯 TEST 模式逢拍必閃
     if (currentMode === 'test') {
         const playTimeMs = currentTimeMs - (beatMs * 4);
         if (playTimeMs >= 0) {
@@ -557,15 +621,17 @@ function gameLoop() {
 
     notes.forEach(n => {
         if (n.hit) return;
-        const p = 1.0 - ((n.targetTime - currentTimeMs) / tDur);
+        // 🎯 核心演算：光豆抵達時間套入彈弓提前量
+        const adjustedTarget = n.targetTime - springOffsetMs;
+        const p = 1.0 - ((adjustedTarget - currentTimeMs) / tDur);
 
         if (p < 0) return;
 
         if (n.type === 'hold') {
-            const endP = 1.0 - (((n.targetTime + n.duration) - currentTimeMs) / tDur);
+            const endP = 1.0 - (((adjustedTarget + n.duration) - currentTimeMs) / tDur);
             if (n.holding) {
                 if (currentTimeMs - n.lastTick >= 120) { n.lastTick = currentTimeMs; playSFX('tick'); score += 150; combo++; updateUI(); createHitParticles(botX[n.lane], hitY, laneColors[n.lane].main); }
-                if (currentTimeMs >= n.targetTime + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
+                if (currentTimeMs >= adjustedTarget + n.duration) { n.hit = true; n.holding = false; score += 600; countPerfect++; combo++; if (combo > maxCombo) maxCombo = combo; hp = Math.min(100, hp + 3); playSFX('tap'); showJudgement("PERFECT!"); updateUI(); }
             }
             if (p >= 0 && endP <= 1.0) {
                 const headY = startY + (hitY - startY) * Math.min(1.0, Math.max(0, p)); 
@@ -582,7 +648,7 @@ function gameLoop() {
                 ctx.save();
                 if (p < 0.08) ctx.globalAlpha = p / 0.08;
 
-                // 🎯 雙 V 飛翼（乾淨、俐落、高指向性）
+                // 🎯 正 V 雙箭頭（向下俯衝、前後兩個獨立實體箭頭）
                 if (n.type === 'flick') {
                     const scale = (14 * (1.0 - p)) + (28 * p);
                     ctx.save();
@@ -590,22 +656,22 @@ function gameLoop() {
                     ctx.lineJoin = "round";
                     ctx.shadowBlur = 22 * p;
 
-                    // V1：底層桃紅大光翼
-                    const w1 = scale * 1.25; const d1 = scale * 0.7; const y1 = cy + scale * 0.25;
-                    ctx.strokeStyle = "#ff0077";
-                    ctx.shadowColor = "#ff00aa";
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(cx - w1, y1); ctx.lineTo(cx, y1 - d1); ctx.lineTo(cx + w1, y1);
-                    ctx.stroke();
-
-                    // V2：頂層純白核心箭頭
-                    const w2 = scale * 0.75; const d2 = scale * 0.55; const y2 = cy - scale * 0.2;
+                    // 箭頭 1 (前鋒箭頭：純白激光核心，尖端向下指向我哋)
+                    const w1 = scale * 0.85; const d1 = scale * 0.65; const y1 = cy + scale * 0.22;
                     ctx.strokeStyle = "#ffffff";
                     ctx.shadowColor = "#ffffff";
-                    ctx.lineWidth = 2.5;
+                    ctx.lineWidth = 3.5;
                     ctx.beginPath();
-                    ctx.moveTo(cx - w2, y2); ctx.lineTo(cx, y2 - d2); ctx.lineTo(cx + w2, y2);
+                    ctx.moveTo(cx - w1, y1 - d1); ctx.lineTo(cx, y1); ctx.lineTo(cx + w1, y1 - d1);
+                    ctx.stroke();
+
+                    // 箭頭 2 (後衛箭頭：桃紅推進光翼，跟隨喺後面向下衝)
+                    const w2 = scale * 1.25; const d2 = scale * 0.75; const y2 = cy - scale * 0.25;
+                    ctx.strokeStyle = "#ff0077";
+                    ctx.shadowColor = "#ff00aa";
+                    ctx.lineWidth = 4.5;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - w2, y2 - d2); ctx.lineTo(cx, y2); ctx.lineTo(cx + w2, y2 - d2);
                     ctx.stroke();
 
                     ctx.restore();
@@ -617,7 +683,7 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            if (currentTimeMs - n.targetTime > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
+            if (currentTimeMs - adjustedTarget > 150 && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         }
     });
 
@@ -636,6 +702,7 @@ function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
     document.getElementById('touchController').style.display = 'none';
+    const tuner = document.getElementById('springTuner'); if (tuner) tuner.style.display = 'none';
 
     let rank = "C";
     const totalHits = countPerfect + countGreat + countGood + countMiss;
