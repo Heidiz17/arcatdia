@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (原地續播計時版)
+   🔒 Arcatdia Battle Engine - Part 1/4 (5v 原地續播計時版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -159,7 +159,7 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 GitHub Releases 雙重容錯網址（自動測試大小寫與直鏈）
+// 🎯 GitHub Releases 雙重容錯網址[span_3](start_span)[span_3](end_span)
 const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
 const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
 
@@ -173,7 +173,6 @@ const masterAudio = new Audio();
 masterAudio.preload = "auto";
 masterAudio.src = currentSong.audioUrl;
 
-// 備援切換：若大寫路徑404，自動跳轉小寫路徑
 masterAudio.addEventListener('error', () => {
     if (masterAudio.src === songUrlA) {
         masterAudio.src = songUrlB;
@@ -183,7 +182,6 @@ masterAudio.addEventListener('error', () => {
 
 let bgmSourceNode = null;
 function hookMasterAudioNode() {
-    // 跨域直鏈安全隔離：直接調用原生音量控制，避免 Web Audio API CORS 阻擋發聲
     if (bgmGainNode) {
         masterAudio.volume = bgmGainNode.gain.value;
     }
@@ -191,7 +189,7 @@ function hookMasterAudioNode() {
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/4
+   🔒 Arcatdia Battle Engine - Part 2/4 (5v 譜面時間校準)
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
@@ -263,9 +261,10 @@ function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     
-    let currentTime = 4 * beatMs; 
+    // 🎯 5v 關鍵修改：第一粒波排喺第 8 拍！
+    // 前 4 拍 count-in 畫面完全冇波干擾；敲完 4 下波波由天頂出發，第 8 拍剛好精準咬入重音！
+    let currentTime = 8 * beatMs; 
     let lastLane = 0;
-    // 🎯 保險機制：無論音訊有冇 load 完，強制預設 180 秒，確保波波 100% 準時湧現
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 10) ? (masterAudio.duration * 1000) : 180000;
     const maxNoteTime = songTotalMs - 5000; 
 
@@ -402,7 +401,7 @@ function showTrackSelectorModal(midi) {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4
+   🔒 Arcatdia Battle Engine - Part 3/4 (原裝保持)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
@@ -556,7 +555,7 @@ function scheduleCountInAndPlay() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4
+   🔒 Arcatdia Battle Engine - Part 4/4 (原裝保持)
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
