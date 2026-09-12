@@ -20,7 +20,6 @@ let freezeState = 'idle';
 let freezeCountInTimers = [];
 
 window.freezePlay = function() {
-    // 🎯 智慧續播：如果係 PAUSE 狀態，原地繼續行，唔重頭 reset！
     if (freezeState === 'paused') {
         freezeState = 'playing';
         masterAudio.play().catch(()=>{});
@@ -28,7 +27,6 @@ window.freezePlay = function() {
         return;
     }
 
-    // 🎯 首次開波：由 0 秒開始敲 4 下預備音起歌
     freezeState = 'idle';
     masterAudio.pause();
     masterAudio.currentTime = 0;
@@ -161,10 +159,18 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 預設支援 WAV 優先載入
-const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.wav", bpm: 175 };
+// 🎯 GitHub Releases 永久大水喉 WAV 直鏈[span_0](start_span)[span_0](end_span)
+const currentSong = { 
+    id: "01", 
+    title: "最大の愛", 
+    audioUrl: "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav", 
+    bpm: 175 
+};
 const masterAudio = new Audio();
-try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
+try { 
+    masterAudio.src = currentSong.audioUrl; 
+    masterAudio.preload = "auto"; 
+} catch (e) {}
 let bgmSourceNode = null;
 
 function hookMasterAudioNode() { if (audioCtx && !bgmSourceNode) { try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} } }
@@ -608,7 +614,6 @@ function gameLoop() {
         }
     }
 
-    // 🎯 FREEZE 秒錶模式渲染
     if (currentMode === 'freeze') {
         const lane = 0;
         let p = 1.0; 
