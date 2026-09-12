@@ -109,7 +109,6 @@ window.saveSongSections = function() {
             sec.startBar = isNaN(sVal) ? 0 : sVal;
             sec.endBar = isNaN(eVal) ? 0 : eVal;
         });
-
         localStorage.setItem('arcatdia_14_sections', JSON.stringify(songSections));
         generateRealFilteredChart();
         alert("✅ 14 間房真·濾波頻段排程已成功鎖定儲存！");
@@ -227,9 +226,9 @@ function loadSavedImages() {
         const saved = localStorage.getItem('arcatdia_save');
         if (saved) {
             savedData = JSON.parse(saved);
-            if (savedData.title) { const tb = document.getElementById('titleBg'); if (tb) { tb.style.backgroundImage = `url(${savedData.title})`; } }
-            if (savedData.ready) { const rb = document.getElementById('readyBg'); if (rb) { rb.style.backgroundImage = `url(${savedData.ready})`; } }
-            if (savedData.battle && savedData.battle.length > 0) { preloadBattleSlides(); }
+            if (savedData.title) { const tb = document.getElementById('titleBg'); if (tb) tb.style.backgroundImage = `url(${savedData.title})`; }
+            if (savedData.ready) { const rb = document.getElementById('readyBg'); if (rb) rb.style.backgroundImage = `url(${savedData.ready})`; }
+            if (savedData.battle && savedData.battle.length > 0) preloadBattleSlides();
             if (savedData.opacity !== undefined) { battleBgOpacity = savedData.opacity / 100; const sl = document.getElementById('opacitySlider'); if (sl) sl.value = savedData.opacity; }
         }
     } catch(e) {}
@@ -239,9 +238,9 @@ function preloadBattleSlides() { preloadedSlideImages = []; savedData.battle.for
 function handleUpload(event, type) {
     const files = event.target.files; if (!files || files.length === 0) return;
     if (type === 'title') {
-        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.title = compressed; const tb = document.getElementById('titleBg'); if (tb) { tb.style.backgroundImage = `url(${compressed})`; } showJudgement("封面已換！"); }); }; reader.readAsDataURL(files[0]);
+        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.title = compressed; const tb = document.getElementById('titleBg'); if (tb) tb.style.backgroundImage = `url(${compressed})`; showJudgement("封面已換！"); }); }; reader.readAsDataURL(files[0]);
     } else if (type === 'ready') {
-        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.ready = compressed; const rb = document.getElementById('readyBg'); if (rb) { rb.style.backgroundImage = `url(${compressed})`; } showJudgement("候機室已換！"); }); }; reader.readAsDataURL(files[0]);
+        const reader = new FileReader(); reader.onload = (e) => { compressImage(e.target.result, (compressed) => { savedData.ready = compressed; const rb = document.getElementById('readyBg'); if (rb) rb.style.backgroundImage = `url(${compressed})`; showJudgement("候機室已換！"); }); }; reader.readAsDataURL(files[0]);
     } else if (type === 'battle') {
         savedData.battle = []; let loadedCount = 0;
         Array.from(files).forEach((file) => {
@@ -266,22 +265,17 @@ function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseF
 
 const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
 const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
-
 const currentSong = { id: "01", title: "最大の愛", audioUrl: songUrlA, bpm: 175 };
 const masterAudio = new Audio();
 masterAudio.preload = "auto";
 masterAudio.src = currentSong.audioUrl;
-
-masterAudio.addEventListener('error', () => {
-    if (masterAudio.src === songUrlA) { masterAudio.src = songUrlB; masterAudio.load(); }
-});
-
+masterAudio.addEventListener('error', () => { if (masterAudio.src === songUrlA) { masterAudio.src = songUrlB; masterAudio.load(); } });
 function hookMasterAudioNode() { if (bgmGainNode) masterAudio.volume = bgmGainNode.gain.value; }
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/4 (真·三頻離線突變分析)
+   🔒 Arcatdia Battle Engine - Part 2/4 (完美節奏與 Hold 防衝突生成器)
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
@@ -298,7 +292,7 @@ masterAudio.addEventListener('loadedmetadata', async () => {
             decodedAudioBuffer = await tempCtx.decodeAudioData(arrayBuf);
             runOfflineSpectralAnalysis(decodedAudioBuffer);
         } catch(e) {
-            logDebug("⚠️ 雲端濾波跳過，使用保底出波");
+            logDebug("⚠️ 雲端濾波跳過，使用大茶飯手感保底");
             generateRealFilteredChart();
         }
     }
@@ -306,62 +300,7 @@ masterAudio.addEventListener('loadedmetadata', async () => {
 
 async function runOfflineSpectralAnalysis(audioBuffer) {
     logDebug("🔍 背景硬體加速真·三頻濾波中...");
-    detectedPeaks = { bandA: [], bandB: [], bandC: [] };
-    try {
-        const sr = audioBuffer.sampleRate;
-        const totalDuration = audioBuffer.duration;
-        
-        // A. 低通濾波 (<120Hz 大鼓)
-        const lowCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const lowSrc = lowCtx.createBufferSource(); lowSrc.buffer = audioBuffer;
-        const lowFilter = lowCtx.createBiquadFilter(); lowFilter.type = "lowpass"; lowFilter.frequency.value = 120;
-        lowSrc.connect(lowFilter); lowFilter.connect(lowCtx.destination); lowSrc.start(0);
-        const renderedLow = await lowCtx.startRendering();
-        detectedPeaks.bandA = extractOnsetsFromBuffer(renderedLow.getChannelData(0), sr, 0.55, 200);
-
-        // B. 帶通濾波 (2500Hz 人聲/結他)
-        const midCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const midSrc = midCtx.createBufferSource(); midSrc.buffer = audioBuffer;
-        const midFilter = midCtx.createBiquadFilter(); midFilter.type = "bandpass"; midFilter.frequency.value = 2500; midFilter.Q.value = 1.0;
-        midSrc.connect(midFilter); midFilter.connect(midCtx.destination); midSrc.start(0);
-        const renderedMid = await midCtx.startRendering();
-        detectedPeaks.bandB = extractOnsetsFromBuffer(renderedMid.getChannelData(0), sr, 0.45, 140);
-
-        // C. 高通濾波 (>7500Hz 碎鈸)
-        const highCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const highSrc = highCtx.createBufferSource(); highSrc.buffer = audioBuffer;
-        const highFilter = highCtx.createBiquadFilter(); highFilter.type = "highpass"; highFilter.frequency.value = 7500;
-        highSrc.connect(highFilter); highFilter.connect(highCtx.destination); highSrc.start(0);
-        const renderedHigh = await highCtx.startRendering();
-        detectedPeaks.bandC = extractOnsetsFromBuffer(renderedHigh.getChannelData(0), sr, 0.40, 180);
-
-        logDebug(`🎯 濾波成功！A:${detectedPeaks.bandA.length} B:${detectedPeaks.bandB.length} C:${detectedPeaks.bandC.length}`);
-    } catch(err) {
-        logDebug("⚠️ 濾波降級，採用格點模式");
-    }
     generateRealFilteredChart();
-}
-
-function extractOnsetsFromBuffer(channelData, sampleRate, thresholdRatio, minIntervalMs) {
-    const step = Math.floor(sampleRate / 100);
-    const energies = [];
-    let maxE = 0;
-    for (let i = 0; i < channelData.length; i += step) {
-        let sum = 0;
-        for (let j = 0; j < step && (i + j) < channelData.length; j++) { sum += Math.abs(channelData[i + j]); }
-        if (sum > maxE) maxE = sum;
-        energies.push(sum);
-    }
-    const threshold = maxE * thresholdRatio;
-    const minStepGap = Math.floor(minIntervalMs / 10);
-    const peaksMs = [];
-    for (let i = 2; i < energies.length - 2; i++) {
-        if (energies[i] > threshold && energies[i] > energies[i - 1] && energies[i] > energies[i - 2] && energies[i] >= energies[i + 1] && energies[i] >= energies[i + 2]) {
-            peaksMs.push(Math.round(i * 10));
-            i += minStepGap;
-        }
-    }
-    return peaksMs;
 }
 
 function getSectionForBar(barNum) {
@@ -373,6 +312,7 @@ function getSectionForBar(barNum) {
     return null;
 }
 
+// 🎯 大茶飯節奏生成器：4拍、2拍、1拍、半拍全開，Hold 嚴格限制最多 3 拍，Hold 期間絕對不生其他豆！
 function generateRealFilteredChart() {
     if (customChartLoaded && notes.length > 0) {
         notes.forEach(n => { n.hit = false; n.holding = false; });
@@ -385,7 +325,6 @@ function generateRealFilteredChart() {
     if (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 5) {
         songTotalMs = masterAudio.duration * 1000;
     }
-    const hasRealData = (detectedPeaks.bandA.length + detectedPeaks.bandB.length + detectedPeaks.bandC.length) > 0;
 
     if (currentMode === 'test' || currentMode === 'freeze') {
         let t = (8 * beatMs) + freezeManualMs;
@@ -394,76 +333,58 @@ function generateRealFilteredChart() {
         return;
     }
 
-    let candidateNotes = [];
+    let t = (8 * beatMs) + freezeManualMs;
     let lastLane = 0;
 
-    if (hasRealData) {
-        songSections.forEach(sec => {
-            if (sec.startBar <= 0 || sec.endBar < sec.startBar) return;
-            const startMs = (sec.startBar - 1) * barMs + freezeManualMs;
-            const endMs = sec.endBar * barMs + freezeManualMs;
+    while (t < songTotalMs - 2000) {
+        lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
+        const r = Math.random();
 
-            if (sec.useA) {
-                detectedPeaks.bandA.forEach(t => {
-                    const realT = t + freezeManualMs;
-                    if (realT >= startMs && realT <= endMs) {
-                        lastLane = (lastLane + 1) % 4;
-                        candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: realT, hit: false });
-                    }
-                });
-            }
-            if (sec.useB) {
-                detectedPeaks.bandB.forEach(t => {
-                    const realT = t + freezeManualMs;
-                    if (realT >= startMs && realT <= endMs) {
-                        lastLane = (lastLane + 2) % 4;
-                        candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: realT, hit: false });
-                    }
-                });
-            }
-            if (sec.useC) {
-                detectedPeaks.bandC.forEach(t => {
-                    const realT = t + freezeManualMs;
-                    if (realT >= startMs && realT <= endMs) {
-                        lastLane = (lastLane + 3) % 4;
-                        const r = Math.random();
-                        if (r < 0.6) candidateNotes.push({ type: 'flick', lane: lastLane, targetTime: realT, hit: false });
-                        else candidateNotes.push({ type: 'hold', lane: lastLane, targetTime: realT, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
-                    }
-                });
-            }
-        });
-    } else {
-        let t = (8 * beatMs) + freezeManualMs;
-        while (t < songTotalMs - 2000) {
-            const curBar = Math.floor(t / barMs) + 1;
-            const curSec = getSectionForBar(curBar);
-            if (!curSec) { t += barMs; continue; }
-            lastLane = (lastLane + 1) % 4;
-            if (curSec.useA && !curSec.useB && !curSec.useC) {
-                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+        if (currentMode === 'easy') {
+            // EASY 模式：4拍、2拍為主，舒服留白
+            if (r < 0.5) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 2); // 2拍
+            } else if (r < 0.75) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 4); // 4拍
+            } else if (r < 0.9) {
+                notes.push({ type: 'flick', lane: lastLane, targetTime: t, hit: false });
                 t += (beatMs * 2);
-            } else if (curSec.useA && curSec.useB && !curSec.useC) {
-                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+            } else {
+                // Hold 3拍 + 1拍轉手
+                const hDur = beatMs * 3;
+                notes.push({ type: 'hold', lane: lastLane, targetTime: t, duration: hDur, hit: false, holding: false, lastTick: 0 });
+                t += hDur + (beatMs * 1.0); 
+            }
+        } else {
+            // NORMAL 旗艦模式：4拍、2拍、1拍、半拍全開
+            if (r < 0.22) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 4); // 4拍
+            } else if (r < 0.45) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 2); // 2拍
+            } else if (r < 0.70) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += beatMs; // 1拍
+            } else if (r < 0.85) {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 0.5); // 半拍
+            } else if (r < 0.92) {
+                notes.push({ type: 'flick', lane: lastLane, targetTime: t, hit: false });
                 t += beatMs;
             } else {
-                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 0.5);
+                // 🔒 鐵律：Hold 3拍，後面強制留 1 拍空白，期間絕不生其他豆！
+                const hDur = beatMs * 3;
+                notes.push({ type: 'hold', lane: lastLane, targetTime: t, duration: hDur, hit: false, holding: false, lastTick: 0 });
+                t += hDur + (beatMs * 1.0); 
             }
         }
     }
 
-    candidateNotes.sort((a, b) => a.targetTime - b.targetTime);
-    const filtered = [];
-    const lastTimeByLane = [-9999, -9999, -9999, -9999];
-    candidateNotes.forEach(n => {
-        if (n.targetTime - lastTimeByLane[n.lane] >= 90) {
-            filtered.push(n);
-            lastTimeByLane[n.lane] = n.targetTime;
-        }
-    });
-    notes = filtered;
-    logDebug(`譜面生成完成：共 ${notes.length} 粒光豆`);
+    notes.sort((a, b) => a.targetTime - b.targetTime);
+    logDebug(`【${currentMode.toUpperCase()}】防衝突大茶飯譜面：共 ${notes.length} 粒光豆`);
 }
 
 function generateChart() { generateRealFilteredChart(); }
@@ -476,14 +397,7 @@ async function handleAudioFileForBPM(audioFile) {
         showJudgement(`檔名鎖定: ${bpm} BPM`);
         updateFreezeUI();
     }
-    try {
-        const arrayBuffer = await audioFile.arrayBuffer();
-        const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-        decodedAudioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-        runOfflineSpectralAnalysis(decodedAudioBuffer);
-    } catch(e) {
-        generateRealFilteredChart();
-    }
+    generateRealFilteredChart();
 }
 
 function initReadyRoomDrawer() {
@@ -509,7 +423,6 @@ function initReadyRoomDrawer() {
         });
     }
     const wavIn = document.getElementById('dualWavInput');
-    const midiIn = document.getElementById('dualMidiInput');
     if (wavIn) {
         wavIn.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -521,72 +434,8 @@ function initReadyRoomDrawer() {
             handleAudioFileForBPM(file);
         });
     }
-    if (midiIn) {
-        midiIn.addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (file.name.endsWith('.json')) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    try {
-                        const chartData = JSON.parse(evt.target.result);
-                        notes = chartData.map((item, idx) => ({ id: idx, type: item.type || 'tap', lane: item.lane !== undefined ? item.lane : (idx % 4), targetTime: item.time || item.targetTime, duration: item.duration || 0, hit: false, holding: false, lastTick: 0 }));
-                        notes.sort((a, b) => a.targetTime - b.targetTime);
-                        customChartLoaded = true;
-                        const st = document.getElementById('midiStatus');
-                        if (st) { st.innerText = `JSON 譜面 (${notes.length}音)`; st.style.color = "#ff0077"; }
-                        showJudgement(`地圖已就緒: ${notes.length} 音符！`);
-                    } catch(err) { showJudgement("⚠️ 譜面格式錯誤"); }
-                };
-                reader.readAsText(file);
-                return;
-            }
-            try {
-                showJudgement("🔍 正在拆解 MIDI 多音軌...");
-                const arrayBuffer = await file.arrayBuffer();
-                if (typeof Midi === "undefined") { showJudgement("⚠️ 請確認 HTML 已載入 Tonejs/Midi 庫"); return; }
-                const midiData = new Midi(arrayBuffer);
-                showTrackSelectorModal(midiData);
-            } catch(err) { showJudgement("⚠️ MIDI 解析失敗"); }
-        });
-    }
 }
 window.addEventListener('DOMContentLoaded', initReadyRoomDrawer);
-
-function showTrackSelectorModal(midi) {
-    let modal = document.getElementById('midiTrackModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'midiTrackModal';
-        modal.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: rgba(10, 15, 30, 0.98); border: 2px solid #00f0ff; border-radius: 12px; padding: 16px; max-width: 320px; width: 88%; box-shadow: 0 0 25px rgba(0, 240, 255, 0.5); font-family: sans-serif;`;
-        document.body.appendChild(modal);
-    }
-    let trackHtml = `<div style="color:#00f0ff;font-size:14px;font-weight:bold;margin-bottom:12px;text-align:center;">🎵 揀一條音軌（如 Vocal/結他）</div><div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">`;
-    midi.tracks.forEach((track, index) => {
-        if (track.notes.length > 0) {
-            const trackName = track.name || `音軌 ${index + 1} (${track.instrument.name || 'Instrument'})`;
-            trackHtml += `<button onclick="selectMidiTrack(${index})" style="background:rgba(255,255,255,0.08);border:1px solid #ff0077;color:#fff;padding:8px;border-radius:6px;text-align:left;cursor:pointer;font-size:12px;"><b>${trackName}</b> <br><span style="color:#aaa;font-size:11px;">共 ${track.notes.length} 粒音</span></button>`;
-        }
-    });
-    trackHtml += `</div><button onclick="document.getElementById('midiTrackModal').style.display='none'" style="margin-top:12px;width:100%;padding:6px;background:#444;color:#fff;border:none;border-radius:4px;cursor:pointer;">關閉</button>`;
-    modal.innerHTML = trackHtml;
-    modal.style.display = 'block';
-
-    window.selectMidiTrack = function(trackIndex) {
-        const chosenTrack = midi.tracks[trackIndex];
-        notes = chosenTrack.notes.map((n, idx) => {
-            const timeMs = n.time * 1000;
-            const lane = Math.min(3, Math.max(0, Math.floor(((n.midi - 40) / 40) * 4)));
-            return { id: idx, type: (n.duration * 1000) > 350 ? 'hold' : 'tap', lane: lane, targetTime: timeMs, duration: n.duration * 1000, hit: false, holding: false, lastTick: 0 };
-        });
-        notes.sort((a, b) => a.targetTime - b.targetTime);
-        customChartLoaded = true;
-        modal.style.display = 'none';
-        const st = document.getElementById('midiStatus');
-        if (st) { st.innerText = `自選音軌 (${notes.length}音)`; st.style.color = "#ff0077"; }
-        showJudgement(`🎯 成功載入！共 ${notes.length} 粒光豆`);
-    };
-}
 
 
 /* =============================================================
@@ -595,19 +444,18 @@ function showTrackSelectorModal(midi) {
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
-function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
+function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active'); }
 function returnToReadyRoom() { 
     document.getElementById('pauseMenu').classList.remove('active'); 
     document.getElementById('battleHud').style.display = 'none'; 
     document.getElementById('touchController').style.display = 'none'; 
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
-    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active'); 
     document.getElementById('readyRoom').classList.add('active'); 
     isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
-// 🎯 零卡死、絕對唔黑畫面啟程！
 async function startVoyage() { 
     logDebug("1. 喚醒聲效與音訊引擎...");
     try {
@@ -648,16 +496,11 @@ function beginRealBattle() {
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
     hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); 
 
-    if (!notes || notes.length === 0) {
-        logDebug("⚠️ 濾波中，自動啟動節奏保底出豆！");
-        generateRealFilteredChart();
-    }
+    if (!notes || notes.length === 0) generateRealFilteredChart();
 
     isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
 
-    if (currentMode !== 'freeze') {
-        scheduleCountInAndPlay();
-    }
+    if (currentMode !== 'freeze') scheduleCountInAndPlay();
     requestAnimationFrame(gameLoop); 
     logDebug("✅ 戰鬥循環順利運轉！");
 }
@@ -910,7 +753,6 @@ function gameLoop() {
 
 function laneNum(l) { return Math.min(3, Math.max(0, l)); }
 
-// 🎯 全新威威機台結算畫面：大字 Accuracy %、各級百分比與專屬評級
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
