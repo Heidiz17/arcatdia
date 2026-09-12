@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4
+   🔒 Arcatdia Battle Engine - Part 1/4 (原地續播計時版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -14,21 +14,55 @@ let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
 let currentMode = 'test';
 
-let spawnDelayMs = 15; 
+let spawnDelayMs = 0; 
 
-// 🎯 FREEZE 專屬：獨立 PLAY / PAUSE 狀態（與全域遊戲暫停完全隔離）
-let freezeIsPlaying = false;
-let freezeLoopStartTime = 0;
+let freezeState = 'idle'; 
+let freezeCountInTimers = [];
 
 window.freezePlay = function() {
-    freezeIsPlaying = true;
-    freezeLoopStartTime = performance.now();
-    showJudgement("▶ PLAY: 循環放波");
+    // 🎯 智慧續播：如果係 PAUSE 狀態，原地繼續行，唔重頭 reset！
+    if (freezeState === 'paused') {
+        freezeState = 'playing';
+        masterAudio.play().catch(()=>{});
+        showJudgement("▶ 繼續前進");
+        return;
+    }
+
+    // 🎯 首次開波：由 0 秒開始敲 4 下預備音起歌
+    freezeState = 'idle';
+    masterAudio.pause();
+    masterAudio.currentTime = 0;
+    freezeCountInTimers.forEach(t => clearTimeout(t));
+    freezeCountInTimers = [];
+
+    freezeState = 'count-in';
+    showJudgement("⏳ 預備...");
+    
+    const beatMs = (60 / bpm) * 1000;
+    
+    [0, 1, 2, 3].forEach(b => {
+        freezeCountInTimers.push(setTimeout(() => {
+            if (freezeState !== 'count-in') return;
+            playStickClick(b === 3 ? 1800 : 1200);
+            showJudgement(`${b + 1}`);
+        }, b * beatMs));
+    });
+
+    freezeCountInTimers.push(setTimeout(() => {
+        if (freezeState !== 'count-in') return;
+        freezeState = 'playing';
+        masterAudio.play().catch(()=>{});
+        showJudgement("🎵 MUSIC START!");
+    }, 4 * beatMs));
 };
 
 window.freezePause = function() {
-    freezeIsPlaying = false;
-    showJudgement("⏸ PAUSE: 定格錨點");
+    if (freezeState !== 'playing') return;
+    freezeState = 'paused';
+    masterAudio.pause();
+    freezeCountInTimers.forEach(t => clearTimeout(t));
+    const pausedTime = Math.round(masterAudio.currentTime * 1000);
+    showJudgement(`⏸ 停於: ${pausedTime} ms`);
 };
 
 let countPerfect = 0; let countGreat = 0; let countGood = 0; let countMiss = 0;
@@ -39,14 +73,11 @@ let preloadedSlideImages = [];
 let currentSlideIndex = 0;
 let lastSlideChangeTime = 0;
 let savedData = { title: null, ready: null, battle: [], opacity: 100 };
+let currentPerspectiveMode = 2;
 
-let currentPerspectiveMode = 2; // 3D 消失點
-
-// 🎯 判定線微調階級（以製餅頂部邊緣為基準）
 const judgeLineAdjusts = [0, 3, 6, -3];
 let judgeLineLevel = 0; 
 
-// 🎯 定格校準尺變數：0ms 即為判定線本體
 let freezeManualMs = 0;
 
 function updateFreezeUI() {
@@ -67,7 +98,6 @@ function stepFreezeMs(delta) {
 const lanePressed = [false, false, false, false];
 const laneTouchStartY = [0, 0, 0, 0];
 const laneTouchFlicked = [false, false, false, false];
-
 const laneColors = [
     { main: "#ff0055", glow: "rgba(255, 0, 85, 0.8)" },
     { main: "#ccff00", glow: "rgba(204, 255, 0, 0.8)" },
@@ -75,35 +105,18 @@ const laneColors = [
     { main: "#aa00ff", glow: "rgba(170, 0, 255, 0.8)" }
 ];
 
-function togglePerspectiveMode() { 
-    currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1; 
-    showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); 
-}
-
-function toggleJudgeLineLevel() { 
-    judgeLineLevel = (judgeLineLevel + 1) % judgeLineAdjusts.length; 
-    const qBtn = document.getElementById('btnQuickJudge');
-    if (qBtn) qBtn.innerText = `📏 線:LV${judgeLineLevel + 1}`;
-    showJudgement(`判定線: LV ${judgeLineLevel + 1}`); 
-}
-
+function togglePerspectiveMode() { currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1; showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); }
+function toggleJudgeLineLevel() { judgeLineLevel = (judgeLineLevel + 1) % judgeLineAdjusts.length; const qBtn = document.getElementById('btnQuickJudge'); if (qBtn) qBtn.innerText = `📏 線:LV${judgeLineLevel + 1}`; showJudgement(`判定線: LV ${judgeLineLevel + 1}`); }
 function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
 
 function compressImage(dataUrl, callback) {
     const img = new Image();
     img.onload = function() {
-        const cvs = document.createElement('canvas');
-        const MAX = 1080; 
-        let w = img.width; let h = img.height;
-        if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
-        else if (h > MAX) { h *= MAX / h; h = MAX; }
-        cvs.width = w; cvs.height = h;
-        const cCtx = cvs.getContext('2d');
-        cCtx.drawImage(img, 0, 0, w, h);
-        callback(cvs.toDataURL('image/jpeg', 0.6)); 
-    };
-    img.src = dataUrl;
+        const cvs = document.createElement('canvas'); const MAX = 1080; let w = img.width; let h = img.height;
+        if (w > h && w > MAX) { h *= MAX / w; w = MAX; } else if (h > MAX) { h *= MAX / h; h = MAX; }
+        cvs.width = w; cvs.height = h; const cCtx = cvs.getContext('2d'); cCtx.drawImage(img, 0, 0, w, h); callback(cvs.toDataURL('image/jpeg', 0.6)); 
+    }; img.src = dataUrl;
 }
 
 function loadSavedImages() {
@@ -120,7 +133,6 @@ function loadSavedImages() {
 }
 
 function preloadBattleSlides() { preloadedSlideImages = []; savedData.battle.forEach(src => { const img = new Image(); img.src = src; preloadedSlideImages.push(img); }); }
-
 function handleUpload(event, type) {
     const files = event.target.files; if (!files || files.length === 0) return;
     if (type === 'title') {
@@ -136,35 +148,26 @@ function handleUpload(event, type) {
         });
     }
 }
-
 function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; savedData.opacity = parseInt(val, 10); }
-function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity * 100); localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); showJudgement("💾 存檔成功！"); } catch(e) { showJudgement("⚠️ 相片過大，存檔受限"); } }
+function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity * 100); localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); showJudgement("💾 存檔成功！"); } catch(e) {} }
 window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
 
-// --- 音效與 Web Audio API ---
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null; let bgmGainNode = null; let sfxGainNode = null; let sfxBuffers = {};
-function initAudioEngine() {
-    if (!audioCtx) { audioCtx = new AudioContextClass(); bgmGainNode = audioCtx.createGain(); sfxGainNode = audioCtx.createGain(); bgmGainNode.connect(audioCtx.destination); sfxGainNode.connect(audioCtx.destination); loadSFXFiles(); }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-}
+function initAudioEngine() { if (!audioCtx) { audioCtx = new AudioContextClass(); bgmGainNode = audioCtx.createGain(); sfxGainNode = audioCtx.createGain(); bgmGainNode.connect(audioCtx.destination); sfxGainNode.connect(audioCtx.destination); loadSFXFiles(); } if (audioCtx.state === 'suspended') audioCtx.resume(); }
 const soundPaths = { tap: "sounds/arcatdia_perfect_tap.wav", flick: "sounds/arcatdia_perfect_flick.wav", hold: "sounds/arcatdia_hold.wav", tick: "sounds/arcatdia_tick.wav", stage: "sounds/arcatdia_stage_tap.wav" };
 async function loadSFXFiles() { for (let key in soundPaths) { try { const resp = await fetch(soundPaths[key]); const ab = await resp.arrayBuffer(); audioCtx.decodeAudioData(ab, (buf) => { sfxBuffers[key] = buf; }); } catch(e) { try { const resp2 = await fetch(soundPaths[key].replace('sounds/', '')); const ab2 = await resp2.arrayBuffer(); audioCtx.decodeAudioData(ab2, (buf) => { sfxBuffers[key] = buf; }); } catch(err) {} } } }
 function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { const src = audioCtx.createBufferSource(); src.buffer = sfxBuffers[key]; src.connect(sfxGainNode); src.start(0); return src; } catch(e) { return null; } }
-function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); const el = document.getElementById('valBgm'); if (el) el.innerText = Math.round(val * 100) + "%"; }
-function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); const el = document.getElementById('valSfx'); if (el) el.innerText = Math.round(val * 100) + "%"; }
+function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
+function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.mp3", bpm: 175 };
+// 🎯 預設支援 WAV 優先載入
+const currentSong = { id: "01", title: "最大の愛", folder: "songs/01_最大の愛", fileName: "master.wav", bpm: 175 };
 const masterAudio = new Audio();
 try { masterAudio.src = encodeURI(`${currentSong.folder}/${currentSong.fileName}`); masterAudio.preload = "auto"; } catch (e) {}
 let bgmSourceNode = null;
 
-function hookMasterAudioNode() { 
-    if (audioCtx && !bgmSourceNode) { 
-        try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} 
-    } 
-}
-
+function hookMasterAudioNode() { if (audioCtx && !bgmSourceNode) { try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} } }
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
@@ -392,7 +395,7 @@ function returnToReadyRoom() {
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
-    isPaused = false; isPlaying = false; freezeIsPlaying = false; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
+    isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
 function startVoyage() { 
@@ -425,7 +428,7 @@ function beginRealBattle() {
 
     const tuner = document.getElementById('freezeTuner');
     if (currentMode === 'freeze') {
-        if (tuner) { tuner.style.display = 'block'; updateFreezeUI(); }
+        if (tuner) { tuner.style.display = 'block'; updateFreezeUI(); freezeState = 'idle'; }
     } else {
         if (tuner) tuner.style.display = 'none';
     }
@@ -433,7 +436,7 @@ function beginRealBattle() {
     score = 0; combo = 0; maxCombo = 0; hp = 100; totalPausedDuration = 0; 
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
     hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); 
-    isPlaying = true; isPaused = false; freezeIsPlaying = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
+    isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
 
     if (currentMode !== 'freeze') {
         scheduleCountInAndPlay();
@@ -532,7 +535,7 @@ function scheduleCountInAndPlay() {
 }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (判定線原點 + 閉環循環版)
+   🔒 Arcatdia Battle Engine - Part 4/4
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
@@ -570,16 +573,13 @@ function gameLoop() {
     const startY = 40; const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5]; const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    // 軌道線
     for (let i = 0; i < 4; i++) { 
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2; 
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
 
-    // 🎯 底部青綠色判定基準線
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
-    // 🎯 4 粒實體光餅
     for (let i = 0; i < 4; i++) { 
         ctx.fillStyle = laneColors[i].main; 
         ctx.beginPath(); 
@@ -590,7 +590,6 @@ function gameLoop() {
     const beatMs = (60 / bpm) * 1000; 
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
 
-    // 🎯 全域判定線「拍子 1 原點波」
     const playTimeMs = currentTimeMs - (beatMs * 4);
     if (playTimeMs >= -20) {
         const cycleMs = (beatMs * 4);
@@ -609,42 +608,40 @@ function gameLoop() {
         }
     }
 
-    // 🎯 FREEZE 模式：以判定線為 0ms 基準，支援任意起點閉環
+    // 🎯 FREEZE 秒錶模式渲染
     if (currentMode === 'freeze') {
         const lane = 0;
-        let p = 1.0; // 預設 p=1.0 代表粒波停在判定線 hitY
+        let p = 1.0; 
 
-        if (freezeIsPlaying) {
-            // 🚀 PLAY 模式：由手動錨點出發，沿閉環軌跡連續奔跑
-            const elapsed = performance.now() - freezeLoopStartTime;
-            // 閉環方程：向判定線落下，穿過後由頂端 (p=0) 噴出接力
-            const currentOffsetMs = ((freezeManualMs - elapsed) % tDur + tDur) % tDur;
-            p = 1.0 - (currentOffsetMs / tDur);
+        if (freezeState === 'count-in') {
+            p = -1; 
+        } else if (freezeState === 'playing' || freezeState === 'paused') {
+            const elapsed = masterAudio.currentTime * 1000; 
+            const diff = elapsed - (freezeManualMs - tDur);
+            p = ((diff % tDur) + tDur) % tDur / tDur;
         } else {
-            // ⏸ PAUSE 模式：以判定線為原點 (0ms)，向上手動推移 freezeManualMs
-            const clampedMs = Math.max(0, Math.min(tDur, freezeManualMs));
-            p = 1.0 - (clampedMs / tDur);
+            p = 1.0; 
         }
 
-        const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
-        const cy = startY + (hitY - startY) * p;
+        if (p >= 0) {
+            const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
+            const cy = startY + (hitY - startY) * p;
 
-        ctx.save();
-        ctx.fillStyle = laneColors[lane].main;
-        ctx.shadowColor = laneColors[lane].main;
-        ctx.shadowBlur = 24;
-        ctx.beginPath();
-        if (currentPerspectiveMode === 1) { 
-            ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
-        } else { 
-            const rx = (10 * (1.0 - p)) + (28 * p); 
-            const ry = (32 * (1.0 - p)) + (14 * p); 
-            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+            ctx.save();
+            ctx.fillStyle = laneColors[lane].main;
+            ctx.shadowColor = laneColors[lane].main;
+            ctx.shadowBlur = 24;
+            ctx.beginPath();
+            if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
+            else { 
+                const rx = (10 * (1.0 - p)) + (28 * p); 
+                const ry = (32 * (1.0 - p)) + (14 * p); 
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
+            }
+            ctx.fill();
+            ctx.restore();
         }
-        ctx.fill();
-        ctx.restore();
 
-        // 🎯 判定線上金色錨點光環
         ctx.save();
         ctx.strokeStyle = "#ffd700";
         ctx.lineWidth = 2.5;
@@ -656,15 +653,25 @@ function gameLoop() {
         ctx.textAlign = "center";
         ctx.font = "bold 14px monospace";
         ctx.fillStyle = "#00ffcc";
-        ctx.fillText(freezeIsPlaying ? "🚀 PLAY 閉環循環放波中..." : "⏸ PAUSE 定格錨點 (手動定點)", W * 0.5, hitY - 110);
+        
+        let statusText = "❄️ 定格校準 (未播放)";
+        if (freezeState === 'count-in') statusText = "⏳ COUNT-IN... (預備起歌)";
+        else if (freezeState === 'playing') statusText = "🚀 PLAY: 循環計時中...";
+        else if (freezeState === 'paused') statusText = "⏸ PAUSE: 已定格 (可抄數)";
+        
+        ctx.fillText(statusText, W * 0.5, hitY - 110);
+        
         ctx.fillStyle = "#ffd700";
         ctx.fillText(`起步錨點: +${freezeManualMs} ms`, W * 0.5, hitY - 88);
+        
+        const currentSongMs = Math.round(masterAudio.currentTime * 1000);
+        ctx.fillStyle = "#ff0077";
+        ctx.fillText(`🎵 音樂絕對時間: ${currentSongMs} ms`, W * 0.5, hitY - 66);
 
         requestAnimationFrame(gameLoop);
         return;
     }
 
-    // 🎯 TEST 模式
     if (currentMode === 'test') {
         if (playTimeMs >= 0) {
             const currentBeatPhase = playTimeMs % beatMs;
@@ -678,30 +685,22 @@ function gameLoop() {
                 ctx.restore();
             }
         }
-
         const beatFloat = (playTimeMs / beatMs) + 0.001;
         const totalBeats = Math.floor(beatFloat);
         const currentBeatIndex = ((totalBeats % 4) + 4) % 4 + 1;
         const beatProgress = beatFloat - Math.floor(beatFloat);
         const scale = 1.0 + (1.0 - beatProgress) * 0.35;
-
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
+        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
         if (currentBeatIndex === 1) { ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 22; }
         else { ctx.fillStyle = "rgba(255, 255, 255, 0.85)"; ctx.shadowColor = "rgba(255, 255, 255, 0.5)"; ctx.shadowBlur = 8; }
-        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 90);
-        ctx.restore();
+        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 90); ctx.restore();
     }
 
     notes.forEach(n => {
         if (n.hit) return;
-
         const effectiveDur = tDur - spawnDelayMs;
         const timeRemaining = n.targetTime - currentTimeMs;
         const p = 1.0 - (timeRemaining / effectiveDur);
-
         if (p < 0) return;
 
         if (n.type === 'hold') {
@@ -727,27 +726,13 @@ function gameLoop() {
 
                 if (n.type === 'flick') {
                     const scale = (14 * (1.0 - p)) + (28 * p);
-                    ctx.save();
-                    ctx.lineCap = "round";
-                    ctx.lineJoin = "round";
-                    ctx.shadowBlur = 22 * p;
-
+                    ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.shadowBlur = 22 * p;
                     const w1 = scale * 0.85; const d1 = scale * 0.65; const y1 = cy + scale * 0.22;
-                    ctx.strokeStyle = "#ffffff";
-                    ctx.shadowColor = "#ffffff";
-                    ctx.lineWidth = 3.5;
-                    ctx.beginPath();
-                    ctx.moveTo(cx - w1, y1 - d1); ctx.lineTo(cx, y1); ctx.lineTo(cx + w1, y1 - d1);
-                    ctx.stroke();
-
+                    ctx.strokeStyle = "#ffffff"; ctx.shadowColor = "#ffffff"; ctx.lineWidth = 3.5;
+                    ctx.beginPath(); ctx.moveTo(cx - w1, y1 - d1); ctx.lineTo(cx, y1); ctx.lineTo(cx + w1, y1 - d1); ctx.stroke();
                     const w2 = scale * 1.25; const d2 = scale * 0.75; const y2 = cy - scale * 0.25;
-                    ctx.strokeStyle = "#ff0077";
-                    ctx.shadowColor = "#ff00aa";
-                    ctx.lineWidth = 4.5;
-                    ctx.beginPath();
-                    ctx.moveTo(cx - w2, y2 - d2); ctx.lineTo(cx, y2); ctx.lineTo(cx + w2, y2 - d2);
-                    ctx.stroke();
-
+                    ctx.strokeStyle = "#ff0077"; ctx.shadowColor = "#ff00aa"; ctx.lineWidth = 4.5;
+                    ctx.beginPath(); ctx.moveTo(cx - w2, y2 - d2); ctx.lineTo(cx, y2); ctx.lineTo(cx + w2, y2 - d2); ctx.stroke();
                     ctx.restore();
                 } else {
                     ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
@@ -762,13 +747,10 @@ function gameLoop() {
     });
 
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); p.x += p.vx; p.y += p.vy; p.alpha -= 0.05; if (p.alpha <= 0) particles.splice(i, 1); }
-    
     const allNotesFinished = notes.length > 0 && notes.every(n => n.hit);
     if ((allNotesFinished || masterAudio.ended) && !isSongEnding && currentTimeMs > 5000) {
-        isSongEnding = true;
-        setTimeout(() => { triggerSongClear(); }, 1200);
+        isSongEnding = true; setTimeout(() => { triggerSongClear(); }, 1200);
     }
-    
     requestAnimationFrame(gameLoop);
 }
 
@@ -806,16 +788,7 @@ function triggerSongClear() {
     if (cdLabel) cdLabel.innerText = "點擊任意位置繼續";
 
     if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; }
-
-    const modal = document.getElementById('resultModal');
-    modal.onclick = function() {
-        modal.onclick = null;
-        returnFromResults();
-    };
+    const modal = document.getElementById('resultModal'); modal.onclick = function() { modal.onclick = null; returnFromResults(); };
 }
 
-function returnFromResults() { 
-    if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; } 
-    document.getElementById('resultModal').classList.remove('active'); 
-    returnToReadyRoom(); 
-}
+function returnFromResults() { if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; } document.getElementById('resultModal').classList.remove('active'); returnToReadyRoom(); }
