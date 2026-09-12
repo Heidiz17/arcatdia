@@ -276,6 +276,13 @@ function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = 
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
+let audioBufferCache = null;
+
+masterAudio.addEventListener('loadedmetadata', () => {
+    if (!customChartLoaded) {
+        analyzeAndGenerateRealChart();
+    }
+});
 
 async function handleAudioFileForBPM(audioFile) {
     const match = audioFile.name.match(/(\d{2,3})\s*BPM/i);
@@ -284,18 +291,16 @@ async function handleAudioFileForBPM(audioFile) {
         document.getElementById('manualBpmInput').value = bpm;
         showJudgement(`檔名鎖定: ${bpm} BPM`);
         updateFreezeUI();
-        if (!customChartLoaded) generateChart();
-        return;
     }
 
-    showJudgement("🔍 自動掃描 BPM 中...");
+    showJudgement("🔍 分析音訊真實波形中...");
     try {
         const arrayBuffer = await audioFile.arrayBuffer();
         const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100 * 30, 44100);
-        const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+        audioBufferCache = await offlineCtx.decodeAudioData(arrayBuffer);
         
-        const rawData = decodedBuffer.getChannelData(0);
-        const sampleRate = decodedBuffer.sampleRate;
+        const rawData = audioBufferCache.getChannelData(0);
+        const sampleRate = audioBufferCache.sampleRate;
         const step = Math.floor(sampleRate / 100); 
         const peaks = [];
         let maxEnergy = 0;
@@ -310,7 +315,10 @@ async function handleAudioFileForBPM(audioFile) {
         const threshold = maxEnergy * 0.70;
         const beatTimes = [];
         for (let i = 1; i < peaks.length - 1; i++) {
-            if (peaks[i].energy > threshold && peaks[i].energy > peaks[i - 1].energy && peaks[i].energy > peaks[i + 1].energy) { beatTimes.push(peaks[i].time); i += 14; }
+            if (peaks[i].energy > threshold && peaks[i].energy > peaks[i - 1].energy && peaks[i].energy > peaks[i + 1].energy) { 
+                beatTimes.push(peaks[i].time); 
+                i += 14; 
+            }
         }
 
         const intervals = [];
@@ -319,24 +327,21 @@ async function handleAudioFileForBPM(audioFile) {
             if (diff >= 0.25 && diff <= 0.85) { intervals.push(diff); }
         }
 
-        if (intervals.length > 5) {
+        if (!match && intervals.length > 5) {
             intervals.sort((a, b) => a - b);
             const median = intervals[Math.floor(intervals.length / 2)];
             let detected = Math.round(60 / median);
             if (detected < 90) detected *= 2;
             if (detected > 220) detected = Math.round(detected / 2);
             bpm = detected;
-            showJudgement(`🎯 自動命中: ${bpm} BPM！`);
-        } else {
-            bpm = 175;
-            showJudgement("測速失敗，預設 175 BPM");
+            showJudgement(`🎯 命中 BPM: ${bpm}`);
+            document.getElementById('manualBpmInput').value = bpm;
         }
+        updateFreezeUI();
+        analyzeAndGenerateRealChart();
     } catch (e) {
-        bpm = 175;
+        analyzeAndGenerateRealChart();
     }
-    document.getElementById('manualBpmInput').value = bpm;
-    updateFreezeUI();
-    if (!customChartLoaded) generateChart();
 }
 
 function getStyleForBar(barNum) {
@@ -350,29 +355,38 @@ function getStyleForBar(barNum) {
     return null;
 }
 
-function generateChart() {
-    if (customChartLoaded && notes.length > 0) { notes.forEach(n => { n.hit = false; n.holding = false; }); return; }
-    notes = []; particles = [];
-    const beatMs = (60 / bpm) * 1000;
-    
-    let currentTime = (8 * beatMs) + freezeManualMs; 
-    let lastLane = 0;
-    const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 10) ? (masterAudio.duration * 1000) : 180000;
-    const maxNoteTime = songTotalMs - 5000; 
+function analyzeAndGenerateRealChart() {
+    if (customChartLoaded && notes.length > 0) {
+        notes.forEach(n => { n.hit = false; n.holding = false; });
+        return;
+    }
 
-    while (currentTime < maxNoteTime) {
-        const curBar = Math.floor(currentTime / (beatMs * 4)) + 1;
+    notes = [];
+    particles = [];
+    const beatMs = (60 / bpm) * 1000;
+    const barMs = beatMs * 4;
+    
+    let songTotalMs = 180000;
+    if (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 5) {
+        songTotalMs = masterAudio.duration * 1000;
+    }
+
+    let currentTime = (8 * beatMs) + freezeManualMs;
+    let lastLane = 0;
+
+    while (currentTime < songTotalMs - 2000) {
+        const curBar = Math.floor(currentTime / barMs) + 1;
         const curStyle = getStyleForBar(curBar);
 
         if (currentMode === 'test' || currentMode === 'freeze') {
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
-            currentTime += (beatMs * 4);
+            currentTime += barMs;
         } else if (curStyle === null) {
-            currentTime += (beatMs * 4);
+            currentTime += barMs;
         } else if (currentMode === 'easy') {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            currentTime += (beatMs * (curStyle === 'full_power' || curStyle === 'guitar_solo' ? 2 : 4));
+            currentTime += (curStyle === 'full_power' || curStyle === 'guitar_solo') ? (beatMs * 2) : barMs;
         } else {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             if (curStyle === "bass_kick") {
@@ -380,19 +394,32 @@ function generateChart() {
                 currentTime += (beatMs * 2);
             } else if (curStyle === "vocal_lead") {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                currentTime += (beatMs * (Math.random() < 0.5 ? 1 : 2));
+                currentTime += beatMs;
             } else if (curStyle === "full_power" || curStyle === "guitar_solo") {
                 const r = Math.random();
-                if (r < 0.55) { notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += beatMs; }
-                else if (r < 0.8) { notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += (beatMs * 2); }
-                else { const hDur = beatMs * 2; notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: hDur, hit: false, holding: false, lastTick: 0 }); currentTime += hDur + beatMs; }
+                if (r < 0.5) {
+                    notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+                    currentTime += beatMs;
+                } else if (r < 0.8) {
+                    notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false });
+                    currentTime += (beatMs * 2);
+                } else {
+                    const hDur = beatMs * 2;
+                    notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: hDur, hit: false, holding: false, lastTick: 0 });
+                    currentTime += hDur + beatMs;
+                }
             } else {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                currentTime += (beatMs * 4);
+                currentTime += barMs;
             }
         }
     }
+
     notes.sort((a, b) => a.targetTime - b.targetTime);
+}
+
+function generateChart() {
+    analyzeAndGenerateRealChart();
 }
 
 function initReadyRoomDrawer() {
@@ -412,9 +439,9 @@ function initReadyRoomDrawer() {
             const val = parseInt(e.target.value, 10);
             if (val > 0) {
                 bpm = val;
-                showJudgement(`手動強制更改: ${bpm} BPM`);
+                showJudgement(`手動更改: ${bpm} BPM`);
                 updateFreezeUI();
-                if (!customChartLoaded) generateChart();
+                if (!customChartLoaded) analyzeAndGenerateRealChart();
             }
         });
     }
@@ -444,7 +471,16 @@ function initReadyRoomDrawer() {
                 reader.onload = function(evt) {
                     try {
                         const chartData = JSON.parse(evt.target.result);
-                        notes = chartData.map((item, idx) => ({ id: idx, type: item.type || 'tap', lane: item.lane !== undefined ? item.lane : (idx % 4), targetTime: item.time || item.targetTime, duration: item.duration || 0, hit: false, holding: false, lastTick: 0 }));
+                        notes = chartData.map((item, idx) => ({ 
+                            id: idx, 
+                            type: item.type || 'tap', 
+                            lane: item.lane !== undefined ? item.lane : (idx % 4), 
+                            targetTime: item.time || item.targetTime, 
+                            duration: item.duration || 0, 
+                            hit: false, 
+                            holding: false, 
+                            lastTick: 0 
+                        }));
                         notes.sort((a, b) => a.targetTime - b.targetTime);
                         customChartLoaded = true;
                         const st = document.getElementById('midiStatus');
@@ -678,7 +714,7 @@ function scheduleCountInAndPlay() {
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
-    const now = performance.now(); 
+    const now = performance.now();  
     const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed; 
     const currentSec = currentTimeMs / 1000;
 
@@ -725,7 +761,7 @@ function gameLoop() {
     const startY = 40; const laneW = W / 4;
     const botX = [laneW * 0.5, laneW * 1.5, laneW * 2.5, laneW * 3.5]; const topX = (currentPerspectiveMode === 1) ? botX : [W * 0.44, W * 0.48, W * 0.52, W * 0.56];
 
-    for (let i = 0; i < 4; i++) { 
+    for (let i = 0; i < 4; i++) {  
         ctx.strokeStyle = laneColors[i].glow; ctx.lineWidth = 2; 
         ctx.beginPath(); ctx.moveTo(topX[i], startY); ctx.lineTo(botX[i], hitY); ctx.stroke(); 
     }
@@ -784,8 +820,8 @@ function gameLoop() {
             ctx.beginPath();
             if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
             else { 
-                const rx = (10 * (1.0 - p)) + (28 * p); 
-                const ry = (32 * (1.0 - p)) + (14 * p); 
+                const rx = (10 * (1.0 - p)) + (28 * p);  
+                const ry = (32 * (1.0 - p)) + (14 * p);  
                 ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
             }
             ctx.fill();
@@ -842,7 +878,7 @@ function gameLoop() {
             if (p > 1.0 && !n.holding && !n.hit) { n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 5); showJudgement("MISS"); updateUI(); }
         } else {
             if (p >= 0 && p <= 1.0) {
-                const cx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * p; 
+                const cx = topX[n.lane] + (botX[laneNum(n.lane)] - topX[n.lane]) * p; 
                 const cy = startY + (hitY - startY) * p;
                 ctx.save();
                 if (p < 0.08) ctx.globalAlpha = p / 0.08;
@@ -876,6 +912,8 @@ function gameLoop() {
     }
     requestAnimationFrame(gameLoop);
 }
+
+function laneNum(l) { return Math.min(3, Math.max(0, l)); }
 
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
