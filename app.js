@@ -1,9 +1,18 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (A/B/C真濾波矩陣旗艦版)
+   🔒 Arcatdia Battle Engine - Part 1/4 (除錯+三頻開關旗艦版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 let W = window.innerWidth; let H = window.innerHeight;
+
+function logDebug(msg) {
+    console.log("[Arcatdia]", msg);
+    const box = document.getElementById('debugLogBox');
+    if (box) {
+        box.style.display = 'block';
+        box.innerHTML = `<div>> ${msg}</div>` + box.innerHTML;
+    }
+}
 
 let bpm = 175;
 let isPlaying = false; let isPaused = false;
@@ -19,6 +28,7 @@ let freezeState = 'idle';
 let freezeCountInTimers = [];
 
 window.goToReadyRoom = function() {
+    logDebug("進入整備室...");
     const ts = document.getElementById('titleScreen');
     const tb = document.getElementById('titleBg');
     const rr = document.getElementById('readyRoom');
@@ -57,7 +67,6 @@ function renderSectionInputs() {
     songSections.forEach((sec, idx) => {
         const row = document.createElement('div');
         row.style.cssText = "display:grid; grid-template-columns: 2fr 1fr 1fr 1.6fr; gap: 3px; align-items:center;";
-        
         const startVal = sec.startBar > 0 ? sec.startBar : "";
         const endVal = sec.endBar > 0 ? sec.endBar : "";
 
@@ -128,16 +137,13 @@ window.freezePlay = function() {
         showJudgement("▶ 繼續前進");
         return;
     }
-
     freezeState = 'idle';
     masterAudio.pause();
     masterAudio.currentTime = 0;
     freezeCountInTimers.forEach(t => clearTimeout(t));
     freezeCountInTimers = [];
-
     freezeState = 'count-in';
     showJudgement("⏳ 預備...");
-    
     const beatMs = (60 / bpm) * 1000;
     [0, 1, 2, 3].forEach(b => {
         freezeCountInTimers.push(setTimeout(() => {
@@ -146,7 +152,6 @@ window.freezePlay = function() {
             showJudgement(`${b + 1}`);
         }, b * beatMs));
     });
-
     freezeCountInTimers.push(setTimeout(() => {
         if (freezeState !== 'count-in') return;
         freezeState = 'playing';
@@ -166,7 +171,6 @@ window.freezePause = function() {
 
 let countPerfect = 0; let countGreat = 0; let countGood = 0; let countMiss = 0;
 let maxCombo = 0; let isSongEnding = false; let autoReturnTimer = null;
-
 let battleBgOpacity = 1.0;
 let preloadedSlideImages = [];
 let currentSlideIndex = 0;
@@ -263,26 +267,16 @@ function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseF
 const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
 const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
 
-const currentSong = { 
-    id: "01", 
-    title: "最大の愛", 
-    audioUrl: songUrlA, 
-    bpm: 175 
-};
+const currentSong = { id: "01", title: "最大の愛", audioUrl: songUrlA, bpm: 175 };
 const masterAudio = new Audio();
 masterAudio.preload = "auto";
 masterAudio.src = currentSong.audioUrl;
 
 masterAudio.addEventListener('error', () => {
-    if (masterAudio.src === songUrlA) {
-        masterAudio.src = songUrlB;
-        masterAudio.load();
-    }
+    if (masterAudio.src === songUrlA) { masterAudio.src = songUrlB; masterAudio.load(); }
 });
 
-function hookMasterAudioNode() {
-    if (bgmGainNode) masterAudio.volume = bgmGainNode.gain.value;
-}
+function hookMasterAudioNode() { if (bgmGainNode) masterAudio.volume = bgmGainNode.gain.value; }
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 
@@ -292,105 +286,79 @@ function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = 
 let customChartLoaded = false;
 let customAudioLoaded = false;
 let decodedAudioBuffer = null;
-
-// 儲存真·濾波提取出的三大頻段時間點 (ms)
 let detectedPeaks = { bandA: [], bandB: [], bandC: [] };
 
 masterAudio.addEventListener('loadedmetadata', async () => {
     if (!customChartLoaded && !decodedAudioBuffer) {
         try {
+            logDebug("載入歌曲中，準備離線濾波...");
             const resp = await fetch(masterAudio.src);
             const arrayBuf = await resp.arrayBuffer();
             const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
             decodedAudioBuffer = await tempCtx.decodeAudioData(arrayBuf);
             runOfflineSpectralAnalysis(decodedAudioBuffer);
         } catch(e) {
+            logDebug("⚠️ 雲端濾波跳過，使用保底出波");
             generateRealFilteredChart();
         }
     }
 });
 
 async function runOfflineSpectralAnalysis(audioBuffer) {
-    showJudgement("🔍 背景進行硬體加速真·三頻濾波...");
+    logDebug("🔍 背景硬體加速真·三頻濾波中...");
     detectedPeaks = { bandA: [], bandB: [], bandC: [] };
-
     try {
         const sr = audioBuffer.sampleRate;
         const totalDuration = audioBuffer.duration;
         
-        // 🎯 1. 低通濾波 (Lowpass 120Hz) 抓大鼓 Kick
+        // A. 低通濾波 (<120Hz 大鼓)
         const lowCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const lowSrc = lowCtx.createBufferSource();
-        lowSrc.buffer = audioBuffer;
-        const lowFilter = lowCtx.createBiquadFilter();
-        lowFilter.type = "lowpass";
-        lowFilter.frequency.value = 120;
-        lowSrc.connect(lowFilter);
-        lowFilter.connect(lowCtx.destination);
-        lowSrc.start(0);
+        const lowSrc = lowCtx.createBufferSource(); lowSrc.buffer = audioBuffer;
+        const lowFilter = lowCtx.createBiquadFilter(); lowFilter.type = "lowpass"; lowFilter.frequency.value = 120;
+        lowSrc.connect(lowFilter); lowFilter.connect(lowCtx.destination); lowSrc.start(0);
         const renderedLow = await lowCtx.startRendering();
         detectedPeaks.bandA = extractOnsetsFromBuffer(renderedLow.getChannelData(0), sr, 0.55, 200);
 
-        // 🎯 2. 帶通濾波 (Bandpass 2500Hz) 抓人聲/結他
+        // B. 帶通濾波 (2500Hz 人聲/結他)
         const midCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const midSrc = midCtx.createBufferSource();
-        midSrc.buffer = audioBuffer;
-        const midFilter = midCtx.createBiquadFilter();
-        midFilter.type = "bandpass";
-        midFilter.frequency.value = 2500;
-        midFilter.Q.value = 1.0;
-        midSrc.connect(midFilter);
-        midFilter.connect(midCtx.destination);
-        midSrc.start(0);
+        const midSrc = midCtx.createBufferSource(); midSrc.buffer = audioBuffer;
+        const midFilter = midCtx.createBiquadFilter(); midFilter.type = "bandpass"; midFilter.frequency.value = 2500; midFilter.Q.value = 1.0;
+        midSrc.connect(midFilter); midFilter.connect(midCtx.destination); midSrc.start(0);
         const renderedMid = await midCtx.startRendering();
         detectedPeaks.bandB = extractOnsetsFromBuffer(renderedMid.getChannelData(0), sr, 0.45, 140);
 
-        // 🎯 3. 高通濾波 (Highpass 7500Hz) 抓碎鈸/金屬
+        // C. 高通濾波 (>7500Hz 碎鈸)
         const highCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
-        const highSrc = highCtx.createBufferSource();
-        highSrc.buffer = audioBuffer;
-        const highFilter = highCtx.createBiquadFilter();
-        highFilter.type = "highpass";
-        highFilter.frequency.value = 7500;
-        highSrc.connect(highFilter);
-        highFilter.connect(highCtx.destination);
-        highSrc.start(0);
+        const highSrc = highCtx.createBufferSource(); highSrc.buffer = audioBuffer;
+        const highFilter = highCtx.createBiquadFilter(); highFilter.type = "highpass"; highFilter.frequency.value = 7500;
+        highSrc.connect(highFilter); highFilter.connect(highCtx.destination); highSrc.start(0);
         const renderedHigh = await highCtx.startRendering();
         detectedPeaks.bandC = extractOnsetsFromBuffer(renderedHigh.getChannelData(0), sr, 0.40, 180);
 
-        showJudgement(`🎯 濾波成功！A:${detectedPeaks.bandA.length} B:${detectedPeaks.bandB.length} C:${detectedPeaks.bandC.length}`);
+        logDebug(`🎯 濾波成功！A:${detectedPeaks.bandA.length} B:${detectedPeaks.bandB.length} C:${detectedPeaks.bandC.length}`);
     } catch(err) {
-        showJudgement("⚠️ 濾波降級，採用格點模式");
+        logDebug("⚠️ 濾波降級，採用格點模式");
     }
     generateRealFilteredChart();
 }
 
-// 實時動態突變能量提取演算法 (Onset Energy Flux Peak Picker)
 function extractOnsetsFromBuffer(channelData, sampleRate, thresholdRatio, minIntervalMs) {
-    const step = Math.floor(sampleRate / 100); // 10ms 窗口
+    const step = Math.floor(sampleRate / 100);
     const energies = [];
     let maxE = 0;
     for (let i = 0; i < channelData.length; i += step) {
         let sum = 0;
-        for (let j = 0; j < step && (i + j) < channelData.length; j++) {
-            sum += Math.abs(channelData[i + j]);
-        }
+        for (let j = 0; j < step && (i + j) < channelData.length; j++) { sum += Math.abs(channelData[i + j]); }
         if (sum > maxE) maxE = sum;
         energies.push(sum);
     }
-
     const threshold = maxE * thresholdRatio;
     const minStepGap = Math.floor(minIntervalMs / 10);
     const peaksMs = [];
-
     for (let i = 2; i < energies.length - 2; i++) {
-        if (energies[i] > threshold &&
-            energies[i] > energies[i - 1] &&
-            energies[i] > energies[i - 2] &&
-            energies[i] >= energies[i + 1] &&
-            energies[i] >= energies[i + 2]) {
-            peaksMs.push(Math.round(i * 10)); // 轉成毫秒
-            i += minStepGap; // 避開連續重疊
+        if (energies[i] > threshold && energies[i] > energies[i - 1] && energies[i] > energies[i - 2] && energies[i] >= energies[i + 1] && energies[i] >= energies[i + 2]) {
+            peaksMs.push(Math.round(i * 10));
+            i += minStepGap;
         }
     }
     return peaksMs;
@@ -399,39 +367,29 @@ function extractOnsetsFromBuffer(channelData, sampleRate, thresholdRatio, minInt
 function getSectionForBar(barNum) {
     for (let sec of songSections) {
         if (sec.startBar > 0 && sec.endBar >= sec.startBar) {
-            if (barNum >= sec.startBar && barNum <= sec.endBar) {
-                return sec;
-            }
+            if (barNum >= sec.startBar && barNum <= sec.endBar) return sec;
         }
     }
     return null;
 }
 
-// 🎯 真·A/B/C 三頻矩陣時間表融合出波
 function generateRealFilteredChart() {
     if (customChartLoaded && notes.length > 0) {
         notes.forEach(n => { n.hit = false; n.holding = false; });
         return;
     }
-
-    notes = [];
-    particles = [];
+    notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     const barMs = beatMs * 4;
-    
     let songTotalMs = 180000;
     if (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 5) {
         songTotalMs = masterAudio.duration * 1000;
     }
-
     const hasRealData = (detectedPeaks.bandA.length + detectedPeaks.bandB.length + detectedPeaks.bandC.length) > 0;
 
     if (currentMode === 'test' || currentMode === 'freeze') {
         let t = (8 * beatMs) + freezeManualMs;
-        while (t < songTotalMs - 2000) {
-            notes.push({ type: 'tap', lane: 0, targetTime: t, hit: false });
-            t += barMs;
-        }
+        while (t < songTotalMs - 2000) { notes.push({ type: 'tap', lane: 0, targetTime: t, hit: false }); t += barMs; }
         notes.sort((a, b) => a.targetTime - b.targetTime);
         return;
     }
@@ -440,7 +398,6 @@ function generateRealFilteredChart() {
     let lastLane = 0;
 
     if (hasRealData) {
-        // 🔥 真正聽歌：用波形真實時間戳
         songSections.forEach(sec => {
             if (sec.startBar <= 0 || sec.endBar < sec.startBar) return;
             const startMs = (sec.startBar - 1) * barMs + freezeManualMs;
@@ -455,7 +412,6 @@ function generateRealFilteredChart() {
                     }
                 });
             }
-
             if (sec.useB) {
                 detectedPeaks.bandB.forEach(t => {
                     const realT = t + freezeManualMs;
@@ -465,24 +421,19 @@ function generateRealFilteredChart() {
                     }
                 });
             }
-
             if (sec.useC) {
                 detectedPeaks.bandC.forEach(t => {
                     const realT = t + freezeManualMs;
                     if (realT >= startMs && realT <= endMs) {
                         lastLane = (lastLane + 3) % 4;
                         const r = Math.random();
-                        if (r < 0.6) {
-                            candidateNotes.push({ type: 'flick', lane: lastLane, targetTime: realT, hit: false });
-                        } else {
-                            candidateNotes.push({ type: 'hold', lane: lastLane, targetTime: realT, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
-                        }
+                        if (r < 0.6) candidateNotes.push({ type: 'flick', lane: lastLane, targetTime: realT, hit: false });
+                        else candidateNotes.push({ type: 'hold', lane: lastLane, targetTime: realT, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
                     }
                 });
             }
         });
     } else {
-        // 降級備份：按房間密度組合
         let t = (8 * beatMs) + freezeManualMs;
         while (t < songTotalMs - 2000) {
             const curBar = Math.floor(t / barMs) + 1;
@@ -502,24 +453,20 @@ function generateRealFilteredChart() {
         }
     }
 
-    // 智能去重：同一軌道 100ms 內唔重疊
     candidateNotes.sort((a, b) => a.targetTime - b.targetTime);
     const filtered = [];
     const lastTimeByLane = [-9999, -9999, -9999, -9999];
-
     candidateNotes.forEach(n => {
         if (n.targetTime - lastTimeByLane[n.lane] >= 90) {
             filtered.push(n);
             lastTimeByLane[n.lane] = n.targetTime;
         }
     });
-
     notes = filtered;
+    logDebug(`譜面生成完成：共 ${notes.length} 粒光豆`);
 }
 
-function generateChart() {
-    generateRealFilteredChart();
-}
+function generateChart() { generateRealFilteredChart(); }
 
 async function handleAudioFileForBPM(audioFile) {
     const match = audioFile.name.match(/(\d{2,3})\s*BPM/i);
@@ -549,7 +496,6 @@ function initReadyRoomDrawer() {
             toggleBtn.innerHTML = isHidden ? '⚙️ 關閉工具箱 ▲' : '⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼';
         });
     }
-
     const bpmInput = document.getElementById('manualBpmInput');
     if (bpmInput) {
         bpmInput.addEventListener('change', (e) => {
@@ -562,10 +508,8 @@ function initReadyRoomDrawer() {
             }
         });
     }
-
     const wavIn = document.getElementById('dualWavInput');
     const midiIn = document.getElementById('dualMidiInput');
-
     if (wavIn) {
         wavIn.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -577,27 +521,16 @@ function initReadyRoomDrawer() {
             handleAudioFileForBPM(file);
         });
     }
-
     if (midiIn) {
         midiIn.addEventListener('change', async function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             if (file.name.endsWith('.json')) {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     try {
                         const chartData = JSON.parse(evt.target.result);
-                        notes = chartData.map((item, idx) => ({ 
-                            id: idx, 
-                            type: item.type || 'tap', 
-                            lane: item.lane !== undefined ? item.lane : (idx % 4), 
-                            targetTime: item.time || item.targetTime, 
-                            duration: item.duration || 0, 
-                            hit: false, 
-                            holding: false, 
-                            lastTick: 0 
-                        }));
+                        notes = chartData.map((item, idx) => ({ id: idx, type: item.type || 'tap', lane: item.lane !== undefined ? item.lane : (idx % 4), targetTime: item.time || item.targetTime, duration: item.duration || 0, hit: false, holding: false, lastTick: 0 }));
                         notes.sort((a, b) => a.targetTime - b.targetTime);
                         customChartLoaded = true;
                         const st = document.getElementById('midiStatus');
@@ -608,7 +541,6 @@ function initReadyRoomDrawer() {
                 reader.readAsText(file);
                 return;
             }
-
             try {
                 showJudgement("🔍 正在拆解 MIDI 多音軌...");
                 const arrayBuffer = await file.arrayBuffer();
@@ -626,12 +558,7 @@ function showTrackSelectorModal(midi) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'midiTrackModal';
-        modal.style.cssText = `
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 999999; background: rgba(10, 15, 30, 0.98);
-            border: 2px solid #00f0ff; border-radius: 12px; padding: 16px; max-width: 320px; width: 88%;
-            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5); font-family: sans-serif;
-        `;
+        modal.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: rgba(10, 15, 30, 0.98); border: 2px solid #00f0ff; border-radius: 12px; padding: 16px; max-width: 320px; width: 88%; box-shadow: 0 0 25px rgba(0, 240, 255, 0.5); font-family: sans-serif;`;
         document.body.appendChild(modal);
     }
     let trackHtml = `<div style="color:#00f0ff;font-size:14px;font-weight:bold;margin-bottom:12px;text-align:center;">🎵 揀一條音軌（如 Vocal/結他）</div><div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">`;
@@ -663,7 +590,7 @@ function showTrackSelectorModal(midi) {
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4 (原裝航行與觸控判定)
+   🔒 Arcatdia Battle Engine - Part 3/4 (零阻斷啟程與觸控判定)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
@@ -680,34 +607,28 @@ function returnToReadyRoom() {
     isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
-function startVoyage() { 
+// 🎯 零卡死、絕對唔黑畫面啟程！
+async function startVoyage() { 
+    logDebug("1. 喚醒聲效與音訊引擎...");
+    try {
+        if (!audioCtx) initAudioEngine();
+        if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+    } catch(e) {}
+
+    logDebug("2. 切換畫面...");
     document.getElementById('readyRoom').classList.remove('active'); 
-    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.remove('active'); }
-    const tb = document.getElementById('titleBg'); if (tb) { tb.classList.remove('active'); }
+    const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
+    const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
 
-    const coverBox = document.getElementById('introCoverBox');
-    if (coverBox) {
-        if (savedData.title) coverBox.style.backgroundImage = `url(${savedData.title})`;
-        else if (savedData.battle && savedData.battle.length > 0) coverBox.style.backgroundImage = `url(${savedData.battle[0]})`;
-        else coverBox.style.background = 'radial-gradient(circle, #ff0077, #03040a)';
-    }
-    const diffText = document.getElementById('introDifficultyText');
-    if (diffText) diffText.innerText = `DIFFICULTY: ${currentMode.toUpperCase()}`;
-    const intro = document.getElementById('introScreen');
-    intro.classList.add('active');
-    const readyTxt = document.getElementById('introReadyText');
-    if (readyTxt) readyTxt.innerText = "READY...";
+    const bHud = document.getElementById('battleHud'); if (bHud) bHud.style.display = 'flex';
+    const tCtrl = document.getElementById('touchController'); if (tCtrl) tCtrl.style.display = 'flex';
+    handleResize();
 
-    setTimeout(() => {
-        if (readyTxt) readyTxt.innerText = "GO!";
-        setTimeout(() => { intro.classList.remove('active'); beginRealBattle(); }, 400);
-    }, 1600);
+    logDebug("3. 進入真實戰鬥...");
+    beginRealBattle();
 }
 
 function beginRealBattle() {
-    document.getElementById('battleHud').style.display = 'flex'; 
-    document.getElementById('touchController').style.display = 'flex'; 
-
     const tuner = document.getElementById('freezeTuner');
     const barHud = document.getElementById('barInspectorHUD');
 
@@ -725,13 +646,20 @@ function beginRealBattle() {
 
     score = 0; combo = 0; maxCombo = 0; hp = 100; totalPausedDuration = 0; 
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
-    hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); generateChart(); 
+    hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); 
+
+    if (!notes || notes.length === 0) {
+        logDebug("⚠️ 濾波中，自動啟動節奏保底出豆！");
+        generateRealFilteredChart();
+    }
+
     isPlaying = true; isPaused = false; startTime = performance.now(); lastSlideChangeTime = performance.now(); 
 
     if (currentMode !== 'freeze') {
         scheduleCountInAndPlay();
     }
     requestAnimationFrame(gameLoop); 
+    logDebug("✅ 戰鬥循環順利運轉！");
 }
 
 function selectDifficulty(mode) { 
@@ -834,7 +762,6 @@ function gameLoop() {
     const now = performance.now();  
     const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed; 
     const currentSec = currentTimeMs / 1000;
-
     const beatMs = (60 / bpm) * 1000; 
     const barMs = beatMs * 4;
 
@@ -887,10 +814,7 @@ function gameLoop() {
     ctx.save(); ctx.strokeStyle = "rgba(0, 255, 204, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 18; ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke(); ctx.restore();
 
     for (let i = 0; i < 4; i++) { 
-        ctx.fillStyle = laneColors[i].main; 
-        ctx.beginPath(); 
-        ctx.arc(botX[i], circleCenterY, radius, 0, Math.PI * 2); 
-        ctx.fill(); 
+        ctx.fillStyle = laneColors[i].main; ctx.beginPath(); ctx.arc(botX[i], circleCenterY, radius, 0, Math.PI * 2); ctx.fill(); 
     }
 
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
@@ -902,75 +826,28 @@ function gameLoop() {
         if (phase < 120 || phase > (cycleMs - 20)) {
             const progress = phase < 120 ? (phase / 120) : 0;
             const alpha = 1.0 - progress;
-            ctx.save();
-            ctx.fillStyle = `rgba(0, 255, 204, ${alpha})`;
-            ctx.shadowColor = "#00ffcc";
-            ctx.shadowBlur = 30 * alpha;
-            ctx.beginPath();
-            ctx.arc(botX[0], hitY, radius * (0.8 + alpha * 0.4), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            ctx.save(); ctx.fillStyle = `rgba(0, 255, 204, ${alpha})`; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 30 * alpha; ctx.beginPath(); ctx.arc(botX[0], hitY, radius * (0.8 + alpha * 0.4), 0, Math.PI * 2); ctx.fill(); ctx.restore();
         }
     }
 
     if (currentMode === 'freeze') {
-        const lane = 0;
-        let p = 1.0; 
-
-        if (freezeState === 'count-in') {
-            p = -1; 
-        } else if (freezeState === 'playing' || freezeState === 'paused') {
-            const elapsed = masterAudio.currentTime * 1000; 
-            const diff = elapsed - (freezeManualMs - tDur);
+        const lane = 0; let p = 1.0; 
+        if (freezeState === 'count-in') p = -1; 
+        else if (freezeState === 'playing' || freezeState === 'paused') {
+            const elapsed = masterAudio.currentTime * 1000; const diff = elapsed - (freezeManualMs - tDur);
             p = ((diff % tDur) + tDur) % tDur / tDur;
-        } else {
-            p = 1.0; 
-        }
+        } else p = 1.0; 
 
         if (p >= 0) {
-            const cx = topX[lane] + (botX[lane] - topX[lane]) * p;
-            const cy = startY + (hitY - startY) * p;
-
-            ctx.save();
-            ctx.fillStyle = laneColors[lane].main;
-            ctx.shadowColor = laneColors[lane].main;
-            ctx.shadowBlur = 24;
-            ctx.beginPath();
-            if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
-            else { 
-                const rx = (10 * (1.0 - p)) + (28 * p);  
-                const ry = (32 * (1.0 - p)) + (14 * p);  
-                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); 
-            }
-            ctx.fill();
-            ctx.restore();
+            const cx = topX[lane] + (botX[lane] - topX[lane]) * p; const cy = startY + (hitY - startY) * p;
+            ctx.save(); ctx.fillStyle = laneColors[lane].main; ctx.shadowColor = laneColors[lane].main; ctx.shadowBlur = 24; ctx.beginPath();
+            if (currentPerspectiveMode === 1) ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2);
+            else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); }
+            ctx.fill(); ctx.restore();
         }
-
-        ctx.save();
-        ctx.strokeStyle = "#ffd700";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(botX[0], hitY, radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
+        ctx.save(); ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(botX[0], hitY, radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
         requestAnimationFrame(gameLoop);
         return;
-    }
-
-    if (currentMode === 'test') {
-        if (playTimeMs >= 0) {
-            const currentBeatPhase = playTimeMs % beatMs;
-            if (currentBeatPhase <= 70 || currentBeatPhase >= (beatMs - 70)) {
-                ctx.save();
-                ctx.strokeStyle = "rgba(255, 215, 0, 0.95)";
-                ctx.lineWidth = 5;
-                ctx.shadowColor = "#ffd700";
-                ctx.shadowBlur = 30;
-                ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(W, hitY); ctx.stroke();
-                ctx.restore();
-            }
-        }
     }
 
     notes.forEach(n => {
@@ -1014,7 +891,7 @@ function gameLoop() {
                 } else {
                     ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
                     ctx.beginPath();
-                    if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
+                    if (currentPerspectiveMode === 1) ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
                     else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
                 }
                 ctx.restore();

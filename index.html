@@ -5,328 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arcatdia 5v PRO - 最大の愛</title>
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            margin: 0;
-            padding: 0;
-        }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #03040a;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: #fff;
-        }
-
-        /* 🌌 畫布與背景層 */
-        #battleCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            display: block;
-        }
-        .bg-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            z-index: 0;
-        }
-        .bg-layer.active {
-            opacity: 1;
-        }
-
-        /* 🚀 封面畫面 */
-        #titleScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.45);
-            cursor: pointer;
-        }
-        #titleScreen.active {
-            display: flex;
-        }
-        .title-logo {
-            font-size: 38px;
-            font-weight: 900;
-            color: #00ffcc;
-            text-shadow: 0 0 25px rgba(0, 255, 204, 0.8), 0 0 10px #fff;
-            letter-spacing: 4px;
-            margin-bottom: 8px;
-        }
-        .title-sub {
-            font-size: 14px;
-            color: #ff0077;
-            letter-spacing: 2px;
-            text-shadow: 0 0 12px #ff0077;
-            animation: blinkText 1.5s infinite;
-        }
-
-        /* ⚙️ 航行整備室 (Ready Room) */
-        #readyRoom {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            display: none;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 16px 14px 20px;
-            background: rgba(3, 4, 10, 0.75);
-            overflow-y: auto;
-        }
-        #readyRoom.active {
-            display: flex;
-        }
-        .room-title {
-            text-align: center;
-            font-size: 20px;
-            font-weight: 900;
-            color: #ffd700;
-            text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
-            margin-top: 8px;
-            margin-bottom: 10px;
-        }
-
-        /* 工具箱抽屜 */
-        .drawer-toggle-btn {
-            background: rgba(0, 240, 255, 0.15);
-            border: 1.5px solid #00f0ff;
-            color: #00f0ff;
-            padding: 8px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 13px;
-            cursor: pointer;
-            box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        #readyRoomDrawer {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: rgba(10, 15, 30, 0.9);
-            border: 1.5px solid rgba(0, 240, 255, 0.4);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        /* 難度選擇掣 */
-        .diff-group {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-        .diff-btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1.5px solid #444;
-            color: #aaa;
-            padding: 9px 0;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: center;
-        }
-        .diff-btn.active {
-            border-color: #00ffcc;
-            color: #000;
-            background: #00ffcc;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
-        }
-
-        /* 啟程按鈕 */
-        .voyage-btn {
-            background: linear-gradient(90deg, #ff0077, #ff5500);
-            border: none;
-            color: #fff;
-            padding: 14px 0;
-            border-radius: 30px;
-            font-size: 15px;
-            font-weight: 900;
-            letter-spacing: 1px;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
-            text-align: center;
-        }
-
-        /* 🎮 戰鬥 HUD 與頂部雙向對照 */
-        #battleHud {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            display: none;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            z-index: 5;
-        }
-        .hud-score {
-            font-size: 26px;
-            font-weight: 900;
-            color: #ffd700;
-            text-shadow: 0 0 15px #ffd700;
-        }
-        .hud-pause-btn {
-            background: rgba(255, 0, 85, 0.2);
-            border: 1px solid #ff0055;
-            color: #ff0055;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* 頂部大字小節 Inspector HUD */
-        #barInspectorHUD {
-            position: absolute;
-            top: 55px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.75);
-            border: 1.5px solid #ffd700;
-            border-radius: 8px;
-            padding: 6px 14px;
-            text-align: center;
-            z-index: 6;
-            display: none;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-            pointer-events: none;
-        }
-        #hudBarDisplay {
-            font-size: 13px;
-            font-weight: 900;
-            color: #ffd700;
-        }
-        #hudMsDisplay {
-            font-size: 10px;
-            color: #00ffcc;
-            margin-top: 2px;
-        }
-
-        /* ❄️ 時光機校準儀 (側邊浮動) */
-        #freezeTuner {
-            position: absolute;
-            right: 10px;
-            top: 130px;
-            background: rgba(5, 12, 25, 0.88);
-            border: 1.5px solid #00f0ff;
-            border-radius: 10px;
-            padding: 8px;
-            width: 125px;
-            z-index: 8;
-            display: none;
-            box-shadow: 0 0 18px rgba(0, 240, 255, 0.4);
-            font-size: 11px;
-            text-align: center;
-        }
-
-        /* 觸控控制器 */
-        #touchController {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 175px;
-            display: none;
-            z-index: 6;
-        }
-        .touch-lane {
-            flex: 1;
-            height: 100%;
-            opacity: 0.15;
-            transition: opacity 0.08s;
-        }
-        .touch-lane.pressed {
-            opacity: 0.45;
-        }
-
-        /* 判定打擊提示與連段 */
-        #judgementDisplay {
-            position: absolute;
-            top: 48%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
-            font-weight: 900;
-            color: #00ffcc;
-            text-shadow: 0 0 20px #00ffcc;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s;
-            z-index: 7;
-        }
-        #comboDisplay {
-            position: absolute;
-            top: 42%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 18px;
-            font-weight: 900;
-            color: #fff;
-            text-shadow: 0 0 12px #ff0077;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 7;
-        }
-
-        /* 🏆 威威機台結算畫面 */
-        #resultModal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(3, 4, 10, 0.95);
-            z-index: 100;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 24px;
-        }
-        #resultModal.active {
-            display: flex;
-        }
-
-        @keyframes blinkText {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #03040a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+        #battleCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: block; }
+        .bg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0; transition: opacity 0.5s ease; z-index: 0; }
+        .bg-layer.active { opacity: 1; }
+        #titleScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.45); cursor: pointer; }
+        #titleScreen.active { display: flex; }
+        .title-logo { font-size: 38px; font-weight: 900; color: #00ffcc; text-shadow: 0 0 25px rgba(0, 255, 204, 0.8), 0 0 10px #fff; letter-spacing: 4px; margin-bottom: 8px; }
+        .title-sub { font-size: 14px; color: #ff0077; letter-spacing: 2px; text-shadow: 0 0 12px #ff0077; animation: blinkText 1.5s infinite; }
+        #readyRoom { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: none; flex-direction: column; justify-content: space-between; padding: 16px 14px 20px; background: rgba(3, 4, 10, 0.75); overflow-y: auto; }
+        #readyRoom.active { display: flex; }
+        .room-title { text-align: center; font-size: 20px; font-weight: 900; color: #ffd700; text-shadow: 0 0 15px rgba(255, 215, 0, 0.7); margin-top: 8px; margin-bottom: 10px; }
+        .drawer-toggle-btn { background: rgba(0, 240, 255, 0.15); border: 1.5px solid #00f0ff; color: #00f0ff; padding: 8px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 0 12px rgba(0, 240, 255, 0.3); text-align: center; margin-bottom: 10px; }
+        #readyRoomDrawer { display: flex; flex-direction: column; gap: 10px; background: rgba(10, 15, 30, 0.9); border: 1.5px solid rgba(0, 240, 255, 0.4); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+        .diff-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+        .diff-btn { background: rgba(255, 255, 255, 0.08); border: 1.5px solid #444; color: #aaa; padding: 9px 0; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; text-align: center; }
+        .diff-btn.active { border-color: #00ffcc; color: #000; background: #00ffcc; box-shadow: 0 0 15px rgba(0, 255, 204, 0.6); }
+        .voyage-btn { background: linear-gradient(90deg, #ff0077, #ff5500); border: none; color: #fff; padding: 14px 0; border-radius: 30px; font-size: 15px; font-weight: 900; letter-spacing: 1px; cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 119, 0.6); text-align: center; }
+        #battleHud { position: absolute; top: 0; left: 0; width: 100%; display: none; justify-content: space-between; align-items: center; padding: 10px 14px; z-index: 5; }
+        .hud-score { font-size: 26px; font-weight: 900; color: #ffd700; text-shadow: 0 0 15px #ffd700; }
+        .hud-pause-btn { background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055; color: #ff0055; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        #barInspectorHUD { position: absolute; top: 55px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.75); border: 1.5px solid #ffd700; border-radius: 8px; padding: 6px 14px; text-align: center; z-index: 6; display: none; box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); pointer-events: none; }
+        #hudBarDisplay { font-size: 13px; font-weight: 900; color: #ffd700; }
+        #hudMsDisplay { font-size: 10px; color: #00ffcc; margin-top: 2px; }
+        #freezeTuner { position: absolute; right: 10px; top: 130px; background: rgba(5, 12, 25, 0.88); border: 1.5px solid #00f0ff; border-radius: 10px; padding: 8px; width: 125px; z-index: 8; display: none; box-shadow: 0 0 18px rgba(0, 240, 255, 0.4); font-size: 11px; text-align: center; }
+        #touchController { position: absolute; bottom: 0; left: 0; width: 100%; height: 175px; display: none; z-index: 6; }
+        .touch-lane { flex: 1; height: 100%; opacity: 0.15; transition: opacity 0.08s; }
+        .touch-lane.pressed { opacity: 0.45; }
+        #judgementDisplay { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 900; color: #00ffcc; text-shadow: 0 0 20px #00ffcc; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 7; }
+        #comboDisplay { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 900; color: #fff; text-shadow: 0 0 12px #ff0077; pointer-events: none; opacity: 0; z-index: 7; }
+        #resultModal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 4, 10, 0.95); z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 24px; }
+        #resultModal.active { display: flex; }
+        @keyframes blinkText { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body>
-
     <div id="titleBg" class="bg-layer active"></div>
     <div id="readyBg" class="bg-layer"></div>
-
     <canvas id="battleCanvas"></canvas>
 
     <div id="titleScreen" class="active" onclick="goToReadyRoom()">
@@ -337,10 +53,7 @@
 
     <div id="readyRoom">
         <div class="room-title">🚀 航行整備室</div>
-
-        <div id="toggleDrawerBtn" class="drawer-toggle-btn">
-            ⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼
-        </div>
+        <div id="toggleDrawerBtn" class="drawer-toggle-btn">⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼</div>
 
         <div id="readyRoomDrawer" style="display: none;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap: 8px;">
@@ -360,14 +73,10 @@
                     <span>🎛️ 14房真·濾波頻段開關</span>
                     <span style="color:#aaa; font-size:9px;">A低 B中 C高 (留空=跳過)</span>
                 </div>
-                
                 <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1.6fr; gap: 4px; font-size: 10px; color:#aaa; margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; text-align:center;">
                     <span style="text-align:left;">房間</span><span>起Bar</span><span>止Bar</span><span>頻段開關</span>
                 </div>
-                
-                <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;">
-                </div>
-
+                <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;"></div>
                 <button onclick="saveSongSections()" style="margin-top: 8px; width: 100%; background: linear-gradient(90deg, #ffd700, #ffaa00); border: none; color: #000; font-size: 12px; padding: 7px; border-radius: 4px; cursor: pointer; font-weight: 900;">
                     💾 鎖定套用 14 間房真·濾波排程
                 </button>
@@ -392,9 +101,7 @@
             </div>
         </div>
 
-        <button class="voyage-btn" onclick="startVoyage()">
-            ✨ 啟程前往阿卡迪亞貓星 ✨
-        </button>
+        <button class="voyage-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
     </div>
 
     <div id="battleHud">
@@ -415,7 +122,6 @@
         <div style="color:#00f0ff; font-weight:bold; font-size:10px; margin-bottom:4px;">❄️ 時光機校準儀</div>
         <div id="freezeMsDisplay" style="color:#00ffcc; font-size:12px; font-weight:bold;">+0 ms</div>
         <div id="freezeBeatDisplay" style="color:#aaa; font-size:9px; margin-bottom:6px;">(+0.00 拍)</div>
-        
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:4px;">
             <button onclick="seekBars(-4)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">⏪ -4 Bar</button>
             <button onclick="seekBars(4)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">+4 Bar ⏩</button>
@@ -458,13 +164,11 @@
     <div id="resultModal">
         <div style="font-size: 13px; color: #00ffcc; letter-spacing: 2px;">VOYAGE CLEAR</div>
         <div style="font-size: 20px; font-weight: 900; margin: 4px 0 14px;">最大の愛</div>
-        
         <div id="rankBadge" style="font-size: 58px; font-weight: 900; color: #ffd700; line-height: 1;">S</div>
         <div id="resScore" style="text-align: center; margin: 12px 0;">
             <div style="font-size: 26px; color: #ffd700; font-weight: 900;">000000</div>
             <div style="font-size: 16px; color: #00ffcc; font-weight: bold;">ACCURACY: 0.00%</div>
         </div>
-
         <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 16px; width: 85%; max-width: 280px; font-size: 11px; display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px;">
             <div style="display:flex; justify-content:space-between;"><span>MAX COMBO:</span><span id="resMaxCombo" style="color:#00ffcc; font-weight:bold;">0</span></div>
             <div style="display:flex; justify-content:space-between;"><span>PERFECT:</span><span id="resPerfect" style="color:#ffd700; font-weight:bold;">0</span></div>
@@ -472,8 +176,11 @@
             <div style="display:flex; justify-content:space-between;"><span>GOOD:</span><span id="resGood" style="color:#ffaa00; font-weight:bold;">0</span></div>
             <div style="display:flex; justify-content:space-between;"><span>MISS:</span><span id="resMiss" style="color:#ff0055; font-weight:bold;">0</span></div>
         </div>
-
         <div id="closeCountdown" style="font-size: 11px; color: #888;">點擊任意位置繼續航行</div>
+    </div>
+
+    <div id="debugLogBox" onclick="this.style.display='none'" style="position:fixed; bottom:10px; left:10px; right:10px; max-height:70px; overflow-y:auto; background:rgba(0,0,0,0.85); border:1px solid #00ffcc; border-radius:6px; padding:6px 10px; font-size:10px; color:#00ffcc; font-family:monospace; z-index:99999; display:block;">
+        [SYSTEM READY] 隨時候命...
     </div>
 
     <script src="https://unpkg.com/@tonejs/midi"></script>
