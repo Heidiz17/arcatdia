@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (14房時光機旗艦版)
+   🔒 Arcatdia Battle Engine - Part 1/4 (14房儲存與時光機)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
@@ -32,20 +32,20 @@ window.goToReadyRoom = function() {
 };
 
 let defaultSections = [
-    { id: 1,  name: "01. Intro (前奏)",          startBar: 1,  endBar: 4,  style: "bass_kick" },
-    { id: 2,  name: "02. Verse 1 (主歌A)",       startBar: 5,  endBar: 12, style: "vocal_lead" },
-    { id: 3,  name: "03. Break 1 (過門)",        startBar: 0,  endBar: 0,  style: "bass_kick" },
-    { id: 4,  name: "04. Pre-Cho 1 (皮帶)",      startBar: 0,  endBar: 0,  style: "full_power" },
-    { id: 5,  name: "05. Chorus 1 (副歌/褲)",    startBar: 13, endBar: 20, style: "full_power" },
-    { id: 6,  name: "06. Break 2 (間奏)",        startBar: 0,  endBar: 0,  style: "bass_kick" },
-    { id: 7,  name: "07. Verse 2 (主歌B)",       startBar: 21, endBar: 28, style: "vocal_lead" },
-    { id: 8,  name: "08. Pre-Cho 2 (副前2)",     startBar: 0,  endBar: 0,  style: "full_power" },
-    { id: 9,  name: "09. Chorus 2 (副歌2)",      startBar: 29, endBar: 36, style: "full_power" },
-    { id: 10, name: "10. Guitar Solo (結他獨奏)",startBar: 37, endBar: 44, style: "guitar_solo" },
-    { id: 11, name: "11. Bridge (返轉頭)",       startBar: 0,  endBar: 0,  style: "vocal_lead" },
-    { id: 12, name: "12. Chorus 3 (終極副歌)",   startBar: 45, endBar: 52, style: "full_power" },
-    { id: 13, name: "13. Outro (尾奏)",          startBar: 53, endBar: 60, style: "bass_kick" },
-    { id: 14, name: "14. Cat Coda (貓聲終局)",   startBar: 0,  endBar: 0,  style: "full_power" }
+    { id: 1,  name: "01. Intro (前奏)",          startBar: 1,   endBar: 22,  style: "bass_kick" },
+    { id: 2,  name: "02. Verse 1 (主歌A)",       startBar: 23,  endBar: 54,  style: "vocal_lead" },
+    { id: 3,  name: "03. Break 1 (過門)",        startBar: 55,  endBar: 70,  style: "bass_kick" },
+    { id: 4,  name: "04. Pre-Cho 1 (皮帶)",      startBar: 71,  endBar: 104, style: "full_power" },
+    { id: 5,  name: "05. Chorus 1 (副歌/褲)",    startBar: 105, endBar: 130, style: "full_power" },
+    { id: 6,  name: "06. Break 2 (間奏)",        startBar: 0,   endBar: 0,   style: "bass_kick" },
+    { id: 7,  name: "07. Verse 2 (主歌B)",       startBar: 0,   endBar: 0,   style: "vocal_lead" },
+    { id: 8,  name: "08. Pre-Cho 2 (副前2)",     startBar: 0,   endBar: 0,   style: "full_power" },
+    { id: 9,  name: "09. Chorus 2 (副歌2)",      startBar: 0,   endBar: 0,   style: "full_power" },
+    { id: 10, name: "10. Guitar Solo (結他獨奏)",startBar: 0,   endBar: 0,   style: "guitar_solo" },
+    { id: 11, name: "11. Bridge (返轉頭)",       startBar: 0,   endBar: 0,   style: "vocal_lead" },
+    { id: 12, name: "12. Chorus 3 (終極副歌)",   startBar: 0,   endBar: 0,   style: "full_power" },
+    { id: 13, name: "13. Outro (尾奏)",          startBar: 0,   endBar: 0,   style: "bass_kick" },
+    { id: 14, name: "14. Cat Coda (貓聲終局)",   startBar: 0,   endBar: 0,   style: "full_power" }
 ];
 
 let songSections = [...defaultSections];
@@ -58,10 +58,15 @@ function renderSectionInputs() {
         const row = document.createElement('div');
         row.style.cssText = "display:grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 4px; align-items:center;";
         const color = sec.style === 'bass_kick' ? '#00ffcc' : (sec.style === 'vocal_lead' ? '#ccff00' : (sec.style === 'guitar_solo' ? '#ffd700' : '#ff0077'));
+        
+        // 🎯 留空就顯示空白，唔使格硬填 0
+        const startVal = sec.startBar > 0 ? sec.startBar : "";
+        const endVal = sec.endBar > 0 ? sec.endBar : "";
+
         row.innerHTML = `
             <span style="color:${color}; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sec.name}</span>
-            <input type="number" id="secStart_${idx}" value="${sec.startBar}" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
-            <input type="number" id="secEnd_${idx}" value="${sec.endBar}" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
+            <input type="number" id="secStart_${idx}" value="${startVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
+            <input type="number" id="secEnd_${idx}" value="${endVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
         `;
         container.appendChild(row);
     });
@@ -77,20 +82,26 @@ function loadSavedSongSections() {
     }
 }
 
+// 🎯 核心儲存函數：留空全自動當 0，兼 100% 彈出 Alert 視窗！
 window.saveSongSections = function() {
-    songSections.forEach((sec, idx) => {
-        const sInput = document.getElementById(`secStart_${idx}`);
-        const eInput = document.getElementById(`secEnd_${idx}`);
-        if (sInput && eInput) {
-            sec.startBar = parseInt(sInput.value, 10) || 0;
-            sec.endBar = parseInt(eInput.value, 10) || 0;
-        }
-    });
     try {
+        songSections.forEach((sec, idx) => {
+            const sInput = document.getElementById(`secStart_${idx}`);
+            const eInput = document.getElementById(`secEnd_${idx}`);
+            
+            let sVal = sInput && sInput.value.trim() !== "" ? parseInt(sInput.value, 10) : 0;
+            let eVal = eInput && eInput.value.trim() !== "" ? parseInt(eInput.value, 10) : 0;
+            
+            sec.startBar = isNaN(sVal) ? 0 : sVal;
+            sec.endBar = isNaN(eVal) ? 0 : eVal;
+        });
+
         localStorage.setItem('arcatdia_14_sections', JSON.stringify(songSections));
-        showJudgement("💾 14 間房排程已鎖定！");
         generateChart();
-    } catch(e) {}
+        alert("✅ 14 間房排程已經成功鎖定儲存！");
+    } catch(err) {
+        alert("⚠️ 儲存失敗：" + err.message);
+    }
 };
 
 window.seekBars = function(deltaBars) {
