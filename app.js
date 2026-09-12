@@ -1,8 +1,8 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (14房旗艦時光機版)
+   🔒 Arcatdia Battle Engine - Part 1/4 (14房時光機旗艦版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 let W = window.innerWidth; let H = window.innerHeight;
 
 let bpm = 175;
@@ -18,7 +18,19 @@ let spawnDelayMs = 0;
 let freezeState = 'idle'; 
 let freezeCountInTimers = [];
 
-// 🎯 14 間房完整配置：有填 Bar 數就順住行，填 0 0 就自動 Skip 跳過
+window.goToReadyRoom = function() {
+    const ts = document.getElementById('titleScreen');
+    const tb = document.getElementById('titleBg');
+    const rr = document.getElementById('readyRoom');
+    const rb = document.getElementById('readyBg');
+    if (ts) ts.classList.remove('active');
+    if (tb) tb.classList.remove('active');
+    if (rr) rr.classList.add('active');
+    if (rb) rb.classList.add('active');
+    initAudioEngine();
+    renderSectionInputs();
+};
+
 let defaultSections = [
     { id: 1,  name: "01. Intro (前奏)",          startBar: 1,  endBar: 4,  style: "bass_kick" },
     { id: 2,  name: "02. Verse 1 (主歌A)",       startBar: 5,  endBar: 12, style: "vocal_lead" },
@@ -63,7 +75,6 @@ function loadSavedSongSections() {
     } catch(e) {
         songSections = [...defaultSections];
     }
-    renderSectionInputs();
 }
 
 window.saveSongSections = function() {
@@ -82,7 +93,6 @@ window.saveSongSections = function() {
     } catch(e) {}
 };
 
-// 🎯 時光機：快進 / 快退小節掣 (±1 Bar / ±4 Bar)
 window.seekBars = function(deltaBars) {
     const beatMs = (60 / bpm) * 1000;
     const barMs = beatMs * 4;
@@ -181,7 +191,7 @@ const laneColors = [
 
 function togglePerspectiveMode() { currentPerspectiveMode = currentPerspectiveMode === 1 ? 2 : 1; showJudgement(currentPerspectiveMode === 1 ? "2D 直軌" : "3D 消失點"); }
 function toggleJudgeLineLevel() { judgeLineLevel = (judgeLineLevel + 1) % judgeLineAdjusts.length; const qBtn = document.getElementById('btnQuickJudge'); if (qBtn) qBtn.innerText = `📏 線:LV${judgeLineLevel + 1}`; showJudgement(`判定線: LV ${judgeLineLevel + 1}`); }
-function handleResize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; initStars(); }
+function handleResize() { W = window.innerWidth; H = window.innerHeight; if (canvas) { canvas.width = W; canvas.height = H; } initStars(); }
 window.addEventListener('resize', handleResize); handleResize();
 
 function compressImage(dataUrl, callback) {
@@ -235,7 +245,6 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 GitHub Releases 雙重容錯網址[span_2](start_span)[span_2](end_span)
 const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
 const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
 
@@ -260,6 +269,7 @@ function hookMasterAudioNode() {
     if (bgmGainNode) masterAudio.volume = bgmGainNode.gain.value;
 }
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
+
 
 /* =============================================================
    🔒 Arcatdia Battle Engine - Part 2/4 (14房智能生波核心)
@@ -329,7 +339,6 @@ async function handleAudioFileForBPM(audioFile) {
     if (!customChartLoaded) generateChart();
 }
 
-// 🎯 核心判斷：有填有效 Bar 數就順住套用，冇填（0）就直接返回 null 跳過
 function getStyleForBar(barNum) {
     for (let sec of songSections) {
         if (sec.startBar > 0 && sec.endBar >= sec.startBar) {
@@ -338,7 +347,7 @@ function getStyleForBar(barNum) {
             }
         }
     }
-    return null; // 冇填嗰啲房直接跳過！
+    return null;
 }
 
 function generateChart() {
@@ -346,7 +355,6 @@ function generateChart() {
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     
-    // 🎯 5v 基準：起手第 8 拍咬實重音，疊加微調毫秒 (freezeManualMs)
     let currentTime = (8 * beatMs) + freezeManualMs; 
     let lastLane = 0;
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 10) ? (masterAudio.duration * 1000) : 180000;
@@ -360,14 +368,12 @@ function generateChart() {
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
             currentTime += (beatMs * 4);
         } else if (curStyle === null) {
-            // 🎯 明仔規則：冇填嘅房直接跳過，唔好亂生豆！
             currentTime += (beatMs * 4);
         } else if (currentMode === 'easy') {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
             currentTime += (beatMs * (curStyle === 'full_power' || curStyle === 'guitar_solo' ? 2 : 4));
         } else {
-            // Normal 模式：根據房間款式自動生成相應密度
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             if (curStyle === "bass_kick") {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
@@ -502,13 +508,13 @@ function showTrackSelectorModal(midi) {
     };
 }
 
+
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4 (原裝保持)
+   🔒 Arcatdia Battle Engine - Part 3/4 (原裝航行與觸控判定)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
-function goToReadyRoom() { document.getElementById('titleScreen').classList.remove('active'); document.getElementById('titleBg').classList.remove('active'); document.getElementById('readyRoom').classList.add('active'); const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } initAudioEngine(); }
 function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
 function returnToReadyRoom() { 
     document.getElementById('pauseMenu').classList.remove('active'); 
@@ -552,7 +558,6 @@ function beginRealBattle() {
     const tuner = document.getElementById('freezeTuner');
     const barHud = document.getElementById('barInspectorHUD');
 
-    // 🎯 只要係 TEST 或 FREEZE 模式，立刻彈出即時 Bar/ms 雙對照顯示器
     if (currentMode === 'test' || currentMode === 'freeze') {
         if (barHud) barHud.style.display = 'block';
     } else {
@@ -666,8 +671,9 @@ function scheduleCountInAndPlay() {
     audioStartTimer = setTimeout(() => { if (!isPlaying || isPaused) return; masterAudio.playbackRate = playbackSpeed; masterAudio.currentTime = 0; masterAudio.play().catch(() => {}); }, (beatMs * 4) / playbackSpeed);
 }
 
+
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (原裝保持)
+   🔒 Arcatdia Battle Engine - Part 4/4 (雙向計時與渲染核心)
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
@@ -679,7 +685,6 @@ function gameLoop() {
     const beatMs = (60 / bpm) * 1000; 
     const barMs = beatMs * 4;
 
-    // 🎯 實時計算小節（Bar）與微秒，更新抬頭 HUD
     const hudBar = document.getElementById('hudBarDisplay');
     const hudMs = document.getElementById('hudMsDisplay');
     if (hudBar && hudMs) {
@@ -855,7 +860,7 @@ function gameLoop() {
                 } else {
                     ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
                     ctx.beginPath();
-                    if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); ctx.fill(); } 
+                    if (currentPerspectiveMode === 1) { ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); } 
                     else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
                 }
                 ctx.restore();

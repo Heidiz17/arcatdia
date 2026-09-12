@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - 5v 14房時光機旗艦版</title>
+    <title>Arcatdia Battle Engine - 5v PRO</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,19 +34,18 @@
         <div class="hp-bar-line"><div id="hpFill" class="hp-fill lvl-s"></div></div>
     </div>
 
-    <!-- 🎯 雙重對照大字 HUD：即時 Bar 數、拍數、絕對微秒 (TEST / FREEZE 自動浮現) -->
+    <!-- 雙重對照大字 HUD -->
     <div id="barInspectorHUD" style="display:none; position:absolute; top: 65px; left: 50%; transform: translateX(-50%); z-index: 55; background: rgba(5, 10, 25, 0.9); border: 2px solid #ffd700; border-radius: 12px; padding: 8px 16px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); text-align: center; font-family: monospace; pointer-events:none;">
         <div id="hudBarDisplay" style="color: #ffd700; font-size: 17px; font-weight: 900; letter-spacing: 1px;">BAR: 1 (第 1 拍)</div>
         <div id="hudMsDisplay" style="color: #00ffcc; font-size: 12px; font-weight: bold; margin-top: 2px;">0 ms | 預備中</div>
     </div>
 
-    <!-- 🎯 定格微調儀表板：加裝「±1 Bar / ±4 Bar 時光機掣」 -->
+    <!-- 定格微調儀表板 -->
     <div id="freezeTuner" style="display:none; position:absolute; right: 2%; top: 40%; width: 28%; min-width: 115px; z-index: 55; background: rgba(18, 5, 30, 0.95); border: 2px solid #00f0ff; border-radius: 10px; padding: 8px 6px; box-shadow: 0 0 20px rgba(0,240,255,0.5); text-align: center; font-family: monospace; user-select: none;">
         <div style="color: #ff0077; font-size: 11px; font-weight: 900; letter-spacing: 1px;">❄️ 時光機校準儀</div>
         <div id="freezeMsDisplay" style="color: #00ffcc; font-size: 15px; font-weight: 900; margin: 3px 0;">+0 ms</div>
         <div id="freezeBeatDisplay" style="color: #ffd700; font-size: 11px; margin-bottom: 6px;">(+0.00 拍)</div>
         
-        <!-- 時光機快進快退小節掣 -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 5px;">
             <button onclick="seekBars(-4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">⏪ -4 Bar</button>
             <button onclick="seekBars(4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">+4 Bar ⏩</button>
@@ -54,7 +53,6 @@
             <button onclick="seekBars(1)" style="background: #222; border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer;">+1 Bar ▶</button>
         </div>
 
-        <!-- 毫秒微調 -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px;">
             <button onclick="stepFreezeMs(-50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">-50ms</button>
             <button onclick="stepFreezeMs(50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">+50ms</button>
@@ -78,15 +76,16 @@
         <div class="touch-lane" id="lane3"><span>R2</span></div>
     </div>
 
-    <div id="titleScreen" class="overlay-modal active">
-        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ffd700; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
+    <!-- 封面 (點擊整個 content 都可直入整備室) -->
+    <div id="titleScreen" class="overlay-modal active" onclick="goToReadyRoom()">
+        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ffd700; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;" onclick="event.stopPropagation()">
             <div style="padding:6px 10px; font-size:10px; color:#ffd700; pointer-events:none; font-weight:bold;">📁 換封面圖</div>
             <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
         </div>
         
-        <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none; margin-top: 10vh;">
-            <h1 class="game-logo" style="color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); font-size: 55px;" onclick="goToReadyRoom()">ARCATDIA</h1>
-            <p class="logo-sub blink-text" onclick="goToReadyRoom()" style="font-size: 20px; margin-top: 20px; color: #ffcc00; text-shadow: 0 0 15px rgba(255,204,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
+        <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none; margin-top: 10vh; cursor:pointer;">
+            <h1 class="game-logo" style="color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); font-size: 55px;">ARCATDIA</h1>
+            <p class="logo-sub blink-text" style="font-size: 20px; margin-top: 20px; color: #ffcc00; text-shadow: 0 0 15px rgba(255,204,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
             
             <div style="margin-top: 60px; text-align: center; font-family: monospace;">
                 <div style="font-size: 15px; letter-spacing: 3px; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); font-weight: 900;">
@@ -99,6 +98,7 @@
         </div>
     </div>
 
+    <!-- 航行整備室 -->
     <div id="readyRoom" class="overlay-modal">
         <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
             <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 換候機圖</div>
@@ -126,7 +126,6 @@
 
                 <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
 
-                <!-- 🎯 明仔專屬：14 格音樂房排程 (填 Bar 數，冇填填 0 自動 Skip) -->
                 <div style="background: rgba(0,0,0,0.6); border: 1.5px solid #ffd700; border-radius: 8px; padding: 8px; max-height: 240px; overflow-y: auto;">
                     <div style="color: #ffd700; font-size: 11px; font-weight: bold; margin-bottom: 6px; display:flex; justify-content:space-between;">
                         <span>👗 14 間房音樂衫褲排程</span>
@@ -138,7 +137,6 @@
                     </div>
                     
                     <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;">
-                        <!-- JS 動態填入 14 間房 -->
                     </div>
 
                     <button onclick="saveSongSections()" style="margin-top: 8px; width: 100%; background: linear-gradient(90deg, #ffd700, #ffaa00); border: none; color: #000; font-size: 11px; padding: 6px; border-radius: 4px; cursor: pointer; font-weight: 900;">
@@ -248,4 +246,11 @@
 
             <button class="launch-btn" id="btnReturnRoomNow" onclick="returnFromResults()" style="width: 100%; margin-top: 5px;">
                 返回航行整備室 (<span id="closeCountdown">3</span>s)
-  
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
