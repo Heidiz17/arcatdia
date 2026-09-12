@@ -9,10 +9,7 @@ function logDebug(msg) {
     console.log("[Arcatdia]", msg);
     const box = document.getElementById('debugLogBox');
     if (box) {
-        // 只在未開波打機時才顯示於整備室，避免遮擋打機
-        if (!isPlaying) {
-            box.style.display = 'block';
-        }
+        box.style.display = 'block';
         box.innerHTML = `<div>> ${msg}</div>` + box.innerHTML;
     }
 }
@@ -40,14 +37,6 @@ window.goToReadyRoom = function() {
     if (tb) tb.classList.remove('active');
     if (rr) rr.classList.add('active');
     if (rb) rb.classList.add('active');
-    
-    // 確保 Debug Log 在整備室正確定位，不擋底層按鈕
-    const box = document.getElementById('debugLogBox');
-    if (box) {
-        box.style.display = 'block';
-        box.style.bottom = '85px'; // 避開下方紅色啟程按鈕
-    }
-    
     initAudioEngine();
     renderSectionInputs();
 };
@@ -450,7 +439,7 @@ window.addEventListener('DOMContentLoaded', initReadyRoomDrawer);
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4 (過場控制、除錯搬遷與觸控判定)
+   🔒 Arcatdia Battle Engine - Part 3/4 (零阻斷啟程與觸控判定)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
@@ -464,18 +453,9 @@ function returnToReadyRoom() {
     const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
     const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active'); 
     document.getElementById('readyRoom').classList.add('active'); 
-
-    // 退回整備室，重新顯露除錯欄（避開底部紅色掣）
-    const box = document.getElementById('debugLogBox');
-    if (box) {
-        box.style.display = 'block';
-        box.style.bottom = '85px';
-    }
-
     isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
 
-// 🎯 啟程：Easy / Normal 顯示 2 秒過場介紹相，Test / Freeze 即刻跳過！
 async function startVoyage() { 
     logDebug("1. 喚醒聲效與音訊引擎...");
     try {
@@ -483,36 +463,11 @@ async function startVoyage() {
         if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
     } catch(e) {}
 
-    // 打機時絕對隱藏除錯欄，完全唔遮打機畫面！
-    const box = document.getElementById('debugLogBox');
-    if (box) box.style.display = 'none';
-
+    logDebug("2. 切換畫面...");
     document.getElementById('readyRoom').classList.remove('active'); 
     const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
     const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
 
-    // 判斷過場畫面：Easy / Normal 顯示 2 秒
-    const shouldShowTransition = (currentMode === 'easy' || currentMode === 'normal');
-
-    if (shouldShowTransition) {
-        showJudgement("🚀 啟程中：最大の愛");
-        if (tb) {
-            tb.classList.add('active'); // 亮起介紹/Logo 封面圖
-            setTimeout(() => {
-                tb.classList.remove('active');
-                enterRealBattleStage();
-            }, 2000); // 留 2 秒過場
-        } else {
-            enterRealBattleStage();
-        }
-    } else {
-        // TEST 及 FREEZE 模式：0秒直入，唔要過場相！
-        enterRealBattleStage();
-    }
-}
-
-function enterRealBattleStage() {
-    logDebug("2. 載入戰鬥 HUD 與觸控區域...");
     const bHud = document.getElementById('battleHud'); if (bHud) bHud.style.display = 'flex';
     const tCtrl = document.getElementById('touchController'); if (tCtrl) tCtrl.style.display = 'flex';
     handleResize();
@@ -625,6 +580,8 @@ function handleAction(laneIndex, actionType) {
 
 function updateUI() {
     const scoreVal = document.getElementById('scoreVal'); if (scoreVal) scoreVal.innerText = String(score).padStart(6, '0');
+    const hpFill = document.getElementById('hpFill');
+    if (hpFill) { hpFill.style.width = `${hp}%`; hpFill.className = 'hp-fill'; if (hp <= 25) hpFill.classList.add('lvl-c'); else if (hp <= 60) hpFill.classList.add('lvl-b'); else if (hp <= 85) hpFill.classList.add('lvl-a'); else hpFill.classList.add('lvl-s'); }
     const comboDisp = document.getElementById('comboDisplay'); if (comboDisp && combo > 1) { comboDisp.innerText = `${combo} COMBO`; comboDisp.style.opacity = '1'; }
 }
 
@@ -640,67 +597,8 @@ function scheduleCountInAndPlay() {
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (粗版變色能源棒與主遊戲迴圈)
+   🔒 Arcatdia Battle Engine - Part 4/4 (雙向計時與威威結算)
    ============================================================= */
-
-// ⚡ 粗版能源棒：紫 -> 藍 -> 橙 -> 紅
-function drawEnergyBar() {
-    const barW = W * 0.70;
-    const barH = 14; // 夠粗夠扎實！
-    const barX = (W - barW) / 2;
-    const barY = 48; // 頂部 HUD 下方
-
-    ctx.save();
-    // 1. 底槽暗框
-    ctx.fillStyle = "rgba(10, 15, 25, 0.75)";
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barW, barH, 7);
-    ctx.fill();
-    ctx.stroke();
-
-    // 2. 能量進度與顏色判斷
-    const currentW = Math.max(0, (barW - 4) * (hp / 100));
-    let colorStart, colorEnd, shadowGlow;
-
-    if (hp > 75) {
-        // 滿血：紫色階梯
-        colorStart = "#d000ff";
-        colorEnd = "#8a00ff";
-        shadowGlow = "rgba(180, 0, 255, 0.85)";
-    } else if (hp > 50) {
-        // 良好：藍色階梯
-        colorStart = "#00f0ff";
-        colorEnd = "#0077ff";
-        shadowGlow = "rgba(0, 200, 255, 0.85)";
-    } else if (hp > 25) {
-        // 警告：橙色階梯
-        colorStart = "#ffaa00";
-        colorEnd = "#ff5500";
-        shadowGlow = "rgba(255, 120, 0, 0.85)";
-    } else {
-        // 危急：紅色階梯
-        colorStart = "#ff0055";
-        colorEnd = "#bb0000";
-        shadowGlow = "rgba(255, 0, 60, 0.95)";
-    }
-
-    if (currentW > 0) {
-        const grad = ctx.createLinearGradient(barX + 2, barY, barX + 2 + currentW, barY);
-        grad.addColorStop(0, colorStart);
-        grad.addColorStop(1, colorEnd);
-
-        ctx.fillStyle = grad;
-        ctx.shadowColor = shadowGlow;
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.roundRect(barX + 2, barY + 2, currentW, barH - 4, 5);
-        ctx.fill();
-    }
-    ctx.restore();
-}
-
 function gameLoop() {
     if (!isPlaying || isPaused) return;
     ctx.clearRect(0, 0, W, H);
@@ -746,9 +644,6 @@ function gameLoop() {
             });
         }
     });
-
-    // 繪製粗版變色能源棒！
-    drawEnergyBar();
 
     const { radius, circleCenterY, hitY } = getGeometry();
     const startY = 40; const laneW = W / 4;
@@ -840,7 +735,7 @@ function gameLoop() {
                     ctx.fillStyle = laneColors[n.lane].main; ctx.shadowColor = laneColors[n.lane].main; ctx.shadowBlur = 22 * p;
                     ctx.beginPath();
                     if (currentPerspectiveMode === 1) ctx.ellipse(cx, cy, 26, 32, 0, 0, Math.PI * 2); 
-                    else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); }
+                    else { const rx = (10 * (1.0 - p)) + (28 * p); const ry = (32 * (1.0 - p)) + (14 * p); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); }
                 }
                 ctx.restore();
             }
