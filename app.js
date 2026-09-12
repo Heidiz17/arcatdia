@@ -159,7 +159,7 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 GitHub Releases 永久大水喉 WAV 直鏈[span_0](start_span)[span_0](end_span)
+// 🎯 GitHub Releases 永久大水喉 WAV 直鏈（已修正跨域串流）[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
 const currentSong = { 
     id: "01", 
     title: "最大の愛", 
@@ -169,6 +169,7 @@ const currentSong = {
 const masterAudio = new Audio();
 try { 
     masterAudio.src = currentSong.audioUrl; 
+    masterAudio.crossOrigin = "anonymous";
     masterAudio.preload = "auto"; 
 } catch (e) {}
 let bgmSourceNode = null;
