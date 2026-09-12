@@ -9,9 +9,7 @@ function logDebug(msg) {
     console.log("[Arcatdia]", msg);
     const box = document.getElementById('debugLogBox');
     if (box) {
-        if (!isPlaying) {
-            box.style.display = 'block';
-        }
+        if (!isPlaying) { box.style.display = 'block'; }
         box.innerHTML = `<div>> ${msg}</div>` + box.innerHTML;
     }
 }
@@ -23,7 +21,7 @@ let notes = []; let particles = []; let stars = [];
 let celestialEvents = [];
 let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
-let currentMode = 'normal';
+let currentMode = 'test'; 
 
 let spawnDelayMs = 0; 
 let freezeState = 'idle'; 
@@ -41,10 +39,7 @@ window.goToReadyRoom = function() {
     if (rb) rb.classList.add('active');
     
     const box = document.getElementById('debugLogBox');
-    if (box) {
-        box.style.display = 'block';
-        box.style.bottom = '85px';
-    }
+    if (box) { box.style.display = 'block'; box.style.bottom = '85px'; }
     
     initAudioEngine();
     renderSectionInputs();
@@ -321,7 +316,7 @@ function getSectionForBar(barNum) {
     return null;
 }
 
-// 🎯 大茶飯節奏生成器：4拍、2拍、1拍、半拍全開，Hold 嚴格限制最多 3 拍，Hold 期間絕對不生其他豆！
+// 🎯 【還原！】大茶飯節奏生成器：4拍、2拍、1拍、半拍全開，Hold 嚴格限制最多 3 拍，Hold 期間絕對不生其他豆！
 function generateRealFilteredChart() {
     if (customChartLoaded && notes.length > 0) {
         notes.forEach(n => { n.hit = false; n.holding = false; });
@@ -350,37 +345,41 @@ function generateRealFilteredChart() {
         const r = Math.random();
 
         if (currentMode === 'easy') {
+            // EASY 模式：4拍、2拍為主，舒服留白
             if (r < 0.5) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 2);
+                t += (beatMs * 2); // 2拍
             } else if (r < 0.75) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 4);
+                t += (beatMs * 4); // 4拍
             } else if (r < 0.9) {
                 notes.push({ type: 'flick', lane: lastLane, targetTime: t, hit: false });
                 t += (beatMs * 2);
             } else {
+                // Hold 3拍 + 1拍轉手
                 const hDur = beatMs * 3;
                 notes.push({ type: 'hold', lane: lastLane, targetTime: t, duration: hDur, hit: false, holding: false, lastTick: 0 });
                 t += hDur + (beatMs * 1.0); 
             }
         } else {
+            // NORMAL 旗艦模式：4拍、2拍、1拍、半拍全開
             if (r < 0.22) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 4);
+                t += (beatMs * 4); // 4拍
             } else if (r < 0.45) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 2);
+                t += (beatMs * 2); // 2拍
             } else if (r < 0.70) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += beatMs;
+                t += beatMs; // 1拍
             } else if (r < 0.85) {
                 notes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
-                t += (beatMs * 0.5);
+                t += (beatMs * 0.5); // 半拍
             } else if (r < 0.92) {
                 notes.push({ type: 'flick', lane: lastLane, targetTime: t, hit: false });
                 t += beatMs;
             } else {
+                // 🔒 鐵律：Hold 3拍，後面強制留 1 拍空白，期間絕不生其他豆！
                 const hDur = beatMs * 3;
                 notes.push({ type: 'hold', lane: lastLane, targetTime: t, duration: hDur, hit: false, holding: false, lastTick: 0 });
                 t += hDur + (beatMs * 1.0); 
@@ -444,26 +443,23 @@ window.addEventListener('DOMContentLoaded', initReadyRoomDrawer);
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 3/4 (中央細碟過場與舊版高度還原)
+   🔒 Arcatdia Battle Engine - Part 3/4 (中央細碟過場與舊版高度)
    ============================================================= */
 function initStars() { stars = []; for (let i = 0; i < 80; i++) { stars.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 2 + 1, speed: Math.random() * 1.5 + 0.5, alpha: Math.random() }); } }
 function initCelestialJourney() { celestialEvents = [ { timeSec: 2, duration: 8, planets: [{ name: "🌍 地球起航", color: "rgba(0, 160, 255, 0.32)", radius: 65, xRatio: 0.72, yRatio: 0.20 }] }, { timeSec: 25, duration: 8, planets: [{ name: "🌟 啟明星・金星", color: "rgba(255, 205, 80, 0.32)", radius: 60, xRatio: 0.70, yRatio: 0.22 }] }, { timeSec: 52, duration: 11, planets: [ { name: "🪐 木星風暴", color: "rgba(235, 140, 60, 0.32)", radius: 78, xRatio: 0.60, yRatio: 0.18 }, { name: "🪐 土星光環", color: "rgba(240, 210, 140, 0.32)", radius: 55, xRatio: 0.82, yRatio: 0.26, hasRing: true } ]}, { timeSec: 148, duration: 12, planets: [{ name: "🌌 阿卡迪亞星雲", color: "rgba(180, 60, 255, 0.35)", radius: 95, xRatio: 0.70, yRatio: 0.18 }] } ]; }
 
-function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) tb.classList.add('active'); }
+function returnToTitle() { document.getElementById('readyRoom').classList.remove('active'); document.getElementById('readyBg').classList.remove('active'); document.getElementById('titleScreen').classList.add('active'); const tb = document.getElementById('titleBg'); if (tb) { tb.classList.add('active'); } }
 function returnToReadyRoom() { 
     document.getElementById('pauseMenu').classList.remove('active'); 
     document.getElementById('battleHud').style.display = 'none'; 
     document.getElementById('touchController').style.display = 'none'; 
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
-    const rb = document.getElementById('readyBg'); if (rb) rb.classList.add('active'); 
+    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
 
     const box = document.getElementById('debugLogBox');
-    if (box) {
-        box.style.display = 'block';
-        box.style.bottom = '85px';
-    }
+    if (box) { box.style.display = 'block'; box.style.bottom = '85px'; }
 
     isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
 }
@@ -480,8 +476,12 @@ async function startVoyage() {
     if (box) box.style.display = 'none';
 
     document.getElementById('readyRoom').classList.remove('active'); 
-    const rb = document.getElementById('readyBg'); if (rb) rb.classList.remove('active');
-    const tb = document.getElementById('titleBg'); if (tb) tb.classList.remove('active');
+    const rb = document.getElementById('readyBg'); if (rb) { rb.classList.remove('active'); }
+    const tb = document.getElementById('titleBg'); if (tb) { tb.classList.remove('active'); }
+
+    // 防止舊殼 4.93v Intro 干擾（如果 HTML 入面仲有）
+    const intro = document.getElementById('introScreen');
+    if (intro) intro.classList.remove('active');
 
     const shouldShowTransition = (currentMode === 'easy' || currentMode === 'normal');
 
@@ -557,7 +557,7 @@ function beginRealBattle() {
     countPerfect = 0; countGreat = 0; countGood = 0; countMiss = 0; isSongEnding = false;
     hookMasterAudioNode(); updateUI(); initStars(); initCelestialJourney(); 
 
-    generateRealFilteredChart();
+    generateRealFilteredChart(); // 生成波
 
     isPlaying = true; isPaused = false; 
     startTime = performance.now(); 
@@ -603,10 +603,10 @@ for (let i = 0; i < 4; i++) {
 
 let activeHoldAudioSources = [null, null, null, null];
 
-// 🎯 還原舊相片黃金掣位高度：底部貼緊四色色塊，絕不懸空浮起！
+// 🎯 【還原】舊版黃金掣位高度：底部貼緊四色色塊，絕不懸空浮起！
 function getGeometry() {
     const radius = 28; 
-    const circleCenterY = H - 105; // 還原舊相高度！
+    const circleCenterY = H - 105; // 完美貼合手機底框的黃金比例！
     const circleTopY = circleCenterY - radius; 
     const hitY = circleTopY - 1.5 - judgeLineAdjusts[judgeLineLevel];
     return { radius, circleCenterY, hitY };
@@ -659,10 +659,10 @@ function scheduleCountInAndPlay() {
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (粗版變色能源棒與主遊戲迴圈)
+   🔒 Arcatdia Battle Engine - Part 4/4 (粗能源棒與 % 結算)
    ============================================================= */
 
-// ⚡ 粗版能源棒：紫 -> 藍 -> 橙 -> 紅 (加強飽和度與圓角)
+// ⚡ 粗版能源棒：紫 -> 藍 -> 橙 -> 紅
 function drawEnergyBar() {
     const barW = W * 0.70;
     const barH = 14; 
@@ -670,7 +670,6 @@ function drawEnergyBar() {
     const barY = 48;
 
     ctx.save();
-    // 1. 外暗框
     ctx.fillStyle = "rgba(10, 15, 25, 0.85)";
     ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
     ctx.lineWidth = 2;
@@ -679,7 +678,6 @@ function drawEnergyBar() {
     ctx.fill();
     ctx.stroke();
 
-    // 2. 梯級變色
     const currentW = Math.max(0, (barW - 4) * (hp / 100));
     let colorStart, colorEnd, shadowGlow;
 
@@ -824,7 +822,7 @@ function gameLoop() {
                 const tx = topX[n.lane] + (botX[n.lane] - topX[n.lane]) * Math.min(1.0, Math.max(0, endP));
                 ctx.save(); ctx.strokeStyle = n.holding ? "#ffffff" : laneColors[n.lane].glow; ctx.lineWidth = n.holding ? 28 : 20; ctx.beginPath(); ctx.moveTo(hx, headY); ctx.lineTo(tx, tailY); ctx.stroke(); ctx.restore();
             }
-            // 只有當光豆真正到達判定線之後，先會被判 MISS
+            // 🔒 防偷跑判 MISS：音樂至少行咗 2 秒，先准扣血！
             if (p > 1.08 && !n.holding && !n.hit && currentTimeMs > 2000) { 
                 n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 4); showJudgement("MISS"); updateUI(); 
             }
@@ -853,7 +851,7 @@ function gameLoop() {
                 }
                 ctx.restore();
             }
-            // 只有當音樂真正開跑且超出判定時間，先會被判 MISS
+            // 🔒 防偷跑判 MISS：音樂至少行咗 2 秒，且超過判定時間，先准扣血！
             if (currentTimeMs - n.targetTime > 160 && !n.hit && currentTimeMs > 2000) { 
                 n.hit = true; combo = 0; countMiss++; hp = Math.max(0, hp - 4); showJudgement("MISS"); updateUI(); 
             }
@@ -870,6 +868,7 @@ function gameLoop() {
 
 function laneNum(l) { return Math.min(3, Math.max(0, l)); }
 
+// 🎯 【還原】神級結算畫面：包 Accuracy % 同埋每項細分百分比！
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
@@ -878,6 +877,8 @@ function triggerSongClear() {
     const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
 
     const totalHits = countPerfect + countGreat + countGood + countMiss;
+    
+    // 計算神級 Accuracy 百分比
     const accuracy = totalHits > 0 
         ? (((countPerfect * 1.0) + (countGreat * 0.7) + (countGood * 0.3)) / totalHits) * 100 
         : 0;
@@ -906,6 +907,7 @@ function triggerSongClear() {
         `;
     }
 
+    // 計算並輸出各項細分百分比
     const pRatio = totalHits > 0 ? ((countPerfect / totalHits) * 100).toFixed(1) : "0.0";
     const grRatio = totalHits > 0 ? ((countGreat / totalHits) * 100).toFixed(1) : "0.0";
     const gdRatio = totalHits > 0 ? ((countGood / totalHits) * 100).toFixed(1) : "0.0";
