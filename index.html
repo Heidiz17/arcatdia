@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - Hei'Dizai & Pちゃん</title>
+    <title>Arcatdia Battle Engine - 5v 14房時光機旗艦版</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@
 
     <div class="hud-overlay" id="battleHud" style="display:none;">
         <div class="hud-left">
-            <div class="brand-mini">ARCATDIA</div>
+            <div class="brand-mini">ARCATDIA 5v</div>
             <div class="track-info" id="hudTrackInfo">最大の愛</div>
         </div>
         <div class="score-board"><span id="scoreVal">000000</span></div>
@@ -34,23 +34,37 @@
         <div class="hp-bar-line"><div id="hpFill" class="hp-fill lvl-s"></div></div>
     </div>
 
-    <!-- 🎯 第 4 軌（紫色）定格微調儀表板（加入獨立 PLAY / PAUSE 控制） -->
-    <div id="freezeTuner" style="display:none; position:absolute; right: 2%; top: 46%; width: 25%; min-width: 95px; z-index: 55; background: rgba(18, 5, 30, 0.92); border: 1.5px solid #00f0ff; border-radius: 8px; padding: 7px 5px; box-shadow: 0 0 15px rgba(0,240,255,0.4); text-align: center; font-family: monospace; user-select: none;">
-        <div style="color: #ff0077; font-size: 10px; font-weight: 900; letter-spacing: 1px; margin-bottom: 2px;">❄️ 定格校準尺</div>
-        <div id="freezeMsDisplay" style="color: #00ffcc; font-size: 14px; font-weight: 900; margin: 2px 0;">+0 ms</div>
-        <div id="freezeBeatDisplay" style="color: #ffd700; font-size: 10px; margin-bottom: 5px;">(+0.00 拍)</div>
+    <!-- 🎯 雙重對照大字 HUD：即時 Bar 數、拍數、絕對微秒 (TEST / FREEZE 自動浮現) -->
+    <div id="barInspectorHUD" style="display:none; position:absolute; top: 65px; left: 50%; transform: translateX(-50%); z-index: 55; background: rgba(5, 10, 25, 0.9); border: 2px solid #ffd700; border-radius: 12px; padding: 8px 16px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); text-align: center; font-family: monospace; pointer-events:none;">
+        <div id="hudBarDisplay" style="color: #ffd700; font-size: 17px; font-weight: 900; letter-spacing: 1px;">BAR: 1 (第 1 拍)</div>
+        <div id="hudMsDisplay" style="color: #00ffcc; font-size: 12px; font-weight: bold; margin-top: 2px;">0 ms | 預備中</div>
+    </div>
+
+    <!-- 🎯 定格微調儀表板：加裝「±1 Bar / ±4 Bar 時光機掣」 -->
+    <div id="freezeTuner" style="display:none; position:absolute; right: 2%; top: 40%; width: 28%; min-width: 115px; z-index: 55; background: rgba(18, 5, 30, 0.95); border: 2px solid #00f0ff; border-radius: 10px; padding: 8px 6px; box-shadow: 0 0 20px rgba(0,240,255,0.5); text-align: center; font-family: monospace; user-select: none;">
+        <div style="color: #ff0077; font-size: 11px; font-weight: 900; letter-spacing: 1px;">❄️ 時光機校準儀</div>
+        <div id="freezeMsDisplay" style="color: #00ffcc; font-size: 15px; font-weight: 900; margin: 3px 0;">+0 ms</div>
+        <div id="freezeBeatDisplay" style="color: #ffd700; font-size: 11px; margin-bottom: 6px;">(+0.00 拍)</div>
         
+        <!-- 時光機快進快退小節掣 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 5px;">
+            <button onclick="seekBars(-4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">⏪ -4 Bar</button>
+            <button onclick="seekBars(4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">+4 Bar ⏩</button>
+            <button onclick="seekBars(-1)" style="background: #222; border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer;">◀ -1 Bar</button>
+            <button onclick="seekBars(1)" style="background: #222; border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer;">+1 Bar ▶</button>
+        </div>
+
+        <!-- 毫秒微調 -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px;">
-            <button onclick="stepFreezeMs(-50)" style="background: #222; border: 1px solid #777; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">-50ms</button>
-            <button onclick="stepFreezeMs(50)" style="background: #222; border: 1px solid #777; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">+50ms</button>
+            <button onclick="stepFreezeMs(-50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">-50ms</button>
+            <button onclick="stepFreezeMs(50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">+50ms</button>
             <button onclick="stepFreezeMs(-10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">-10ms</button>
             <button onclick="stepFreezeMs(10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">+10ms</button>
         </div>
 
-        <!-- 🚀 閉環專屬獨立開關 -->
         <div style="display: flex; gap: 4px;">
-            <button id="btnFreezePlay" onclick="freezePlay()" style="flex: 1; background: #00ffcc; color: #000; border: none; font-size: 10px; font-weight: 900; padding: 5px 0; border-radius: 4px; cursor: pointer; box-shadow: 0 0 8px rgba(0,255,204,0.4);">PLAY</button>
-            <button id="btnFreezePause" onclick="freezePause()" style="flex: 1; background: #ff0077; color: #fff; border: none; font-size: 10px; font-weight: 900; padding: 5px 0; border-radius: 4px; cursor: pointer; box-shadow: 0 0 8px rgba(255,0,119,0.4);">PAUSE</button>
+            <button id="btnFreezePlay" onclick="freezePlay()" style="flex: 1; background: #00ffcc; color: #000; border: none; font-size: 10px; font-weight: 900; padding: 6px 0; border-radius: 4px; cursor: pointer;">PLAY</button>
+            <button id="btnFreezePause" onclick="freezePause()" style="flex: 1; background: #ff0077; color: #fff; border: none; font-size: 10px; font-weight: 900; padding: 6px 0; border-radius: 4px; cursor: pointer;">PAUSE</button>
         </div>
     </div>
 
@@ -79,7 +93,7 @@
                     ✦ Hei'Dizai & Pちゃん ✦
                 </div>
                 <div style="font-size: 10px; letter-spacing: 1px; color: rgba(255, 215, 0, 0.5); margin-top: 8px;">
-                    © 2026 ARCATDIA PROJECT. ALL RIGHTS RESERVED.
+                    © 2026 ARCATDIA PROJECT. 5v PRO EDITION.
                 </div>
             </div>
         </div>
@@ -91,13 +105,13 @@
             <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
         </div>
         <h2 class="room-title" style="color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.5);">🚀 航行整備室</h2>
-        <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none;">
+        <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none; max-height: 82vh; overflow-y: auto;">
             
-            <button id="toggleDrawerBtn" style="background:rgba(0,0,0,0.7); border:1px solid #ffd700; color:#ffd700; padding:6px 16px; border-radius:20px; margin-bottom:12px; cursor:pointer; font-weight:bold; width:100%; box-shadow:0 0 10px rgba(255,215,0,0.2);">
-                ⚙️ 整備工具箱 (入歌/改BPM) ▼
+            <button id="toggleDrawerBtn" style="background:rgba(0,0,0,0.7); border:1px solid #ffd700; color:#ffd700; padding:8px 16px; border-radius:20px; margin-bottom:8px; cursor:pointer; font-weight:bold; width:100%; box-shadow:0 0 10px rgba(255,215,0,0.2);">
+                ⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼
             </button>
 
-            <div id="readyRoomDrawer" style="display:none; background:rgba(8,14,26,0.9); border:1px solid #00f0ff; border-radius:10px; padding:12px; margin-bottom:15px; flex-direction:column; gap:10px;">
+            <div id="readyRoomDrawer" style="display:none; background:rgba(8,14,26,0.95); border:1px solid #00f0ff; border-radius:10px; padding:12px; margin-bottom:12px; flex-direction:column; gap:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <label style="color:#00f0ff; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(0,240,255,0.15); padding:6px 10px; border-radius:6px; border:1px solid #00f0ff;">
                         🎵 載入 WAV
@@ -108,7 +122,29 @@
                         <span style="color:#00ffcc; font-size:10px; font-weight:bold;">BPM</span>
                     </div>
                 </div>
-                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">未選音訊</div>
+                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">雲端 WAV (最大の愛)</div>
+
+                <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
+
+                <!-- 🎯 明仔專屬：14 格音樂房排程 (填 Bar 數，冇填填 0 自動 Skip) -->
+                <div style="background: rgba(0,0,0,0.6); border: 1.5px solid #ffd700; border-radius: 8px; padding: 8px; max-height: 240px; overflow-y: auto;">
+                    <div style="color: #ffd700; font-size: 11px; font-weight: bold; margin-bottom: 6px; display:flex; justify-content:space-between;">
+                        <span>👗 14 間房音樂衫褲排程</span>
+                        <span style="color:#aaa; font-size:9px;">填 0 = 跳過該房</span>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 4px; font-size: 10px; color:#aaa; margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px;">
+                        <span>房間名稱 / 濾波款式</span><span>起步Bar</span><span>收尾Bar</span>
+                    </div>
+                    
+                    <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;">
+                        <!-- JS 動態填入 14 間房 -->
+                    </div>
+
+                    <button onclick="saveSongSections()" style="margin-top: 8px; width: 100%; background: linear-gradient(90deg, #ffd700, #ffaa00); border: none; color: #000; font-size: 11px; padding: 6px; border-radius: 4px; cursor: pointer; font-weight: 900;">
+                        💾 鎖定套用 14 間房排程
+                    </button>
+                </div>
 
                 <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
 
@@ -124,9 +160,9 @@
             <div class="setting-group">
                 <label style="text-shadow: 1px 1px 3px #000;">選擇航行難度：</label>
                 <div class="option-row" style="display: flex; gap: 4px;">
-                    <button class="opt-btn diff-btn active" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
+                    <button class="opt-btn diff-btn" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
                     <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL</button>
-                    <button class="opt-btn diff-btn" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
+                    <button class="opt-btn diff-btn active" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
                     <button class="opt-btn diff-btn" id="btnDiffFreeze" onclick="selectDifficulty('freeze')" style="border-color: #00f0ff; color: #00f0ff;">❄️ FREEZE</button>
                 </div>
             </div>
@@ -177,7 +213,7 @@
             <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
             <h2 id="introSongTitle" style="font-size: 28px; color: #ffd700; text-shadow: 0 0 15px #ffcc00; margin-bottom: 6px;">最大の愛</h2>
             <p style="font-size: 13px; color: #ffd700; margin-bottom: 4px;">作曲 / 演奏：Hei'Dizai & Pちゃん</p>
-            <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: NORMAL ★★★★★</p>
+            <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: TEST ★★★★★</p>
             <div id="introReadyText" class="blink-text" style="font-size: 32px; color: #00ffcc; font-weight: 900; letter-spacing: 4px;">READY...</div>
         </div>
     </div>
@@ -212,11 +248,4 @@
 
             <button class="launch-btn" id="btnReturnRoomNow" onclick="returnFromResults()" style="width: 100%; margin-top: 5px;">
                 返回航行整備室 (<span id="closeCountdown">3</span>s)
-            </button>
-        </div>
-    </div>
-</div>
-
-<script src="app.js"></script>
-</body>
-</html>
+  

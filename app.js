@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (5v 原地續播計時版)
+   🔒 Arcatdia Battle Engine - Part 1/4 (14房旗艦時光機版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -15,9 +15,85 @@ let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0;
 let currentMode = 'test';
 
 let spawnDelayMs = 0; 
-
 let freezeState = 'idle'; 
 let freezeCountInTimers = [];
+
+// 🎯 14 間房完整配置：有填 Bar 數就順住行，填 0 0 就自動 Skip 跳過
+let defaultSections = [
+    { id: 1,  name: "01. Intro (前奏)",          startBar: 1,  endBar: 4,  style: "bass_kick" },
+    { id: 2,  name: "02. Verse 1 (主歌A)",       startBar: 5,  endBar: 12, style: "vocal_lead" },
+    { id: 3,  name: "03. Break 1 (過門)",        startBar: 0,  endBar: 0,  style: "bass_kick" },
+    { id: 4,  name: "04. Pre-Cho 1 (皮帶)",      startBar: 0,  endBar: 0,  style: "full_power" },
+    { id: 5,  name: "05. Chorus 1 (副歌/褲)",    startBar: 13, endBar: 20, style: "full_power" },
+    { id: 6,  name: "06. Break 2 (間奏)",        startBar: 0,  endBar: 0,  style: "bass_kick" },
+    { id: 7,  name: "07. Verse 2 (主歌B)",       startBar: 21, endBar: 28, style: "vocal_lead" },
+    { id: 8,  name: "08. Pre-Cho 2 (副前2)",     startBar: 0,  endBar: 0,  style: "full_power" },
+    { id: 9,  name: "09. Chorus 2 (副歌2)",      startBar: 29, endBar: 36, style: "full_power" },
+    { id: 10, name: "10. Guitar Solo (結他獨奏)",startBar: 37, endBar: 44, style: "guitar_solo" },
+    { id: 11, name: "11. Bridge (返轉頭)",       startBar: 0,  endBar: 0,  style: "vocal_lead" },
+    { id: 12, name: "12. Chorus 3 (終極副歌)",   startBar: 45, endBar: 52, style: "full_power" },
+    { id: 13, name: "13. Outro (尾奏)",          startBar: 53, endBar: 60, style: "bass_kick" },
+    { id: 14, name: "14. Cat Coda (貓聲終局)",   startBar: 0,  endBar: 0,  style: "full_power" }
+];
+
+let songSections = [...defaultSections];
+
+function renderSectionInputs() {
+    const container = document.getElementById('sectionRowsContainer');
+    if (!container) return;
+    container.innerHTML = "";
+    songSections.forEach((sec, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = "display:grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 4px; align-items:center;";
+        const color = sec.style === 'bass_kick' ? '#00ffcc' : (sec.style === 'vocal_lead' ? '#ccff00' : (sec.style === 'guitar_solo' ? '#ffd700' : '#ff0077'));
+        row.innerHTML = `
+            <span style="color:${color}; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sec.name}</span>
+            <input type="number" id="secStart_${idx}" value="${sec.startBar}" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
+            <input type="number" id="secEnd_${idx}" value="${sec.endBar}" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
+        `;
+        container.appendChild(row);
+    });
+}
+
+function loadSavedSongSections() {
+    try {
+        const savedSec = localStorage.getItem('arcatdia_14_sections');
+        if (savedSec) songSections = JSON.parse(savedSec);
+        else songSections = [...defaultSections];
+    } catch(e) {
+        songSections = [...defaultSections];
+    }
+    renderSectionInputs();
+}
+
+window.saveSongSections = function() {
+    songSections.forEach((sec, idx) => {
+        const sInput = document.getElementById(`secStart_${idx}`);
+        const eInput = document.getElementById(`secEnd_${idx}`);
+        if (sInput && eInput) {
+            sec.startBar = parseInt(sInput.value, 10) || 0;
+            sec.endBar = parseInt(eInput.value, 10) || 0;
+        }
+    });
+    try {
+        localStorage.setItem('arcatdia_14_sections', JSON.stringify(songSections));
+        showJudgement("💾 14 間房排程已鎖定！");
+        generateChart();
+    } catch(e) {}
+};
+
+// 🎯 時光機：快進 / 快退小節掣 (±1 Bar / ±4 Bar)
+window.seekBars = function(deltaBars) {
+    const beatMs = (60 / bpm) * 1000;
+    const barMs = beatMs * 4;
+    let targetAudioTime = masterAudio.currentTime + (deltaBars * barMs / 1000);
+    if (targetAudioTime < 0) targetAudioTime = 0;
+    if (masterAudio.duration && targetAudioTime > masterAudio.duration) targetAudioTime = masterAudio.duration - 1;
+    masterAudio.currentTime = targetAudioTime;
+    const curMs = Math.round(targetAudioTime * 1000);
+    const curBar = Math.floor(curMs / barMs) + 1;
+    showJudgement(`⏱️ 跳至第 ${curBar} Bar (${curMs} ms)`);
+};
 
 window.freezePlay = function() {
     if (freezeState === 'paused') {
@@ -75,7 +151,6 @@ let currentPerspectiveMode = 2;
 
 const judgeLineAdjusts = [0, 3, 6, -3];
 let judgeLineLevel = 0; 
-
 let freezeManualMs = 0;
 
 function updateFreezeUI() {
@@ -91,6 +166,7 @@ function updateFreezeUI() {
 function stepFreezeMs(delta) {
     freezeManualMs += delta;
     updateFreezeUI();
+    generateChart(); 
 }
 
 const lanePressed = [false, false, false, false];
@@ -148,7 +224,7 @@ function handleUpload(event, type) {
 }
 function updateSlideOpacity(val) { battleBgOpacity = parseFloat(val) / 100; savedData.opacity = parseInt(val, 10); }
 function saveSettings() { try { savedData.opacity = Math.round(battleBgOpacity * 100); localStorage.setItem('arcatdia_save', JSON.stringify(savedData)); showJudgement("💾 存檔成功！"); } catch(e) {} }
-window.addEventListener('DOMContentLoaded', loadSavedImages); loadSavedImages();
+window.addEventListener('DOMContentLoaded', () => { loadSavedImages(); loadSavedSongSections(); });
 
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null; let bgmGainNode = null; let sfxGainNode = null; let sfxBuffers = {};
@@ -159,7 +235,7 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 GitHub Releases 雙重容錯網址[span_3](start_span)[span_3](end_span)
+// 🎯 GitHub Releases 雙重容錯網址[span_2](start_span)[span_2](end_span)
 const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
 const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
 
@@ -180,16 +256,13 @@ masterAudio.addEventListener('error', () => {
     }
 });
 
-let bgmSourceNode = null;
 function hookMasterAudioNode() {
-    if (bgmGainNode) {
-        masterAudio.volume = bgmGainNode.gain.value;
-    }
+    if (bgmGainNode) masterAudio.volume = bgmGainNode.gain.value;
 }
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/4 (5v 譜面時間校準)
+   🔒 Arcatdia Battle Engine - Part 2/4 (14房智能生波核心)
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
@@ -256,32 +329,61 @@ async function handleAudioFileForBPM(audioFile) {
     if (!customChartLoaded) generateChart();
 }
 
+// 🎯 核心判斷：有填有效 Bar 數就順住套用，冇填（0）就直接返回 null 跳過
+function getStyleForBar(barNum) {
+    for (let sec of songSections) {
+        if (sec.startBar > 0 && sec.endBar >= sec.startBar) {
+            if (barNum >= sec.startBar && barNum <= sec.endBar) {
+                return sec.style;
+            }
+        }
+    }
+    return null; // 冇填嗰啲房直接跳過！
+}
+
 function generateChart() {
     if (customChartLoaded && notes.length > 0) { notes.forEach(n => { n.hit = false; n.holding = false; }); return; }
     notes = []; particles = [];
     const beatMs = (60 / bpm) * 1000;
     
-    // 🎯 5v 關鍵修改：第一粒波排喺第 8 拍！
-    // 前 4 拍 count-in 畫面完全冇波干擾；敲完 4 下波波由天頂出發，第 8 拍剛好精準咬入重音！
-    let currentTime = 8 * beatMs; 
+    // 🎯 5v 基準：起手第 8 拍咬實重音，疊加微調毫秒 (freezeManualMs)
+    let currentTime = (8 * beatMs) + freezeManualMs; 
     let lastLane = 0;
     const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 10) ? (masterAudio.duration * 1000) : 180000;
     const maxNoteTime = songTotalMs - 5000; 
 
     while (currentTime < maxNoteTime) {
+        const curBar = Math.floor(currentTime / (beatMs * 4)) + 1;
+        const curStyle = getStyleForBar(curBar);
+
         if (currentMode === 'test' || currentMode === 'freeze') {
             notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
+            currentTime += (beatMs * 4);
+        } else if (curStyle === null) {
+            // 🎯 明仔規則：冇填嘅房直接跳過，唔好亂生豆！
             currentTime += (beatMs * 4);
         } else if (currentMode === 'easy') {
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
             notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            currentTime += (beatMs * (Math.random() < 0.6 ? 4 : 2));
+            currentTime += (beatMs * (curStyle === 'full_power' || curStyle === 'guitar_solo' ? 2 : 4));
         } else {
+            // Normal 模式：根據房間款式自動生成相應密度
             lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
-            const r = Math.random();
-            if (r < 0.60) { notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += (beatMs * (Math.random() < 0.5 ? 1 : 2)); }
-            else if (r < 0.80) { notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += (beatMs * 2); }
-            else { const holdDuration = beatMs * 2; notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: holdDuration, hit: false, holding: false, lastTick: 0 }); currentTime += holdDuration + beatMs; }
+            if (curStyle === "bass_kick") {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * 2);
+            } else if (curStyle === "vocal_lead") {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * (Math.random() < 0.5 ? 1 : 2));
+            } else if (curStyle === "full_power" || curStyle === "guitar_solo") {
+                const r = Math.random();
+                if (r < 0.55) { notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += beatMs; }
+                else if (r < 0.8) { notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false }); currentTime += (beatMs * 2); }
+                else { const hDur = beatMs * 2; notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: hDur, hit: false, holding: false, lastTick: 0 }); currentTime += hDur + beatMs; }
+            } else {
+                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
+                currentTime += (beatMs * 4);
+            }
         }
     }
     notes.sort((a, b) => a.targetTime - b.targetTime);
@@ -294,7 +396,7 @@ function initReadyRoomDrawer() {
         toggleBtn.addEventListener('click', () => {
             const isHidden = drawer.style.display === 'none';
             drawer.style.display = isHidden ? 'flex' : 'none';
-            toggleBtn.innerHTML = isHidden ? '⚙️ 關閉工具箱 ▲' : '⚙️ 整備工具箱 (入歌/改BPM) ▼';
+            toggleBtn.innerHTML = isHidden ? '⚙️ 關閉工具箱 ▲' : '⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼';
         });
     }
 
@@ -413,6 +515,7 @@ function returnToReadyRoom() {
     document.getElementById('battleHud').style.display = 'none'; 
     document.getElementById('touchController').style.display = 'none'; 
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
+    const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
     const rb = document.getElementById('readyBg'); if (rb) { rb.classList.add('active'); } 
     document.getElementById('readyRoom').classList.add('active'); 
     isPaused = false; isPlaying = false; freezeState = 'idle'; masterAudio.pause(); masterAudio.currentTime = 0; clearAllTimers(); ctx.clearRect(0, 0, W, H); 
@@ -447,6 +550,15 @@ function beginRealBattle() {
     document.getElementById('touchController').style.display = 'flex'; 
 
     const tuner = document.getElementById('freezeTuner');
+    const barHud = document.getElementById('barInspectorHUD');
+
+    // 🎯 只要係 TEST 或 FREEZE 模式，立刻彈出即時 Bar/ms 雙對照顯示器
+    if (currentMode === 'test' || currentMode === 'freeze') {
+        if (barHud) barHud.style.display = 'block';
+    } else {
+        if (barHud) barHud.style.display = 'none';
+    }
+
     if (currentMode === 'freeze') {
         if (tuner) { tuner.style.display = 'block'; updateFreezeUI(); freezeState = 'idle'; }
     } else {
@@ -564,6 +676,21 @@ function gameLoop() {
     const currentTimeMs = (now - startTime - totalPausedDuration) * playbackSpeed; 
     const currentSec = currentTimeMs / 1000;
 
+    const beatMs = (60 / bpm) * 1000; 
+    const barMs = beatMs * 4;
+
+    // 🎯 實時計算小節（Bar）與微秒，更新抬頭 HUD
+    const hudBar = document.getElementById('hudBarDisplay');
+    const hudMs = document.getElementById('hudMsDisplay');
+    if (hudBar && hudMs) {
+        const audioCurMs = Math.round(masterAudio.currentTime * 1000);
+        const curBar = Math.floor(audioCurMs / barMs) + 1;
+        const curBeatInBar = Math.floor((audioCurMs % barMs) / beatMs) + 1;
+        const curStyle = getStyleForBar(curBar) || "跳過(無波)";
+        hudBar.innerText = `BAR: ${curBar} (第 ${curBeatInBar} 拍) [${curStyle}]`;
+        hudMs.innerText = `音樂絕對時間: ${audioCurMs} ms`;
+    }
+
     if (preloadedSlideImages.length > 0) {
         if (now - lastSlideChangeTime > 8000) { currentSlideIndex = (currentSlideIndex + 1) % preloadedSlideImages.length; lastSlideChangeTime = now; }
         const curImg = preloadedSlideImages[currentSlideIndex];
@@ -607,10 +734,9 @@ function gameLoop() {
         ctx.fill(); 
     }
 
-    const beatMs = (60 / bpm) * 1000; 
     const tDur = (beatMs * 4) / scrollSpeedMultiplier; 
-
     const playTimeMs = currentTimeMs - (beatMs * 4);
+
     if (playTimeMs >= -20) {
         const cycleMs = (beatMs * 4);
         const phase = ((playTimeMs % cycleMs) + cycleMs) % cycleMs;
@@ -669,24 +795,6 @@ function gameLoop() {
         ctx.stroke();
         ctx.restore();
 
-        ctx.textAlign = "center";
-        ctx.font = "bold 14px monospace";
-        ctx.fillStyle = "#00ffcc";
-        
-        let statusText = "❄️ 定格校準 (未播放)";
-        if (freezeState === 'count-in') statusText = "⏳ COUNT-IN... (預備起歌)";
-        else if (freezeState === 'playing') statusText = "🚀 PLAY: 循環計時中...";
-        else if (freezeState === 'paused') statusText = "⏸ PAUSE: 已定格 (可抄數)";
-        
-        ctx.fillText(statusText, W * 0.5, hitY - 110);
-        
-        ctx.fillStyle = "#ffd700";
-        ctx.fillText(`起步錨點: +${freezeManualMs} ms`, W * 0.5, hitY - 88);
-        
-        const currentSongMs = Math.round(masterAudio.currentTime * 1000);
-        ctx.fillStyle = "#ff0077";
-        ctx.fillText(`🎵 音樂絕對時間: ${currentSongMs} ms`, W * 0.5, hitY - 66);
-
         requestAnimationFrame(gameLoop);
         return;
     }
@@ -704,15 +812,6 @@ function gameLoop() {
                 ctx.restore();
             }
         }
-        const beatFloat = (playTimeMs / beatMs) + 0.001;
-        const totalBeats = Math.floor(beatFloat);
-        const currentBeatIndex = ((totalBeats % 4) + 4) % 4 + 1;
-        const beatProgress = beatFloat - Math.floor(beatFloat);
-        const scale = 1.0 + (1.0 - beatProgress) * 0.35;
-        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `bold ${Math.round(36 * scale)}px sans-serif`;
-        if (currentBeatIndex === 1) { ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 22; }
-        else { ctx.fillStyle = "rgba(255, 255, 255, 0.85)"; ctx.shadowColor = "rgba(255, 255, 255, 0.5)"; ctx.shadowBlur = 8; }
-        ctx.fillText(`BEAT: ${currentBeatIndex}`, W * 0.5, hitY - 90); ctx.restore();
     }
 
     notes.forEach(n => {
@@ -778,6 +877,7 @@ function triggerSongClear() {
     document.getElementById('battleHud').style.display = 'none';
     document.getElementById('touchController').style.display = 'none';
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
+    const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
 
     let rank = "C";
     const totalHits = countPerfect + countGreat + countGood + countMiss;
