@@ -159,22 +159,35 @@ function playSFX(key) { if (!audioCtx || !sfxBuffers[key]) return null; try { co
 function updateBgmVolume(val) { if (bgmGainNode) bgmGainNode.gain.value = parseFloat(val); }
 function updateSfxVolume(val) { if (sfxGainNode) sfxGainNode.gain.value = parseFloat(val); }
 
-// 🎯 GitHub Releases 永久大水喉 WAV 直鏈（已修正跨域串流）[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+// 🎯 GitHub Releases 雙重容錯網址（自動測試大小寫與直鏈）
+const songUrlA = "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav";
+const songUrlB = "https://github.com/Heidiz17/arcatdia/releases/download/v1.0.0/master.wav";
+
 const currentSong = { 
     id: "01", 
     title: "最大の愛", 
-    audioUrl: "https://github.com/Heidiz17/arcatdia/releases/download/V1.0.0/master.wav", 
+    audioUrl: songUrlA, 
     bpm: 175 
 };
 const masterAudio = new Audio();
-try { 
-    masterAudio.src = currentSong.audioUrl; 
-    masterAudio.crossOrigin = "anonymous";
-    masterAudio.preload = "auto"; 
-} catch (e) {}
-let bgmSourceNode = null;
+masterAudio.preload = "auto";
+masterAudio.src = currentSong.audioUrl;
 
-function hookMasterAudioNode() { if (audioCtx && !bgmSourceNode) { try { bgmSourceNode = audioCtx.createMediaElementSource(masterAudio); bgmSourceNode.connect(bgmGainNode); } catch(e) {} } }
+// 備援切換：若大寫路徑404，自動跳轉小寫路徑
+masterAudio.addEventListener('error', () => {
+    if (masterAudio.src === songUrlA) {
+        masterAudio.src = songUrlB;
+        masterAudio.load();
+    }
+});
+
+let bgmSourceNode = null;
+function hookMasterAudioNode() {
+    // 跨域直鏈安全隔離：直接調用原生音量控制，避免 Web Audio API CORS 阻擋發聲
+    if (bgmGainNode) {
+        masterAudio.volume = bgmGainNode.gain.value;
+    }
+}
 function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.8, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(sfxGainNode); osc.start(); osc.stop(audioCtx.currentTime + 0.04); } catch (e) {} }
 
 /* =============================================================
@@ -252,7 +265,8 @@ function generateChart() {
     
     let currentTime = 4 * beatMs; 
     let lastLane = 0;
-    const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration)) ? (masterAudio.duration * 1000) : 180000;
+    // 🎯 保險機制：無論音訊有冇 load 完，強制預設 180 秒，確保波波 100% 準時湧現
+    const songTotalMs = (masterAudio.duration && !isNaN(masterAudio.duration) && masterAudio.duration > 10) ? (masterAudio.duration * 1000) : 180000;
     const maxNoteTime = songTotalMs - 5000; 
 
     while (currentTime < maxNoteTime) {
