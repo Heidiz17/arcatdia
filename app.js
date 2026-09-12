@@ -1,5 +1,5 @@
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 1/4 (14房儲存與時光機)
+   🔒 Arcatdia Battle Engine - Part 1/4 (A/B/C真濾波矩陣旗艦版)
    ============================================================= */
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
@@ -12,7 +12,7 @@ let notes = []; let particles = []; let stars = [];
 let celestialEvents = [];
 let startTime = 0; let pauseStartTime = 0; let totalPausedDuration = 0;
 let playbackSpeed = 1.0; let scrollSpeedMultiplier = 1.0; 
-let currentMode = 'test';
+let currentMode = 'normal';
 
 let spawnDelayMs = 0; 
 let freezeState = 'idle'; 
@@ -32,20 +32,20 @@ window.goToReadyRoom = function() {
 };
 
 let defaultSections = [
-    { id: 1,  name: "01. Intro (前奏)",          startBar: 1,   endBar: 22,  style: "bass_kick" },
-    { id: 2,  name: "02. Verse 1 (主歌A)",       startBar: 23,  endBar: 54,  style: "vocal_lead" },
-    { id: 3,  name: "03. Break 1 (過門)",        startBar: 55,  endBar: 70,  style: "bass_kick" },
-    { id: 4,  name: "04. Pre-Cho 1 (皮帶)",      startBar: 71,  endBar: 104, style: "full_power" },
-    { id: 5,  name: "05. Chorus 1 (副歌/褲)",    startBar: 105, endBar: 130, style: "full_power" },
-    { id: 6,  name: "06. Break 2 (間奏)",        startBar: 0,   endBar: 0,   style: "bass_kick" },
-    { id: 7,  name: "07. Verse 2 (主歌B)",       startBar: 0,   endBar: 0,   style: "vocal_lead" },
-    { id: 8,  name: "08. Pre-Cho 2 (副前2)",     startBar: 0,   endBar: 0,   style: "full_power" },
-    { id: 9,  name: "09. Chorus 2 (副歌2)",      startBar: 0,   endBar: 0,   style: "full_power" },
-    { id: 10, name: "10. Guitar Solo (結他獨奏)",startBar: 0,   endBar: 0,   style: "guitar_solo" },
-    { id: 11, name: "11. Bridge (返轉頭)",       startBar: 0,   endBar: 0,   style: "vocal_lead" },
-    { id: 12, name: "12. Chorus 3 (終極副歌)",   startBar: 0,   endBar: 0,   style: "full_power" },
-    { id: 13, name: "13. Outro (尾奏)",          startBar: 0,   endBar: 0,   style: "bass_kick" },
-    { id: 14, name: "14. Cat Coda (貓聲終局)",   startBar: 0,   endBar: 0,   style: "full_power" }
+    { id: 1,  name: "01.前奏", startBar: 1,   endBar: 22,  useA: true,  useB: false, useC: false },
+    { id: 2,  name: "02.主歌A", startBar: 23,  endBar: 54,  useA: true,  useB: true,  useC: false },
+    { id: 3,  name: "03.過門",  startBar: 55,  endBar: 70,  useA: true,  useB: false, useC: false },
+    { id: 4,  name: "04.副前",  startBar: 71,  endBar: 104, useA: true,  useB: true,  useC: false },
+    { id: 5,  name: "05.副歌",  startBar: 105, endBar: 130, useA: true,  useB: true,  useC: true  },
+    { id: 6,  name: "06.間奏",  startBar: 0,   endBar: 0,   useA: true,  useB: false, useC: false },
+    { id: 7,  name: "07.主歌B", startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: false },
+    { id: 8,  name: "08.副前2", startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: false },
+    { id: 9,  name: "09.副歌2", startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: true  },
+    { id: 10, name: "10.獨奏",  startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: true  },
+    { id: 11, name: "11.橋段",  startBar: 0,   endBar: 0,   useA: false, useB: true,  useC: false },
+    { id: 12, name: "12.終副",  startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: true  },
+    { id: 13, name: "13.尾奏",  startBar: 0,   endBar: 0,   useA: true,  useB: false, useC: false },
+    { id: 14, name: "14.終局",  startBar: 0,   endBar: 0,   useA: true,  useB: true,  useC: true  }
 ];
 
 let songSections = [...defaultSections];
@@ -56,21 +56,29 @@ function renderSectionInputs() {
     container.innerHTML = "";
     songSections.forEach((sec, idx) => {
         const row = document.createElement('div');
-        row.style.cssText = "display:grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 4px; align-items:center;";
-        const color = sec.style === 'bass_kick' ? '#00ffcc' : (sec.style === 'vocal_lead' ? '#ccff00' : (sec.style === 'guitar_solo' ? '#ffd700' : '#ff0077'));
+        row.style.cssText = "display:grid; grid-template-columns: 2fr 1fr 1fr 1.6fr; gap: 3px; align-items:center;";
         
-        // 🎯 留空就顯示空白，唔使格硬填 0
         const startVal = sec.startBar > 0 ? sec.startBar : "";
         const endVal = sec.endBar > 0 ? sec.endBar : "";
 
         row.innerHTML = `
-            <span style="color:${color}; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sec.name}</span>
-            <input type="number" id="secStart_${idx}" value="${startVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
-            <input type="number" id="secEnd_${idx}" value="${endVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px;">
+            <span style="color:#00ffcc; font-size:10px; white-space:nowrap; overflow:hidden;">${sec.name}</span>
+            <input type="number" id="secStart_${idx}" value="${startVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px; width:100%;">
+            <input type="number" id="secEnd_${idx}" value="${endVal}" placeholder="-" style="background:#111; color:#fff; border:1px solid #444; border-radius:3px; padding:2px; text-align:center; font-size:11px; width:100%;">
+            <div style="display:flex; gap:2px; justify-content:center;">
+                <button type="button" id="btnA_${idx}" onclick="toggleBand(${idx}, 'useA')" style="padding:2px 4px; font-size:9px; border-radius:3px; cursor:pointer; font-weight:bold; border:1px solid ${sec.useA ? '#00ffcc' : '#444'}; background:${sec.useA ? '#00ffcc' : '#222'}; color:${sec.useA ? '#000' : '#888'};">A</button>
+                <button type="button" id="btnB_${idx}" onclick="toggleBand(${idx}, 'useB')" style="padding:2px 4px; font-size:9px; border-radius:3px; cursor:pointer; font-weight:bold; border:1px solid ${sec.useB ? '#ffd700' : '#444'}; background:${sec.useB ? '#ffd700' : '#222'}; color:${sec.useB ? '#000' : '#888'};">B</button>
+                <button type="button" id="btnC_${idx}" onclick="toggleBand(${idx}, 'useC')" style="padding:2px 4px; font-size:9px; border-radius:3px; cursor:pointer; font-weight:bold; border:1px solid ${sec.useC ? '#ff0077' : '#444'}; background:${sec.useC ? '#ff0077' : '#222'}; color:${sec.useC ? '#fff' : '#888'};">C</button>
+            </div>
         `;
         container.appendChild(row);
     });
 }
+
+window.toggleBand = function(idx, key) {
+    songSections[idx][key] = !songSections[idx][key];
+    renderSectionInputs();
+};
 
 function loadSavedSongSections() {
     try {
@@ -82,23 +90,20 @@ function loadSavedSongSections() {
     }
 }
 
-// 🎯 核心儲存函數：留空全自動當 0，兼 100% 彈出 Alert 視窗！
 window.saveSongSections = function() {
     try {
         songSections.forEach((sec, idx) => {
             const sInput = document.getElementById(`secStart_${idx}`);
             const eInput = document.getElementById(`secEnd_${idx}`);
-            
             let sVal = sInput && sInput.value.trim() !== "" ? parseInt(sInput.value, 10) : 0;
             let eVal = eInput && eInput.value.trim() !== "" ? parseInt(eInput.value, 10) : 0;
-            
             sec.startBar = isNaN(sVal) ? 0 : sVal;
             sec.endBar = isNaN(eVal) ? 0 : eVal;
         });
 
         localStorage.setItem('arcatdia_14_sections', JSON.stringify(songSections));
-        generateChart();
-        alert("✅ 14 間房排程已經成功鎖定儲存！");
+        generateRealFilteredChart();
+        alert("✅ 14 間房真·濾波頻段排程已成功鎖定儲存！");
     } catch(err) {
         alert("⚠️ 儲存失敗：" + err.message);
     }
@@ -134,7 +139,6 @@ window.freezePlay = function() {
     showJudgement("⏳ 預備...");
     
     const beatMs = (60 / bpm) * 1000;
-    
     [0, 1, 2, 3].forEach(b => {
         freezeCountInTimers.push(setTimeout(() => {
             if (freezeState !== 'count-in') return;
@@ -187,7 +191,7 @@ function updateFreezeUI() {
 function stepFreezeMs(delta) {
     freezeManualMs += delta;
     updateFreezeUI();
-    generateChart(); 
+    generateRealFilteredChart(); 
 }
 
 const lanePressed = [false, false, false, false];
@@ -283,90 +287,128 @@ function playStickClick(freq = 1200) { if (!audioCtx) return; try { const osc = 
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 2/4 (14房智能生波核心)
+   🔒 Arcatdia Battle Engine - Part 2/4 (真·三頻離線突變分析)
    ============================================================= */
 let customChartLoaded = false;
 let customAudioLoaded = false;
-let audioBufferCache = null;
+let decodedAudioBuffer = null;
 
-masterAudio.addEventListener('loadedmetadata', () => {
-    if (!customChartLoaded) {
-        analyzeAndGenerateRealChart();
+// 儲存真·濾波提取出的三大頻段時間點 (ms)
+let detectedPeaks = { bandA: [], bandB: [], bandC: [] };
+
+masterAudio.addEventListener('loadedmetadata', async () => {
+    if (!customChartLoaded && !decodedAudioBuffer) {
+        try {
+            const resp = await fetch(masterAudio.src);
+            const arrayBuf = await resp.arrayBuffer();
+            const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+            decodedAudioBuffer = await tempCtx.decodeAudioData(arrayBuf);
+            runOfflineSpectralAnalysis(decodedAudioBuffer);
+        } catch(e) {
+            generateRealFilteredChart();
+        }
     }
 });
 
-async function handleAudioFileForBPM(audioFile) {
-    const match = audioFile.name.match(/(\d{2,3})\s*BPM/i);
-    if (match) {
-        bpm = parseInt(match[1], 10);
-        document.getElementById('manualBpmInput').value = bpm;
-        showJudgement(`檔名鎖定: ${bpm} BPM`);
-        updateFreezeUI();
-    }
+async function runOfflineSpectralAnalysis(audioBuffer) {
+    showJudgement("🔍 背景進行硬體加速真·三頻濾波...");
+    detectedPeaks = { bandA: [], bandB: [], bandC: [] };
 
-    showJudgement("🔍 分析音訊真實波形中...");
     try {
-        const arrayBuffer = await audioFile.arrayBuffer();
-        const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100 * 30, 44100);
-        audioBufferCache = await offlineCtx.decodeAudioData(arrayBuffer);
+        const sr = audioBuffer.sampleRate;
+        const totalDuration = audioBuffer.duration;
         
-        const rawData = audioBufferCache.getChannelData(0);
-        const sampleRate = audioBufferCache.sampleRate;
-        const step = Math.floor(sampleRate / 100); 
-        const peaks = [];
-        let maxEnergy = 0;
+        // 🎯 1. 低通濾波 (Lowpass 120Hz) 抓大鼓 Kick
+        const lowCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
+        const lowSrc = lowCtx.createBufferSource();
+        lowSrc.buffer = audioBuffer;
+        const lowFilter = lowCtx.createBiquadFilter();
+        lowFilter.type = "lowpass";
+        lowFilter.frequency.value = 120;
+        lowSrc.connect(lowFilter);
+        lowFilter.connect(lowCtx.destination);
+        lowSrc.start(0);
+        const renderedLow = await lowCtx.startRendering();
+        detectedPeaks.bandA = extractOnsetsFromBuffer(renderedLow.getChannelData(0), sr, 0.55, 200);
 
-        for (let i = 0; i < rawData.length; i += step) {
-            let sum = 0;
-            for (let j = 0; j < step && (i + j) < rawData.length; j++) { sum += Math.abs(rawData[i + j]); }
-            if (sum > maxEnergy) maxEnergy = sum;
-            peaks.push({ time: i / sampleRate, energy: sum });
-        }
+        // 🎯 2. 帶通濾波 (Bandpass 2500Hz) 抓人聲/結他
+        const midCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
+        const midSrc = midCtx.createBufferSource();
+        midSrc.buffer = audioBuffer;
+        const midFilter = midCtx.createBiquadFilter();
+        midFilter.type = "bandpass";
+        midFilter.frequency.value = 2500;
+        midFilter.Q.value = 1.0;
+        midSrc.connect(midFilter);
+        midFilter.connect(midCtx.destination);
+        midSrc.start(0);
+        const renderedMid = await midCtx.startRendering();
+        detectedPeaks.bandB = extractOnsetsFromBuffer(renderedMid.getChannelData(0), sr, 0.45, 140);
 
-        const threshold = maxEnergy * 0.70;
-        const beatTimes = [];
-        for (let i = 1; i < peaks.length - 1; i++) {
-            if (peaks[i].energy > threshold && peaks[i].energy > peaks[i - 1].energy && peaks[i].energy > peaks[i + 1].energy) { 
-                beatTimes.push(peaks[i].time); 
-                i += 14; 
-            }
-        }
+        // 🎯 3. 高通濾波 (Highpass 7500Hz) 抓碎鈸/金屬
+        const highCtx = new OfflineAudioContext(1, sr * totalDuration, sr);
+        const highSrc = highCtx.createBufferSource();
+        highSrc.buffer = audioBuffer;
+        const highFilter = highCtx.createBiquadFilter();
+        highFilter.type = "highpass";
+        highFilter.frequency.value = 7500;
+        highSrc.connect(highFilter);
+        highFilter.connect(highCtx.destination);
+        highSrc.start(0);
+        const renderedHigh = await highCtx.startRendering();
+        detectedPeaks.bandC = extractOnsetsFromBuffer(renderedHigh.getChannelData(0), sr, 0.40, 180);
 
-        const intervals = [];
-        for (let i = 1; i < beatTimes.length; i++) {
-            const diff = beatTimes[i] - beatTimes[i - 1];
-            if (diff >= 0.25 && diff <= 0.85) { intervals.push(diff); }
-        }
-
-        if (!match && intervals.length > 5) {
-            intervals.sort((a, b) => a - b);
-            const median = intervals[Math.floor(intervals.length / 2)];
-            let detected = Math.round(60 / median);
-            if (detected < 90) detected *= 2;
-            if (detected > 220) detected = Math.round(detected / 2);
-            bpm = detected;
-            showJudgement(`🎯 命中 BPM: ${bpm}`);
-            document.getElementById('manualBpmInput').value = bpm;
-        }
-        updateFreezeUI();
-        analyzeAndGenerateRealChart();
-    } catch (e) {
-        analyzeAndGenerateRealChart();
+        showJudgement(`🎯 濾波成功！A:${detectedPeaks.bandA.length} B:${detectedPeaks.bandB.length} C:${detectedPeaks.bandC.length}`);
+    } catch(err) {
+        showJudgement("⚠️ 濾波降級，採用格點模式");
     }
+    generateRealFilteredChart();
 }
 
-function getStyleForBar(barNum) {
+// 實時動態突變能量提取演算法 (Onset Energy Flux Peak Picker)
+function extractOnsetsFromBuffer(channelData, sampleRate, thresholdRatio, minIntervalMs) {
+    const step = Math.floor(sampleRate / 100); // 10ms 窗口
+    const energies = [];
+    let maxE = 0;
+    for (let i = 0; i < channelData.length; i += step) {
+        let sum = 0;
+        for (let j = 0; j < step && (i + j) < channelData.length; j++) {
+            sum += Math.abs(channelData[i + j]);
+        }
+        if (sum > maxE) maxE = sum;
+        energies.push(sum);
+    }
+
+    const threshold = maxE * thresholdRatio;
+    const minStepGap = Math.floor(minIntervalMs / 10);
+    const peaksMs = [];
+
+    for (let i = 2; i < energies.length - 2; i++) {
+        if (energies[i] > threshold &&
+            energies[i] > energies[i - 1] &&
+            energies[i] > energies[i - 2] &&
+            energies[i] >= energies[i + 1] &&
+            energies[i] >= energies[i + 2]) {
+            peaksMs.push(Math.round(i * 10)); // 轉成毫秒
+            i += minStepGap; // 避開連續重疊
+        }
+    }
+    return peaksMs;
+}
+
+function getSectionForBar(barNum) {
     for (let sec of songSections) {
         if (sec.startBar > 0 && sec.endBar >= sec.startBar) {
             if (barNum >= sec.startBar && barNum <= sec.endBar) {
-                return sec.style;
+                return sec;
             }
         }
     }
     return null;
 }
 
-function analyzeAndGenerateRealChart() {
+// 🎯 真·A/B/C 三頻矩陣時間表融合出波
+function generateRealFilteredChart() {
     if (customChartLoaded && notes.length > 0) {
         notes.forEach(n => { n.hit = false; n.holding = false; });
         return;
@@ -382,55 +424,119 @@ function analyzeAndGenerateRealChart() {
         songTotalMs = masterAudio.duration * 1000;
     }
 
-    let currentTime = (8 * beatMs) + freezeManualMs;
+    const hasRealData = (detectedPeaks.bandA.length + detectedPeaks.bandB.length + detectedPeaks.bandC.length) > 0;
+
+    if (currentMode === 'test' || currentMode === 'freeze') {
+        let t = (8 * beatMs) + freezeManualMs;
+        while (t < songTotalMs - 2000) {
+            notes.push({ type: 'tap', lane: 0, targetTime: t, hit: false });
+            t += barMs;
+        }
+        notes.sort((a, b) => a.targetTime - b.targetTime);
+        return;
+    }
+
+    let candidateNotes = [];
     let lastLane = 0;
 
-    while (currentTime < songTotalMs - 2000) {
-        const curBar = Math.floor(currentTime / barMs) + 1;
-        const curStyle = getStyleForBar(curBar);
+    if (hasRealData) {
+        // 🔥 真正聽歌：用波形真實時間戳
+        songSections.forEach(sec => {
+            if (sec.startBar <= 0 || sec.endBar < sec.startBar) return;
+            const startMs = (sec.startBar - 1) * barMs + freezeManualMs;
+            const endMs = sec.endBar * barMs + freezeManualMs;
 
-        if (currentMode === 'test' || currentMode === 'freeze') {
-            notes.push({ type: 'tap', lane: 0, targetTime: currentTime, hit: false });
-            currentTime += barMs;
-        } else if (curStyle === null) {
-            currentTime += barMs;
-        } else if (currentMode === 'easy') {
-            lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
-            notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-            currentTime += (curStyle === 'full_power' || curStyle === 'guitar_solo') ? (beatMs * 2) : barMs;
-        } else {
-            lastLane = (lastLane + Math.floor(Math.random() * 3) + 1) % 4;
-            if (curStyle === "bass_kick") {
-                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                currentTime += (beatMs * 2);
-            } else if (curStyle === "vocal_lead") {
-                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                currentTime += beatMs;
-            } else if (curStyle === "full_power" || curStyle === "guitar_solo") {
-                const r = Math.random();
-                if (r < 0.5) {
-                    notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                    currentTime += beatMs;
-                } else if (r < 0.8) {
-                    notes.push({ type: 'flick', lane: lastLane, targetTime: currentTime, hit: false });
-                    currentTime += (beatMs * 2);
-                } else {
-                    const hDur = beatMs * 2;
-                    notes.push({ type: 'hold', lane: lastLane, targetTime: currentTime, duration: hDur, hit: false, holding: false, lastTick: 0 });
-                    currentTime += hDur + beatMs;
-                }
+            if (sec.useA) {
+                detectedPeaks.bandA.forEach(t => {
+                    const realT = t + freezeManualMs;
+                    if (realT >= startMs && realT <= endMs) {
+                        lastLane = (lastLane + 1) % 4;
+                        candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: realT, hit: false });
+                    }
+                });
+            }
+
+            if (sec.useB) {
+                detectedPeaks.bandB.forEach(t => {
+                    const realT = t + freezeManualMs;
+                    if (realT >= startMs && realT <= endMs) {
+                        lastLane = (lastLane + 2) % 4;
+                        candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: realT, hit: false });
+                    }
+                });
+            }
+
+            if (sec.useC) {
+                detectedPeaks.bandC.forEach(t => {
+                    const realT = t + freezeManualMs;
+                    if (realT >= startMs && realT <= endMs) {
+                        lastLane = (lastLane + 3) % 4;
+                        const r = Math.random();
+                        if (r < 0.6) {
+                            candidateNotes.push({ type: 'flick', lane: lastLane, targetTime: realT, hit: false });
+                        } else {
+                            candidateNotes.push({ type: 'hold', lane: lastLane, targetTime: realT, duration: beatMs * 1.5, hit: false, holding: false, lastTick: 0 });
+                        }
+                    }
+                });
+            }
+        });
+    } else {
+        // 降級備份：按房間密度組合
+        let t = (8 * beatMs) + freezeManualMs;
+        while (t < songTotalMs - 2000) {
+            const curBar = Math.floor(t / barMs) + 1;
+            const curSec = getSectionForBar(curBar);
+            if (!curSec) { t += barMs; continue; }
+            lastLane = (lastLane + 1) % 4;
+            if (curSec.useA && !curSec.useB && !curSec.useC) {
+                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 2);
+            } else if (curSec.useA && curSec.useB && !curSec.useC) {
+                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += beatMs;
             } else {
-                notes.push({ type: 'tap', lane: lastLane, targetTime: currentTime, hit: false });
-                currentTime += barMs;
+                candidateNotes.push({ type: 'tap', lane: lastLane, targetTime: t, hit: false });
+                t += (beatMs * 0.5);
             }
         }
     }
 
-    notes.sort((a, b) => a.targetTime - b.targetTime);
+    // 智能去重：同一軌道 100ms 內唔重疊
+    candidateNotes.sort((a, b) => a.targetTime - b.targetTime);
+    const filtered = [];
+    const lastTimeByLane = [-9999, -9999, -9999, -9999];
+
+    candidateNotes.forEach(n => {
+        if (n.targetTime - lastTimeByLane[n.lane] >= 90) {
+            filtered.push(n);
+            lastTimeByLane[n.lane] = n.targetTime;
+        }
+    });
+
+    notes = filtered;
 }
 
 function generateChart() {
-    analyzeAndGenerateRealChart();
+    generateRealFilteredChart();
+}
+
+async function handleAudioFileForBPM(audioFile) {
+    const match = audioFile.name.match(/(\d{2,3})\s*BPM/i);
+    if (match) {
+        bpm = parseInt(match[1], 10);
+        document.getElementById('manualBpmInput').value = bpm;
+        showJudgement(`檔名鎖定: ${bpm} BPM`);
+        updateFreezeUI();
+    }
+    try {
+        const arrayBuffer = await audioFile.arrayBuffer();
+        const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+        decodedAudioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+        runOfflineSpectralAnalysis(decodedAudioBuffer);
+    } catch(e) {
+        generateRealFilteredChart();
+    }
 }
 
 function initReadyRoomDrawer() {
@@ -452,7 +558,7 @@ function initReadyRoomDrawer() {
                 bpm = val;
                 showJudgement(`手動更改: ${bpm} BPM`);
                 updateFreezeUI();
-                if (!customChartLoaded) analyzeAndGenerateRealChart();
+                if (!customChartLoaded) generateRealFilteredChart();
             }
         });
     }
@@ -720,7 +826,7 @@ function scheduleCountInAndPlay() {
 
 
 /* =============================================================
-   🔒 Arcatdia Battle Engine - Part 4/4 (雙向計時與渲染核心)
+   🔒 Arcatdia Battle Engine - Part 4/4 (雙向計時與威威結算)
    ============================================================= */
 function gameLoop() {
     if (!isPlaying || isPaused) return;
@@ -738,8 +844,9 @@ function gameLoop() {
         const audioCurMs = Math.round(masterAudio.currentTime * 1000);
         const curBar = Math.floor(audioCurMs / barMs) + 1;
         const curBeatInBar = Math.floor((audioCurMs % barMs) / beatMs) + 1;
-        const curStyle = getStyleForBar(curBar) || "跳過(無波)";
-        hudBar.innerText = `BAR: ${curBar} (第 ${curBeatInBar} 拍) [${curStyle}]`;
+        const curSec = getSectionForBar(curBar);
+        const curBands = curSec ? `[${curSec.useA ? 'A' : ''}${curSec.useB ? 'B' : ''}${curSec.useC ? 'C' : ''}]` : "[跳過]";
+        hudBar.innerText = `BAR: ${curBar} (第 ${curBeatInBar} 拍) ${curBands}`;
         hudMs.innerText = `音樂絕對時間: ${audioCurMs} ms`;
     }
 
@@ -926,6 +1033,7 @@ function gameLoop() {
 
 function laneNum(l) { return Math.min(3, Math.max(0, l)); }
 
+// 🎯 全新威威機台結算畫面：大字 Accuracy %、各級百分比與專屬評級
 function triggerSongClear() {
     isPlaying = false; masterAudio.pause();
     document.getElementById('battleHud').style.display = 'none';
@@ -933,32 +1041,49 @@ function triggerSongClear() {
     const tuner = document.getElementById('freezeTuner'); if (tuner) tuner.style.display = 'none';
     const barHud = document.getElementById('barInspectorHUD'); if (barHud) barHud.style.display = 'none';
 
-    let rank = "C";
     const totalHits = countPerfect + countGreat + countGood + countMiss;
-    const maxPossible = totalHits * 1000;
-    const ratio = maxPossible > 0 ? (score / maxPossible) : 0;
+    const accuracy = totalHits > 0 
+        ? (((countPerfect * 1.0) + (countGreat * 0.7) + (countGood * 0.3)) / totalHits) * 100 
+        : 0;
 
+    let rank = "C";
     if (countMiss === 0 && countGood === 0 && countGreat === 0 && totalHits > 0) rank = "SS";
-    else if (ratio >= 0.90) rank = "S";
-    else if (ratio >= 0.80) rank = "A";
-    else if (ratio >= 0.65) rank = "B";
+    else if (accuracy >= 95.0) rank = "S";
+    else if (accuracy >= 85.0) rank = "A";
+    else if (accuracy >= 70.0) rank = "B";
 
-    const badge = document.getElementById('rankBadge'); badge.innerText = rank;
+    const badge = document.getElementById('rankBadge'); 
+    badge.innerText = rank;
     if (rank === "SS") { badge.style.color = "#ff0077"; badge.style.textShadow = "0 0 35px #ff0077"; }
     else if (rank === "S") { badge.style.color = "#ffcc00"; badge.style.textShadow = "0 0 35px #ffcc00"; }
     else if (rank === "A") { badge.style.color = "#00ffcc"; badge.style.textShadow = "0 0 30px #00ffcc"; }
     else { badge.style.color = "#aaa"; badge.style.textShadow = "none"; }
 
-    document.getElementById('resScore').innerText = String(score).padStart(6, '0');
-    document.getElementById('resMaxCombo').innerText = maxCombo;
-    document.getElementById('resPerfect').innerText = countPerfect;
-    document.getElementById('resGreat').innerText = countGreat;
-    document.getElementById('resGood').innerText = countGood;
-    document.getElementById('resMiss').innerText = countMiss;
+    const resScoreEl = document.getElementById('resScore');
+    if (resScoreEl) {
+        resScoreEl.innerHTML = `
+            <div style="font-size:26px; color:#ffd700; font-weight:900; letter-spacing:1px;">${String(score).padStart(6, '0')}</div>
+            <div style="font-size:16px; color:#00ffcc; font-weight:bold; margin-top:3px; text-shadow:0 0 12px #00ffcc;">
+                ACCURACY: ${accuracy.toFixed(2)}%
+            </div>
+            ${countMiss === 0 && totalHits > 0 ? '<div style="font-size:11px; color:#ff0077; font-weight:900; margin-top:2px;">★ FULL COMBO ★</div>' : ''}
+        `;
+    }
+
+    const pRatio = totalHits > 0 ? ((countPerfect / totalHits) * 100).toFixed(1) : "0.0";
+    const grRatio = totalHits > 0 ? ((countGreat / totalHits) * 100).toFixed(1) : "0.0";
+    const gdRatio = totalHits > 0 ? ((countGood / totalHits) * 100).toFixed(1) : "0.0";
+    const mRatio = totalHits > 0 ? ((countMiss / totalHits) * 100).toFixed(1) : "0.0";
+
+    document.getElementById('resMaxCombo').innerText = `${maxCombo} / ${totalHits}`;
+    document.getElementById('resPerfect').innerText = `${countPerfect} (${pRatio}%)`;
+    document.getElementById('resGreat').innerText = `${countGreat} (${grRatio}%)`;
+    document.getElementById('resGood').innerText = `${countGood} (${gdRatio}%)`;
+    document.getElementById('resMiss').innerText = `${countMiss} (${mRatio}%)`;
 
     document.getElementById('resultModal').classList.add('active');
     const cdLabel = document.getElementById('closeCountdown');
-    if (cdLabel) cdLabel.innerText = "點擊任意位置繼續";
+    if (cdLabel) cdLabel.innerText = "點擊任意位置繼續航行";
 
     if (autoReturnTimer) { clearInterval(autoReturnTimer); autoReturnTimer = null; }
     const modal = document.getElementById('resultModal'); modal.onclick = function() { modal.onclick = null; returnFromResults(); };

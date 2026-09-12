@@ -2,255 +2,481 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#030305">
-    <title>Arcatdia Battle Engine - 5v PRO</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arcatdia 5v PRO - 最大の愛</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #03040a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
+        }
+
+        /* 🌌 畫布與背景層 */
+        #battleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: block;
+        }
+        .bg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 0;
+        }
+        .bg-layer.active {
+            opacity: 1;
+        }
+
+        /* 🚀 封面畫面 */
+        #titleScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.45);
+            cursor: pointer;
+        }
+        #titleScreen.active {
+            display: flex;
+        }
+        .title-logo {
+            font-size: 38px;
+            font-weight: 900;
+            color: #00ffcc;
+            text-shadow: 0 0 25px rgba(0, 255, 204, 0.8), 0 0 10px #fff;
+            letter-spacing: 4px;
+            margin-bottom: 8px;
+        }
+        .title-sub {
+            font-size: 14px;
+            color: #ff0077;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px #ff0077;
+            animation: blinkText 1.5s infinite;
+        }
+
+        /* ⚙️ 航行整備室 (Ready Room) */
+        #readyRoom {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px 14px 20px;
+            background: rgba(3, 4, 10, 0.75);
+            overflow-y: auto;
+        }
+        #readyRoom.active {
+            display: flex;
+        }
+        .room-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+            margin-top: 8px;
+            margin-bottom: 10px;
+        }
+
+        /* 工具箱抽屜 */
+        .drawer-toggle-btn {
+            background: rgba(0, 240, 255, 0.15);
+            border: 1.5px solid #00f0ff;
+            color: #00f0ff;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #readyRoomDrawer {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(10, 15, 30, 0.9);
+            border: 1.5px solid rgba(0, 240, 255, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* 難度選擇掣 */
+        .diff-group {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .diff-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1.5px solid #444;
+            color: #aaa;
+            padding: 9px 0;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+        .diff-btn.active {
+            border-color: #00ffcc;
+            color: #000;
+            background: #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+        }
+
+        /* 啟程按鈕 */
+        .voyage-btn {
+            background: linear-gradient(90deg, #ff0077, #ff5500);
+            border: none;
+            color: #fff;
+            padding: 14px 0;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
+            text-align: center;
+        }
+
+        /* 🎮 戰鬥 HUD 與頂部雙向對照 */
+        #battleHud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            z-index: 5;
+        }
+        .hud-score {
+            font-size: 26px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 15px #ffd700;
+        }
+        .hud-pause-btn {
+            background: rgba(255, 0, 85, 0.2);
+            border: 1px solid #ff0055;
+            color: #ff0055;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* 頂部大字小節 Inspector HUD */
+        #barInspectorHUD {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            border: 1.5px solid #ffd700;
+            border-radius: 8px;
+            padding: 6px 14px;
+            text-align: center;
+            z-index: 6;
+            display: none;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+            pointer-events: none;
+        }
+        #hudBarDisplay {
+            font-size: 13px;
+            font-weight: 900;
+            color: #ffd700;
+        }
+        #hudMsDisplay {
+            font-size: 10px;
+            color: #00ffcc;
+            margin-top: 2px;
+        }
+
+        /* ❄️ 時光機校準儀 (側邊浮動) */
+        #freezeTuner {
+            position: absolute;
+            right: 10px;
+            top: 130px;
+            background: rgba(5, 12, 25, 0.88);
+            border: 1.5px solid #00f0ff;
+            border-radius: 10px;
+            padding: 8px;
+            width: 125px;
+            z-index: 8;
+            display: none;
+            box-shadow: 0 0 18px rgba(0, 240, 255, 0.4);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        /* 觸控控制器 */
+        #touchController {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 175px;
+            display: none;
+            z-index: 6;
+        }
+        .touch-lane {
+            flex: 1;
+            height: 100%;
+            opacity: 0.15;
+            transition: opacity 0.08s;
+        }
+        .touch-lane.pressed {
+            opacity: 0.45;
+        }
+
+        /* 判定打擊提示與連段 */
+        #judgementDisplay {
+            position: absolute;
+            top: 48%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 900;
+            color: #00ffcc;
+            text-shadow: 0 0 20px #00ffcc;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 7;
+        }
+        #comboDisplay {
+            position: absolute;
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 12px #ff0077;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 7;
+        }
+
+        /* 🏆 威威機台結算畫面 */
+        #resultModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 4, 10, 0.95);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+        #resultModal.active {
+            display: flex;
+        }
+
+        @keyframes blinkText {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
 </head>
 <body>
 
-<div id="stage-container">
+    <div id="titleBg" class="bg-layer active"></div>
+    <div id="readyBg" class="bg-layer"></div>
+
     <canvas id="battleCanvas"></canvas>
 
-    <div id="readyBg" class="bg-layer theme-ready" style="transition:opacity 0.4s; pointer-events:none;"></div>
-    <div id="titleBg" class="bg-layer theme-title active" style="transition:opacity 0.4s; pointer-events:none;"></div>
-
-    <div class="hud-overlay" id="battleHud" style="display:none;">
-        <div class="hud-left">
-            <div class="brand-mini">ARCATDIA 5v</div>
-            <div class="track-info" id="hudTrackInfo">最大の愛</div>
-        </div>
-        <div class="score-board"><span id="scoreVal">000000</span></div>
-        <div class="hud-right" style="display: flex; align-items: center; gap: 6px;">
-            <button id="btnQuickJudge" onclick="toggleJudgeLineLevel()" style="background: rgba(0, 255, 204, 0.2); border: 1px solid #00ffcc; color: #00ffcc; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer;">📏 線:LV1</button>
-            <button id="pauseBtn" class="btn-pause" onclick="pauseGame()">⏸ 暫停</button>
-        </div>
-        <div class="hp-bar-line"><div id="hpFill" class="hp-fill lvl-s"></div></div>
+    <div id="titleScreen" class="active" onclick="goToReadyRoom()">
+        <div class="title-logo">ARCATDIA</div>
+        <div style="font-size: 12px; color: #ffd700; margin-bottom: 6px; letter-spacing: 1px;">5v PRO - 航行引擎</div>
+        <div class="title-sub">點擊任意位置進入航行整備室</div>
     </div>
 
-    <!-- 雙重對照大字 HUD -->
-    <div id="barInspectorHUD" style="display:none; position:absolute; top: 65px; left: 50%; transform: translateX(-50%); z-index: 55; background: rgba(5, 10, 25, 0.9); border: 2px solid #ffd700; border-radius: 12px; padding: 8px 16px; box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); text-align: center; font-family: monospace; pointer-events:none;">
-        <div id="hudBarDisplay" style="color: #ffd700; font-size: 17px; font-weight: 900; letter-spacing: 1px;">BAR: 1 (第 1 拍)</div>
-        <div id="hudMsDisplay" style="color: #00ffcc; font-size: 12px; font-weight: bold; margin-top: 2px;">0 ms | 預備中</div>
+    <div id="readyRoom">
+        <div class="room-title">🚀 航行整備室</div>
+
+        <div id="toggleDrawerBtn" class="drawer-toggle-btn">
+            ⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼
+        </div>
+
+        <div id="readyRoomDrawer" style="display: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap: 8px;">
+                <label style="background:rgba(0,255,204,0.15); border:1px solid #00ffcc; color:#00ffcc; padding:5px 8px; border-radius:4px; font-size:11px; cursor:pointer;">
+                    🎵 載入 WAV
+                    <input type="file" id="dualWavInput" accept="audio/*" style="display:none;">
+                </label>
+                <span id="wavStatus" style="font-size:10px; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px;">雲端 WAV (最大の愛)</span>
+                <div style="display:flex; align-items:center; gap:3px;">
+                    <input type="number" id="manualBpmInput" value="175" style="width:45px; background:#111; color:#00ffcc; border:1px solid #00ffcc; border-radius:3px; text-align:center; font-size:11px; padding:2px;">
+                    <span style="font-size:10px; color:#aaa;">BPM</span>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.6); border: 1.5px solid #ffd700; border-radius: 8px; padding: 8px; max-height: 240px; overflow-y: auto;">
+                <div style="color: #ffd700; font-size: 11px; font-weight: bold; margin-bottom: 6px; display:flex; justify-content:space-between;">
+                    <span>🎛️ 14房真·濾波頻段開關</span>
+                    <span style="color:#aaa; font-size:9px;">A低 B中 C高 (留空=跳過)</span>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1.6fr; gap: 4px; font-size: 10px; color:#aaa; margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; text-align:center;">
+                    <span style="text-align:left;">房間</span><span>起Bar</span><span>止Bar</span><span>頻段開關</span>
+                </div>
+                
+                <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;">
+                </div>
+
+                <button onclick="saveSongSections()" style="margin-top: 8px; width: 100%; background: linear-gradient(90deg, #ffd700, #ffaa00); border: none; color: #000; font-size: 12px; padding: 7px; border-radius: 4px; cursor: pointer; font-weight: 900;">
+                    💾 鎖定套用 14 間房真·濾波排程
+                </button>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="background:rgba(255,0,119,0.15); border:1px solid #ff0077; color:#ff0077; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer;">
+                    📜 載入 MIDI/譜面
+                    <input type="file" id="dualMidiInput" accept=".mid,.midi,.json" style="display:none;">
+                </label>
+                <span id="midiStatus" style="font-size:10px; color:#aaa;">自動三頻濾波</span>
+            </div>
+        </div>
+
+        <div>
+            <div style="font-size: 11px; color: #aaa; margin-bottom: 6px;">選擇航行難度：</div>
+            <div class="diff-group">
+                <div id="btnDiffEasy" class="diff-btn" onclick="selectDifficulty('easy')">🌱 EASY</div>
+                <div id="btnDiffNormal" class="diff-btn active" onclick="selectDifficulty('normal')">🔥 NORMAL</div>
+                <div id="btnDiffTest" class="diff-btn" onclick="selectDifficulty('test')">🛠️ TEST</div>
+                <div id="btnDiffFreeze" class="diff-btn" onclick="selectDifficulty('freeze')">❄️ FREEZE</div>
+            </div>
+        </div>
+
+        <button class="voyage-btn" onclick="startVoyage()">
+            ✨ 啟程前往阿卡迪亞貓星 ✨
+        </button>
     </div>
 
-    <!-- 定格微調儀表板 -->
-    <div id="freezeTuner" style="display:none; position:absolute; right: 2%; top: 40%; width: 28%; min-width: 115px; z-index: 55; background: rgba(18, 5, 30, 0.95); border: 2px solid #00f0ff; border-radius: 10px; padding: 8px 6px; box-shadow: 0 0 20px rgba(0,240,255,0.5); text-align: center; font-family: monospace; user-select: none;">
-        <div style="color: #ff0077; font-size: 11px; font-weight: 900; letter-spacing: 1px;">❄️ 時光機校準儀</div>
-        <div id="freezeMsDisplay" style="color: #00ffcc; font-size: 15px; font-weight: 900; margin: 3px 0;">+0 ms</div>
-        <div id="freezeBeatDisplay" style="color: #ffd700; font-size: 11px; margin-bottom: 6px;">(+0.00 拍)</div>
+    <div id="battleHud">
+        <div>
+            <div style="font-size: 10px; color: #00ffcc;">ARCATDIA 5v</div>
+            <div style="font-size: 12px; font-weight: bold;">最大の愛</div>
+        </div>
+        <div id="scoreVal" class="hud-score">000000</div>
+        <button class="hud-pause-btn" onclick="pauseGame()">⏸ 暫停</button>
+    </div>
+
+    <div id="barInspectorHUD">
+        <div id="hudBarDisplay">BAR: 1 (第 1 拍) [A]</div>
+        <div id="hudMsDisplay">音樂絕對時間: 0 ms</div>
+    </div>
+
+    <div id="freezeTuner">
+        <div style="color:#00f0ff; font-weight:bold; font-size:10px; margin-bottom:4px;">❄️ 時光機校準儀</div>
+        <div id="freezeMsDisplay" style="color:#00ffcc; font-size:12px; font-weight:bold;">+0 ms</div>
+        <div id="freezeBeatDisplay" style="color:#aaa; font-size:9px; margin-bottom:6px;">(+0.00 拍)</div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 5px;">
-            <button onclick="seekBars(-4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">⏪ -4 Bar</button>
-            <button onclick="seekBars(4)" style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer; font-weight:bold;">+4 Bar ⏩</button>
-            <button onclick="seekBars(-1)" style="background: #222; border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer;">◀ -1 Bar</button>
-            <button onclick="seekBars(1)" style="background: #222; border: 1px solid #ffd700; color: #ffd700; font-size: 10px; border-radius: 4px; padding: 5px 0; cursor: pointer;">+1 Bar ▶</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:4px;">
+            <button onclick="seekBars(-4)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">⏪ -4 Bar</button>
+            <button onclick="seekBars(4)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">+4 Bar ⏩</button>
         </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px;">
-            <button onclick="stepFreezeMs(-50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">-50ms</button>
-            <button onclick="stepFreezeMs(50)" style="background: #1a1a1a; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer;">+50ms</button>
-            <button onclick="stepFreezeMs(-10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">-10ms</button>
-            <button onclick="stepFreezeMs(10)" style="background: rgba(0,240,255,0.2); border: 1px solid #00f0ff; color: #00f0ff; font-size: 10px; border-radius: 4px; padding: 4px 0; cursor: pointer; font-weight: bold;">+10ms</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:4px;">
+            <button onclick="seekBars(-1)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">◀ -1 Bar</button>
+            <button onclick="seekBars(1)" style="background:#222; border:1px solid #ffd700; color:#ffd700; font-size:9px; padding:4px; border-radius:3px;">+1 Bar ▶</button>
         </div>
-
-        <div style="display: flex; gap: 4px;">
-            <button id="btnFreezePlay" onclick="freezePlay()" style="flex: 1; background: #00ffcc; color: #000; border: none; font-size: 10px; font-weight: 900; padding: 6px 0; border-radius: 4px; cursor: pointer;">PLAY</button>
-            <button id="btnFreezePause" onclick="freezePause()" style="flex: 1; background: #ff0077; color: #fff; border: none; font-size: 10px; font-weight: 900; padding: 6px 0; border-radius: 4px; cursor: pointer;">PAUSE</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:4px;">
+            <button onclick="stepFreezeMs(-50)" style="background:#111; border:1px solid #444; color:#fff; font-size:8px; padding:3px; border-radius:3px;">-50ms</button>
+            <button onclick="stepFreezeMs(50)" style="background:#111; border:1px solid #444; color:#fff; font-size:8px; padding:3px; border-radius:3px;">+50ms</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:6px;">
+            <button onclick="stepFreezeMs(-10)" style="background:#111; border:1px solid #00f0ff; color:#00f0ff; font-size:8px; padding:3px; border-radius:3px;">-10ms</button>
+            <button onclick="stepFreezeMs(10)" style="background:#111; border:1px solid #00f0ff; color:#00f0ff; font-size:8px; padding:3px; border-radius:3px;">+10ms</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+            <button onclick="freezePlay()" style="background:#00ffcc; border:none; color:#000; font-weight:bold; font-size:9px; padding:5px; border-radius:3px;">PLAY</button>
+            <button onclick="freezePause()" style="background:#ff0055; border:none; color:#fff; font-weight:bold; font-size:9px; padding:5px; border-radius:3px;">PAUSE</button>
         </div>
     </div>
 
     <div id="judgementDisplay">PERFECT!</div>
     <div id="comboDisplay">0 COMBO</div>
 
-    <div class="touch-controller" id="touchController" style="display:none;">
-        <div class="touch-lane" id="lane0"><span>L1</span></div>
-        <div class="touch-lane" id="lane1"><span>L2</span></div>
-        <div class="touch-lane" id="lane2"><span>R1</span></div>
-        <div class="touch-lane" id="lane3"><span>R2</span></div>
+    <div id="touchController">
+        <div id="lane0" class="touch-lane" style="background:#ff0055;"></div>
+        <div id="lane1" class="touch-lane" style="background:#ccff00;"></div>
+        <div id="lane2" class="touch-lane" style="background:#00ccff;"></div>
+        <div id="lane3" class="touch-lane" style="background:#aa00ff;"></div>
     </div>
 
-    <!-- 封面 (點擊整個 content 都可直入整備室) -->
-    <div id="titleScreen" class="overlay-modal active" onclick="goToReadyRoom()">
-        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ffd700; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;" onclick="event.stopPropagation()">
-            <div style="padding:6px 10px; font-size:10px; color:#ffd700; pointer-events:none; font-weight:bold;">📁 換封面圖</div>
-            <input type="file" accept="image/*" onchange="handleUpload(event, 'title')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
-        </div>
+    <div id="pauseMenu" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:50; display:none; flex-direction:column; justify-content:center; align-items:center; gap:14px;">
+        <div style="font-size:22px; font-weight:900; color:#ffd700; margin-bottom:10px;">航行暫停</div>
+        <button onclick="resumeGame()" style="width:200px; padding:10px; background:#00ffcc; border:none; border-radius:20px; font-weight:bold; color:#000; font-size:13px; cursor:pointer;">▶ 繼續航行</button>
+        <button onclick="restartFromPause()" style="width:200px; padding:10px; background:#333; border:1px solid #666; border-radius:20px; font-weight:bold; color:#fff; font-size:13px; cursor:pointer;">🔄 重新起程</button>
+        <button onclick="returnToReadyRoom()" style="width:200px; padding:10px; background:#222; border:1px solid #ffd700; border-radius:20px; font-weight:bold; color:#ffd700; font-size:13px; cursor:pointer;">🚪 退回航行整備室</button>
+    </div>
+
+    <div id="resultModal">
+        <div style="font-size: 13px; color: #00ffcc; letter-spacing: 2px;">VOYAGE CLEAR</div>
+        <div style="font-size: 20px; font-weight: 900; margin: 4px 0 14px;">最大の愛</div>
         
-        <div class="title-content" style="background:transparent; box-shadow:none; backdrop-filter:none; margin-top: 10vh; cursor:pointer;">
-            <h1 class="game-logo" style="color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); font-size: 55px;">ARCATDIA</h1>
-            <p class="logo-sub blink-text" style="font-size: 20px; margin-top: 20px; color: #ffcc00; text-shadow: 0 0 15px rgba(255,204,0,0.9);">進入：阿卡迪亞 ~貓星宇宙🪐</p>
-            
-            <div style="margin-top: 60px; text-align: center; font-family: monospace;">
-                <div style="font-size: 15px; letter-spacing: 3px; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); font-weight: 900;">
-                    ✦ Hei'Dizai & Pちゃん ✦
-                </div>
-                <div style="font-size: 10px; letter-spacing: 1px; color: rgba(255, 215, 0, 0.5); margin-top: 8px;">
-                    © 2026 ARCATDIA PROJECT. 5v PRO EDITION.
-                </div>
-            </div>
+        <div id="rankBadge" style="font-size: 58px; font-weight: 900; color: #ffd700; line-height: 1;">S</div>
+        <div id="resScore" style="text-align: center; margin: 12px 0;">
+            <div style="font-size: 26px; color: #ffd700; font-weight: 900;">000000</div>
+            <div style="font-size: 16px; color: #00ffcc; font-weight: bold;">ACCURACY: 0.00%</div>
         </div>
+
+        <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 16px; width: 85%; max-width: 280px; font-size: 11px; display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px;">
+            <div style="display:flex; justify-content:space-between;"><span>MAX COMBO:</span><span id="resMaxCombo" style="color:#00ffcc; font-weight:bold;">0</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>PERFECT:</span><span id="resPerfect" style="color:#ffd700; font-weight:bold;">0</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>GREAT:</span><span id="resGreat" style="color:#00ffcc; font-weight:bold;">0</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>GOOD:</span><span id="resGood" style="color:#ffaa00; font-weight:bold;">0</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>MISS:</span><span id="resMiss" style="color:#ff0055; font-weight:bold;">0</span></div>
+        </div>
+
+        <div id="closeCountdown" style="font-size: 11px; color: #888;">點擊任意位置繼續航行</div>
     </div>
 
-    <!-- 航行整備室 -->
-    <div id="readyRoom" class="overlay-modal">
-        <div style="position:absolute; top:15px; right:15px; z-index:100; border:1px solid #ccff00; border-radius:6px; background:rgba(0,0,0,0.6); overflow:hidden;">
-            <div style="padding:6px 10px; font-size:10px; color:#fff; pointer-events:none;">📁 換候機圖</div>
-            <input type="file" accept="image/*" onchange="handleUpload(event, 'ready')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
-        </div>
-        <h2 class="room-title" style="color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.5);">🚀 航行整備室</h2>
-        <div class="ready-panel glass-card" style="background: rgba(0, 0, 0, 0.4); backdrop-filter: none; max-height: 82vh; overflow-y: auto;">
-            
-            <button id="toggleDrawerBtn" style="background:rgba(0,0,0,0.7); border:1px solid #ffd700; color:#ffd700; padding:8px 16px; border-radius:20px; margin-bottom:8px; cursor:pointer; font-weight:bold; width:100%; box-shadow:0 0 10px rgba(255,215,0,0.2);">
-                ⚙️ 整備工具箱 (入歌/改BPM/14房排程) ▼
-            </button>
-
-            <div id="readyRoomDrawer" style="display:none; background:rgba(8,14,26,0.95); border:1px solid #00f0ff; border-radius:10px; padding:12px; margin-bottom:12px; flex-direction:column; gap:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="color:#00f0ff; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(0,240,255,0.15); padding:6px 10px; border-radius:6px; border:1px solid #00f0ff;">
-                        🎵 載入 WAV
-                        <input type="file" id="dualWavInput" accept="audio/*" style="display:none;">
-                    </label>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <input type="number" id="manualBpmInput" value="175" style="width:50px; background:#000; color:#00ffcc; border:1px solid #00ffcc; border-radius:4px; padding:4px; font-weight:bold; text-align:center; font-size:12px;">
-                        <span style="color:#00ffcc; font-size:10px; font-weight:bold;">BPM</span>
-                    </div>
-                </div>
-                <div id="wavStatus" style="color:#888; font-size:10px; text-align:left;">雲端 WAV (最大の愛)</div>
-
-                <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
-
-                <div style="background: rgba(0,0,0,0.6); border: 1.5px solid #ffd700; border-radius: 8px; padding: 8px; max-height: 240px; overflow-y: auto;">
-                    <div style="color: #ffd700; font-size: 11px; font-weight: bold; margin-bottom: 6px; display:flex; justify-content:space-between;">
-                        <span>👗 14 間房音樂衫褲排程</span>
-                        <span style="color:#aaa; font-size:9px;">填 0 = 跳過該房</span>
-                    </div>
-                    
-                    <div style="display:grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 4px; font-size: 10px; color:#aaa; margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px;">
-                        <span>房間名稱 / 濾波款式</span><span>起步Bar</span><span>收尾Bar</span>
-                    </div>
-                    
-                    <div id="sectionRowsContainer" style="display:flex; flex-direction:column; gap: 4px; font-size: 11px;">
-                    </div>
-
-                    <button onclick="saveSongSections()" style="margin-top: 8px; width: 100%; background: linear-gradient(90deg, #ffd700, #ffaa00); border: none; color: #000; font-size: 11px; padding: 6px; border-radius: 4px; cursor: pointer; font-weight: 900;">
-                        💾 鎖定套用 14 間房排程
-                    </button>
-                </div>
-
-                <hr style="border:0; border-top:1px solid #1a2638; margin:2px 0;">
-
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="color:#ff0077; font-size:11px; font-weight:bold; cursor:pointer; background:rgba(255,0,119,0.15); padding:6px 10px; border-radius:6px; border:1px solid #ff0077;">
-                        📜 載入 MIDI/譜面
-                        <input type="file" id="dualMidiInput" accept=".json,.mid,.midi" style="display:none;">
-                    </label>
-                    <span id="midiStatus" style="color:#888; font-size:10px;">自動鋪譜</span>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label style="text-shadow: 1px 1px 3px #000;">選擇航行難度：</label>
-                <div class="option-row" style="display: flex; gap: 4px;">
-                    <button class="opt-btn diff-btn" id="btnDiffEasy" onclick="selectDifficulty('easy')">🌱 EASY</button>
-                    <button class="opt-btn diff-btn" id="btnDiffNormal" onclick="selectDifficulty('normal')">🔥 NORMAL</button>
-                    <button class="opt-btn diff-btn active" id="btnDiffTest" onclick="selectDifficulty('test')">🛠️ TEST</button>
-                    <button class="opt-btn diff-btn" id="btnDiffFreeze" onclick="selectDifficulty('freeze')" style="border-color: #00f0ff; color: #00f0ff;">❄️ FREEZE</button>
-                </div>
-            </div>
-            
-            <button class="launch-btn" onclick="startVoyage()">✨ 啟程前往阿卡迪亞貓星 ✨</button>
-            <button class="return-btn" onclick="returnToTitle()" style="background:rgba(0,0,0,0.5);">🔙 返回開頭封面</button>
-            
-            <div style="text-align:center; margin-top:12px; font-size:10px; letter-spacing:1px; color:rgba(255,215,0,0.6); font-family:monospace;">
-                PRODUCED BY Hei'Dizai & Pちゃん
-            </div>
-        </div>
-    </div>
-
-    <div id="pauseMenu" class="overlay-modal glass-panel">
-        <div class="pause-card glass-card">
-            <h2>⏸ 遊戲暫停中</h2>
-            <div class="slider-group">
-                <div class="slider-label-row"><span>🎵 BGM 歌曲音量</span><span id="valBgm">100%</span></div>
-                <input type="range" id="bgmSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateBgmVolume(this.value)">
-            </div>
-            <div class="slider-group">
-                <div class="slider-label-row"><span>🥁 SFX 打擊音量</span><span id="valSfx">100%</span></div>
-                <input type="range" id="sfxSlider" class="custom-slider" min="0" max="1" step="0.05" value="1.0" oninput="updateSfxVolume(this.value)">
-            </div>
-            <div style="background:rgba(0,0,0,0.5); padding:8px; border-radius:8px; border:1px dashed #ff0077;">
-                <div style="position:relative; overflow:hidden; background:rgba(255,0,119,0.3); border:1px solid #ff0077; border-radius:5px; margin-bottom:8px;">
-                    <div style="padding:6px; font-size:10px; color:#fff; pointer-events:none;">📁 戰鬥幻燈片 (可選多張)</div>
-                    <input type="file" accept="image/*" multiple onchange="handleUpload(event, 'battle')" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
-                </div>
-                <div style="text-align: left; font-size: 10px; color: #aaa; margin-bottom:3px;">🌗 戰鬥圖亮度控制：</div>
-                <input type="range" id="opacitySlider" class="custom-slider" min="0" max="100" value="100" oninput="updateSlideOpacity(this.value)">
-                <button onclick="saveSettings()" style="width:100%; font-size:11px; padding:6px; background:#00ffcc; color:#000; border:none; border-radius:5px; font-weight:900; cursor:pointer; margin-top:6px;">
-                    💾 SAVE (儲存所有相片及設定)
-                </button>
-            </div>
-            <div style="display: flex; gap: 6px;">
-                <button class="pause-opt-btn" onclick="togglePerspectiveMode()" style="flex:1; background:#aa00ff; color:#fff; border-color:#aa00ff;">📐 2D / 3D</button>
-                <button class="pause-opt-btn" onclick="toggleJudgeLineLevel()" style="flex:1; background:#00ccff; color:#000; border-color:#00ccff;">🎯 判定線</button>
-            </div>
-            <button class="pause-opt-btn" onclick="resumeGame()">▶ 繼續戰鬥</button>
-            <button class="pause-opt-btn" onclick="restartFromPause()">🔄 重新開始</button>
-            <button class="pause-opt-btn btn-exit" onclick="returnToReadyRoom()">🚪 退回航行整備室</button>
-        </div>
-    </div>
-
-    <div id="introScreen" class="overlay-modal glass-panel" style="background: rgba(3, 4, 10, 0.92); z-index: 60;">
-        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
-            <div id="introCoverBox" style="width: 220px; height: 220px; border-radius: 16px; border: 2px solid #00ffcc; box-shadow: 0 0 30px rgba(0,255,204,0.4); background-size: cover; background-position: center; margin-bottom: 20px;"></div>
-            <h2 id="introSongTitle" style="font-size: 28px; color: #ffd700; text-shadow: 0 0 15px #ffcc00; margin-bottom: 6px;">最大の愛</h2>
-            <p style="font-size: 13px; color: #ffd700; margin-bottom: 4px;">作曲 / 演奏：Hei'Dizai & Pちゃん</p>
-            <p id="introDifficultyText" style="font-size: 12px; color: #ffaa00; font-weight: 900; letter-spacing: 2px; margin-bottom: 25px;">DIFFICULTY: TEST ★★★★★</p>
-            <div id="introReadyText" class="blink-text" style="font-size: 32px; color: #00ffcc; font-weight: 900; letter-spacing: 4px;">READY...</div>
-        </div>
-    </div>
-
-    <div id="resultModal" class="overlay-modal glass-panel" style="background: rgba(2, 3, 8, 0.95); z-index: 70;">
-        <div class="glass-card" style="width: 90%; max-width: 440px; padding: 25px; text-align: center; border: 1.5px solid #ff0077; box-shadow: 0 0 40px rgba(255, 0, 119, 0.4);">
-            <div style="font-size: 13px; color: #00ffcc; letter-spacing: 3px; font-weight: 900;">VOYAGE STAGE CLEAR</div>
-            <h2 style="font-size: 24px; margin: 6px 0 15px 0; color: #fff;">最大の愛</h2>
-
-            <div id="rankBadge" style="font-size: 75px; font-weight: 900; margin: 10px 0; text-shadow: 0 0 35px #ffcc00; color: #ffcc00;">SS</div>
-
-            <div style="background: rgba(0,0,0,0.6); padding: 12px 18px; border-radius: 12px; margin: 15px 0; font-size: 14px; text-align: left; border: 1px solid rgba(255,255,255,0.1);">
-                <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
-                    <span style="color:#aaa;">FINAL SCORE</span><span id="resScore" style="color:#ffcc00; font-weight:900; font-size: 18px;">0</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
-                    <span style="color:#aaa;">MAX COMBO</span><span id="resMaxCombo" style="color:#00ffcc; font-weight:900;">0</span>
-                </div>
-                <hr style="border:0; border-top:1px solid #222; margin: 8px 0;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px;">
-                    <div>PERFECT: <span id="resPerfect" style="color:#fff; font-weight:900;">0</span></div>
-                    <div>GREAT: <span id="resGreat" style="color:#00e5ff; font-weight:900;">0</span></div>
-                    <div>GOOD: <span id="resGood" style="color:#76ff03; font-weight:900;">0</span></div>
-                    <div>MISS: <span id="resMiss" style="color:#ff1744; font-weight:900;">0</span></div>
-                </div>
-            </div>
-
-            <div id="stickerBox" style="background: linear-gradient(135deg, rgba(255,0,119,0.2), rgba(0,255,204,0.2)); border: 1.5px dashed #00ffcc; border-radius: 10px; padding: 10px; margin-bottom: 15px;">
-                <div style="font-size: 11px; color: #ffcc00;">✨ 解鎖絕版紀念貼紙：</div>
-                <div style="font-size: 14px; font-weight: 900; color: #fff; margin-top: 3px;">🐾【NO.001 啟程之星·阿卡迪亞貓爪印】</div>
-            </div>
-
-            <button class="launch-btn" id="btnReturnRoomNow" onclick="returnFromResults()" style="width: 100%; margin-top: 5px;">
-                返回航行整備室 (<span id="closeCountdown">3</span>s)
-            </button>
-        </div>
-    </div>
-</div>
-
-<script src="app.js"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+    <script src="app.js"></script>
 </body>
 </html>
